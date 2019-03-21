@@ -11,17 +11,17 @@ pub mod schema {
         use diesel::sql_types::*;
 
         // Needs to be kept in sync with the database schema
-        rudder_sys_events {
+        ruddersysevents {
             id -> BigInt,
-            executionDate -> Timestamptz,
-            nodeId -> Text,
-            directiveId -> Text,
-            ruleId -> Text,
+            executiondate -> Timestamptz,
+            nodeid -> Text,
+            directiveid -> Text,
+            ruleid -> Text,
             serial -> Integer,
             component -> Text,
-            keyValue -> Nullable<Text>,
-            executionTimeStamp -> Nullable<Timestamptz>,
-            eventType -> Nullable<Text>,
+            keyvalue -> Nullable<Text>,
+            executiontimestamp -> Nullable<Timestamptz>,
+            eventtype -> Nullable<Text>,
             policy -> Nullable<Text>,
             msg -> Nullable<Text>,
         }
@@ -38,12 +38,14 @@ pub fn pg_pool(configuration: &DatabaseConfig) -> Result<PgPool, Error> {
 }
 
 pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
-    use self::schema::rudder_sys_events::dsl::*;
+    use self::schema::ruddersysevents::dsl::*;
+
+    // TODO test presence of runlog before inserting
 
     let connection = &*pool.get()?;
     connection.transaction::<_, Error, _>(|| {
         for report in &runlog.reports {
-            insert_into(rudder_sys_events)
+            insert_into(ruddersysevents)
                 .values(report)
                 .execute(connection)?;
         }

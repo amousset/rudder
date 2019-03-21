@@ -1,5 +1,7 @@
 use crate::{
-    configuration::{InventoryOutputSelect, ReportingOutputSelect, WatchedDirectory},
+    configuration::{
+        CatchupConfig, InventoryOutputSelect, ReportingOutputSelect, WatchedDirectory,
+    },
     data::reporting::RunLog,
     error::Error,
     output::database::insert_runlog,
@@ -31,7 +33,11 @@ pub type ReceivedFile = PathBuf;
 
 pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     let (reporting_tx, reporting_rx) = mpsc::channel(1_024);
-    tokio::spawn(treat_reports(job_config.clone(), reporting_rx, stats.clone()));
+    tokio::spawn(treat_reports(
+        job_config.clone(),
+        reporting_rx,
+        stats.clone(),
+    ));
     watch(
         &job_config
             .clone()
@@ -40,6 +46,7 @@ pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
             .reporting
             .directory
             .join("incoming"),
+        job_config.clone(),
         &reporting_tx,
     );
 
@@ -53,6 +60,7 @@ pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
             .inventory
             .directory
             .join("incoming"),
+        job_config.clone(),
         &inventory_tx,
     );
     watch(
@@ -63,6 +71,7 @@ pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
             .inventory
             .directory
             .join("accepted-nodes-updates"),
+        job_config.clone(),
         &inventory_tx,
     );
 }
@@ -115,21 +124,28 @@ fn treat_inventories(
     })
 }
 
-fn watch(path: &WatchedDirectory, tx: &mpsc::Sender<ReceivedFile>) {
+fn watch(path: &WatchedDirectory, job_config: Arc<JobConfig>, tx: &mpsc::Sender<ReceivedFile>) {
     info!("Starting file watcher on {:#?}", &path; "component" => "watcher");
     // Try to create target dir
     create_dir_all(path).expect("Could not create watched directory");
-    tokio::spawn(list_files(path.clone(), tx.clone()));
-    tokio::spawn(watch_files(path.clone(), tx.clone()));
+    tokio::spawn(list_files(
+        path.clone(),
+        job_config.cfg.processing.reporting.catchup,
+        tx.clone(),
+    ));
+    //tokio::spawn(watch_files(path.clone(), tx.clone()));
 }
 
 fn list_files(
     path: WatchedDirectory,
+    cfg: CatchupConfig,
     tx: mpsc::Sender<ReceivedFile>,
 ) -> impl Future<Item = (), Error = ()> {
-    Interval::new(Instant::now(), Duration::from_secs(1))
+    Interval::new(Instant::now(), Duration::from_secs(cfg.frequency))
         .map_err(|e| warn!("interval error: {}", e; "component" => "watcher"))
         .for_each(move |_instant| {
+            debug!("listing {:?}", path; "component" => "watcher");
+
             let tx = tx.clone();
             let sys_time = SystemTime::now();
 
@@ -137,12 +153,12 @@ fn list_files(
             read_dir(path.clone())
                 .flatten_stream()
                 .take(50)
-                .map_err(|_| ())
+                .map_err(|e| warn!("list error: {}", e; "component" => "watcher"))
                 .filter(move |entry| {
                     poll_fn(move || entry.poll_metadata())
                         .map(|metadata| metadata.modified().unwrap())
                         .map(|modified| sys_time.duration_since(modified).unwrap())
-                        .map(|duration| duration > Duration::from_secs(60))
+                        .map(|duration| duration > Duration::from_secs(cfg.limit))
                         .map_err(|_| false)
                         // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
                         .wait()
@@ -239,11 +255,13 @@ mod tests {
 
     #[test]
     fn it_watches_files() {
-        create_dir_all("tests/test_watch").unwrap();
-        let _ = remove_file("tests/test_watch/foo.log");
+        // TODO improve tmp dir handling
+        create_dir_all("tests/tmp/test_watch").unwrap();
+        // just in case
+        let _ = remove_file("tests/tmp/test_watch/foo.log");
 
-        let watch = watch_stream(PathBuf::from_str("tests/test_watch").unwrap());
-        File::create("tests/test_watch/foo.log").unwrap();
+        let watch = watch_stream(PathBuf::from_str("tests/tmp/test_watch").unwrap());
+        File::create("tests/tmp/test_watch/foo.log").unwrap();
         let events = watch.take(1).wait().collect::<Vec<_>>();
 
         assert_eq!(events.len(), 1);
@@ -256,5 +274,8 @@ mod tests {
                 );
             }
         }
+
+        // cleanup
+        let _ = remove_file("tests/tmp/test_watch/foo.log");
     }
 }

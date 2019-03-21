@@ -1,4 +1,4 @@
-use crate::{data::nodes::NodeId, error::Error, output::database::schema::rudder_sys_events};
+use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -11,26 +11,26 @@ use std::{
 };
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Insertable)]
-#[table_name = "rudder_sys_events"]
+#[table_name = "ruddersysevents"]
 pub struct Report {
-    #[column_name = "executionDate"]
+    #[column_name = "executiondate"]
     pub start_datetime: DateTime<FixedOffset>,
-    #[column_name = "ruleId"]
+    #[column_name = "ruleid"]
     pub rule_id: String,
-    #[column_name = "directiveId"]
+    #[column_name = "directiveid"]
     pub directive_id: String,
     pub component: String,
-    #[column_name = "keyValue"]
+    #[column_name = "keyvalue"]
     pub key_value: String,
-    #[column_name = "eventType"]
+    #[column_name = "eventtype"]
     pub event_type: String,
     #[column_name = "msg"]
     pub msg: String,
     #[column_name = "policy"]
     pub policy: String,
-    #[column_name = "nodeId"]
+    #[column_name = "nodeid"]
     pub node_id: NodeId,
-    #[column_name = "executionTimeStamp"]
+    #[column_name = "executiontimestamp"]
     pub execution_datetime: DateTime<FixedOffset>,
     pub serial: i32,
 }

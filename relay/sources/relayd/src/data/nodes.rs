@@ -28,7 +28,7 @@ mod tests {
 
     #[test]
     fn test_parse_nodeslist() {
-        let list = read_to_string("tests/nodeslist.json").unwrap();
+        let list = read_to_string("tests/files/nodeslist.json").unwrap();
         let nodeslist = parse_nodeslist(&list).unwrap();
         assert_eq!(nodeslist["root"].hostname, "server.rudder.local");
     }

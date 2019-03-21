@@ -1,8 +1,6 @@
 use crate::{data::nodes::NodeId, error::Error};
 use serde::Deserialize;
-use slog::slog_debug;
 use slog::Level;
-use slog_scope::debug;
 use std::net::SocketAddr;
 use std::{collections::HashSet, path::PathBuf};
 use toml;
@@ -25,7 +23,6 @@ pub struct Configuration {
 impl Configuration {
     pub fn read_configuration(configuration: &str) -> Result<Configuration, Error> {
         let cfg = toml::from_str(configuration)?;
-        debug!("Read configuration:\n{:#?}", cfg);
         Ok(cfg)
     }
 }
@@ -37,10 +34,10 @@ pub struct GeneralConfig {
     pub listen: SocketAddr,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq, Copy, Clone)]
 pub struct CatchupConfig {
-    pub frequency: u32,
-    pub limit: u32,
+    pub frequency: u64,
+    pub limit: u64,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -148,7 +145,7 @@ mod tests {
     #[test]
     fn test_configuration() {
         let config =
-            Configuration::read_configuration(&read_to_string("tests/relayd.conf").unwrap());
+            Configuration::read_configuration(&read_to_string("tests/files/relayd.conf").unwrap());
 
         let mut root_set = HashSet::new();
         root_set.insert("root".to_string());
@@ -169,7 +166,7 @@ mod tests {
                 },
                 reporting: ReportingConfig {
                     directory: PathBuf::from("tests/runlogs/"),
-                    output: ReportingOutputSelect::Upstream,
+                    output: ReportingOutputSelect::Database,
                     catchup: CatchupConfig {
                         frequency: 10,
                         limit: 50,
@@ -181,7 +178,7 @@ mod tests {
                     url: "https://127.0.0.1:8080".to_string(),
                 },
                 database: DatabaseConfig {
-                    url: "postgres://rudder:PASSWORD@127.0.0.1/rudder".to_string(),
+                    url: "postgres://rudderreports:PASSWORD@127.0.0.1/rudder".to_string(),
                     max_pool_size: 5,
                 },
             },

@@ -15,6 +15,6 @@ pub fn api(
         warp::path("stats").map(move || warp::reply::json(&(*stats.clone().read().unwrap())));
     let routes = warp::get2().and(stats_simple);
     let (addr, server) = warp::serve(routes).bind_with_graceful_shutdown(listen, shutdown);
-    info!("Started stats API on {}", addr);
+    info!("Started stats API on {}", addr; "component" => "statistics");
     server
 }

@@ -144,6 +144,7 @@ pub fn start() -> Result<(), Error> {
             info!("Signal received: reload requested");
             let cfg = load_configuration(&cli_cfg.configuration_file.clone())
                 .expect("Could not reload config");
+            debug!("Parsed configuration:\n{:#?}", &cfg);
             load_loggers(&ctrl, &cfg.logging);
             // TODO reload nodeslist
             Ok(())
