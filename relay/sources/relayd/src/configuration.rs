@@ -93,26 +93,17 @@ pub struct UpstreamConfig {
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct LogConfig {
     pub general: LoggerConfig,
-    //    pub performance: LoggerConfig,
-    //    pub parsing: LoggerConfig,
-    //    pub processing: LoggerConfig,
 }
 
 #[serde(remote = "Level")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
-    /// Critical
     Critical,
-    /// Error
     Error,
-    /// Warning
     Warning,
-    /// Info
     Info,
-    /// Debug
     Debug,
-    /// Trace
     Trace,
 }
 

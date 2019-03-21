@@ -6,13 +6,13 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 pub struct Stats {
-    pub report_received: u32,
-    pub report_refused: u32,
-    pub report_sent: u32,
-    pub report_inserted: u32,
-    pub inventory_received: u32,
-    pub inventory_refused: u32,
-    pub inventory_sent: u32,
+    pub report_received: u64,
+    pub report_refused: u64,
+    pub report_sent: u64,
+    pub report_inserted: u64,
+    pub inventory_received: u64,
+    pub inventory_refused: u64,
+    pub inventory_sent: u64,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

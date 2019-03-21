@@ -128,12 +128,12 @@ fn watch(path: &WatchedDirectory, job_config: Arc<JobConfig>, tx: &mpsc::Sender<
     info!("Starting file watcher on {:#?}", &path; "component" => "watcher");
     // Try to create target dir
     create_dir_all(path).expect("Could not create watched directory");
-    tokio::spawn(list_files(
+    /*tokio::spawn(list_files(
         path.clone(),
         job_config.cfg.processing.reporting.catchup,
         tx.clone(),
-    ));
-    //tokio::spawn(watch_files(path.clone(), tx.clone()));
+    ));*/
+    tokio::spawn(watch_files(path.clone(), tx.clone()));
 }
 
 fn list_files(
@@ -159,7 +159,8 @@ fn list_files(
                         .map(|metadata| metadata.modified().unwrap())
                         .map(|modified| sys_time.duration_since(modified).unwrap())
                         .map(|duration| duration > Duration::from_secs(cfg.limit))
-                        .map_err(|_| false)
+                        .map_err(|e| warn!("list filter error: {}", e; "component" => "watcher"))
+                        .or_else(|()| -> Result<bool, ()> { Ok(false) })
                         // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
                         .wait()
                         .unwrap()
@@ -175,18 +176,14 @@ fn list_files(
         })
 }
 
-fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<[u8; 32]> {
-    let watch_directory = path;
-
-    // Watch new files
+fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<[u8; 32]> {    // Watch new files
     let mut inotify = Inotify::init().expect("Could not initialize inotify");
     inotify
         .add_watch(
-            watch_directory.clone(),
+            path.clone(),
             WatchMask::CREATE | WatchMask::MODIFY,
         )
         .expect("Could not watch with inotify");
-
     inotify.event_stream([0; 32])
 }
 
@@ -196,14 +193,14 @@ fn watch_files(
 ) -> impl Future<Item = (), Error = ()> {
     watch_stream(path)
         .map_err(|e| {
-            warn!("send error: {}", e; "component" => "watcher");
+            warn!("watch error: {}", e; "component" => "watcher");
         })
         .for_each(move |entry| {
             let path = entry.name.map(PathBuf::from).unwrap();
 
             tx.clone()
                 .send(path)
-                .map_err(|e| warn!("send error: {}", e; "component" => "watcher"))
+                .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
                 .map(|_| ())
         })
 }
