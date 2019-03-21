@@ -16,7 +16,7 @@ lint:
 	RUSTFLAGS="-D warnings" cargo clippy --all-targets --all-features --examples --tests -- -D clippy::all
 
 install: clean lint audit
-	cargo install --path=. --root=$(DESTDIR)
+	cargo install --bin relayd --path=. --root=$(DESTDIR)
 
 build-env:
 	curl https://sh.rustup.rs -sSf | sh
