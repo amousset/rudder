@@ -10,7 +10,7 @@ pub struct CliConfiguration {
 pub fn parse() -> CliConfiguration {
     let matches = App::new("relayd")
         .version(crate_version!())
-        .author("Rudder team")
+        .author("Rudder team <dev@rudder.io>")
         .about("Rudder relay server")
         .arg(
             Arg::with_name("config")

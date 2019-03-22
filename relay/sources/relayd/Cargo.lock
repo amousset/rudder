@@ -882,7 +882,7 @@ dependencies = [
 
 [[package]]
 name = "relayd"
-version = "0.0.1"
+version = "5.1.0-alpha1"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
