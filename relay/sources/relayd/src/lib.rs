@@ -99,7 +99,7 @@ pub fn start() -> Result<(), Error> {
     // Make sure to save the guard
     let _guard = slog_scope::set_global_logger(log);
     // Integrate libs using standard log crate
-    slog_stdlog::init().unwrap();
+    slog_stdlog::init().expect("Could not initialize standard logging");
 
     // ---- Process cli arguments ----
 

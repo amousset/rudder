@@ -11,6 +11,7 @@ pub fn api(
     shutdown: impl Future<Item = ()> + Send + 'static,
     stats: Arc<RwLock<Stats>>,
 ) -> impl Future<Item = (), Error = ()> {
+    // TODO remove unwrap
     let stats_simple =
         warp::path("stats").map(move || warp::reply::json(&(*stats.clone().read().unwrap())));
     let routes = warp::get2().and(stats_simple);

@@ -149,34 +149,35 @@ fn list_files(
             let tx = tx.clone();
             let sys_time = SystemTime::now();
 
-            // TODO make max read number configurable
             read_dir(path.clone())
                 .flatten_stream()
-                .take(50)
+                .take(cfg.limit)
                 .map_err(|e| warn!("list error: {}", e; "component" => "watcher"))
                 .filter(move |entry| {
                     poll_fn(move || entry.poll_metadata())
-                        .map(|metadata| metadata.modified().unwrap())
-                        .map(|modified| sys_time.duration_since(modified).unwrap())
-                        .map(|duration| duration > Duration::from_secs(cfg.limit))
+                        // If metadata can't be fetched, skip it for now
+                        .map(|metadata| metadata.modified().unwrap_or(sys_time))
+                        // An error indicates a file in the future, let's approximate it to now
+                        .map(|modified| sys_time.duration_since(modified).unwrap_or_else(|_| Duration::new(0, 0)))
+                        .map(|duration| duration > Duration::from_secs(30))
                         .map_err(|e| warn!("list filter error: {}", e; "component" => "watcher"))
-                        .or_else(|()| -> Result<bool, ()> { Ok(false) })
                         // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
                         .wait()
-                        .unwrap()
+                        .unwrap_or(false)
                 })
                 .for_each(move |entry| {
                     let path = entry.path();
                     debug!("list: {:?}", path; "component" => "watcher");
                     tx.clone()
                         .send(path)
-                        .map_err(|e| warn!("list errored: {}", e; "component" => "watcher"))
+                        .map_err(|e| warn!("list error: {}", e; "component" => "watcher"))
                         .map(|_| ())
                 })
         })
 }
 
-fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> {    // Watch new files
+fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> { 
+    // https://github.com/linkerd/linkerd2-proxy/blob/c54377fe097208071a88d7b27501faa54ca212b0/lib/fs-watch/src/lib.rs#L189
     let mut inotify = Inotify::init().expect("Could not initialize inotify");
     inotify
         .add_watch(
@@ -195,13 +196,16 @@ fn watch_files(
         .map_err(|e| {
             warn!("watch error: {}", e; "component" => "watcher");
         })
+        .map(|entry| entry.name)
+        // If it is None, it means it is not an event on a file in the directory, skipping
+        .filter(|entry| entry.is_some())
+        .map(|entry| entry.expect("inotify entry has no name"))
+        .map(PathBuf::from)
         .for_each(move |entry| {
-            let path = entry.name.map(PathBuf::from).unwrap();
-
-            tx.clone()
-                .send(path)
-                .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
-                .map(|_| ())
+                tx.clone()
+                    .send(entry)
+                    .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
+                    .map(|_| ())
         })
 }
 
@@ -222,7 +226,7 @@ fn insert(
                     .expect("output uses database but no config provided"),
                 &runlog,
             )
-            .unwrap();
+            .map_err(|e| warn!("parse error: {}", e; "component" => "parser"))
         })
         .and_then(|_| {
             stats
