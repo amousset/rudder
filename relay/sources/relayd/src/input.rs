@@ -176,7 +176,7 @@ fn list_files(
         })
 }
 
-fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<[u8; 32]> {    // Watch new files
+fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> {    // Watch new files
     let mut inotify = Inotify::init().expect("Could not initialize inotify");
     inotify
         .add_watch(
@@ -184,7 +184,7 @@ fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<[u8; 32]> {    /
             WatchMask::CREATE | WatchMask::MODIFY,
         )
         .expect("Could not watch with inotify");
-    inotify.event_stream([0; 32])
+    inotify.event_stream(Vec::from(&[0; 2048][..]))
 }
 
 fn watch_files(
@@ -255,10 +255,10 @@ mod tests {
         // TODO improve tmp dir handling
         create_dir_all("tests/tmp/test_watch").unwrap();
         // just in case
-        let _ = remove_file("tests/tmp/test_watch/foo.log");
+        let _ = remove_file("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
 
         let watch = watch_stream(PathBuf::from_str("tests/tmp/test_watch").unwrap());
-        File::create("tests/tmp/test_watch/foo.log").unwrap();
+        File::create("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log").unwrap();
         let events = watch.take(1).wait().collect::<Vec<_>>();
 
         assert_eq!(events.len(), 1);
@@ -267,12 +267,12 @@ mod tests {
             if let Ok(event) = event {
                 assert_eq!(
                     event.name.map(PathBuf::from).unwrap(),
-                    PathBuf::from_str("foo.log").unwrap()
+                    PathBuf::from_str("2019-01-24T15:55:01+00:00@root.log").unwrap()
                 );
             }
         }
 
         // cleanup
-        let _ = remove_file("tests/tmp/test_watch/foo.log");
+        let _ = remove_file("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
     }
 }
