@@ -142,13 +142,13 @@ mod tests {
         root_set.insert("root".to_string());
         let reference = Configuration {
             general: GeneralConfig {
-                nodes_list_file: PathBuf::from("tests/nodeslist.json"),
+                nodes_list_file: PathBuf::from("tests/files/nodeslist.json"),
                 node_id: "root".to_string(),
                 listen: "127.0.0.1:3030".parse().unwrap(),
             },
             processing: ProcessingConfig {
                 inventory: InventoryConfig {
-                    directory: PathBuf::from("tests/inventories/"),
+                    directory: PathBuf::from("tests/tmp/inventories/"),
                     output: InventoryOutputSelect::Upstream,
                     catchup: CatchupConfig {
                         frequency: 10,
@@ -156,7 +156,7 @@ mod tests {
                     },
                 },
                 reporting: ReportingConfig {
-                    directory: PathBuf::from("tests/runlogs/"),
+                    directory: PathBuf::from("tests/tmp/runlogs/"),
                     output: ReportingOutputSelect::Database,
                     catchup: CatchupConfig {
                         frequency: 10,

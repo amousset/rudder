@@ -128,11 +128,11 @@ fn watch(path: &WatchedDirectory, job_config: Arc<JobConfig>, tx: &mpsc::Sender<
     info!("Starting file watcher on {:#?}", &path; "component" => "watcher");
     // Try to create target dir
     create_dir_all(path).expect("Could not create watched directory");
-    /*tokio::spawn(list_files(
+    tokio::spawn(list_files(
         path.clone(),
         job_config.cfg.processing.reporting.catchup,
         tx.clone(),
-    ));*/
+    ));
     tokio::spawn(watch_files(path.clone(), tx.clone()));
 }
 
