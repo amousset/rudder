@@ -158,7 +158,11 @@ fn list_files(
                         // If metadata can't be fetched, skip it for now
                         .map(|metadata| metadata.modified().unwrap_or(sys_time))
                         // An error indicates a file in the future, let's approximate it to now
-                        .map(|modified| sys_time.duration_since(modified).unwrap_or_else(|_| Duration::new(0, 0)))
+                        .map(|modified| {
+                            sys_time
+                                .duration_since(modified)
+                                .unwrap_or_else(|_| Duration::new(0, 0))
+                        })
                         .map(|duration| duration > Duration::from_secs(30))
                         .map_err(|e| warn!("list filter error: {}", e; "component" => "watcher"))
                         // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
@@ -176,14 +180,11 @@ fn list_files(
         })
 }
 
-fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> { 
+fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> {
     // https://github.com/linkerd/linkerd2-proxy/blob/c54377fe097208071a88d7b27501faa54ca212b0/lib/fs-watch/src/lib.rs#L189
     let mut inotify = Inotify::init().expect("Could not initialize inotify");
     inotify
-        .add_watch(
-            path.clone(),
-            WatchMask::CREATE | WatchMask::MODIFY,
-        )
+        .add_watch(path.clone(), WatchMask::CREATE | WatchMask::MODIFY)
         .expect("Could not watch with inotify");
     inotify.event_stream(Vec::from(&[0; 2048][..]))
 }
@@ -202,10 +203,10 @@ fn watch_files(
         .map(|entry| entry.expect("inotify entry has no name"))
         .map(PathBuf::from)
         .for_each(move |entry| {
-                tx.clone()
-                    .send(entry)
-                    .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
-                    .map(|_| ())
+            tx.clone()
+                .send(entry)
+                .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
+                .map(|_| ())
         })
 }
 
