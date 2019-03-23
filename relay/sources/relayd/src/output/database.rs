@@ -54,7 +54,7 @@ pub mod schema {
             eventtype -> Nullable<Text>,
             policy -> Nullable<Text>,
             msg -> Nullable<Text>,
-            //detail -> Nullable<Text>,
+            detail -> Nullable<Text>,
         }
     }
 }

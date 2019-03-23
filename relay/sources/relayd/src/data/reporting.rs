@@ -56,6 +56,8 @@ pub struct Report {
     pub event_type: String,
     #[column_name = "msg"]
     pub msg: String,
+    #[column_name = "detail"]
+    pub detail: Option<String>,
     #[column_name = "policy"]
     pub policy: String,
     #[column_name = "nodeid"]
@@ -85,7 +87,7 @@ impl Display for Report {
             self.key_value,
             self.start_datetime,
             self.node_id,
-            self.msg
+            self.msg,
         )
     }
 }
@@ -126,6 +128,15 @@ impl FromStr for RunInfo {
         Ok(report)
     }
 }
+/*
+        "CRITICAL"
+        "   error"
+        " warning"
+        "  notice"
+        "    info"
+        " verbose"
+        "   debug"
+*/
 
 impl FromStr for Report {
     type Err = Error;
@@ -156,6 +167,7 @@ impl FromStr for Report {
             key_value: cap["key_value"].into(),
             event_type: cap["report_type"].into(),
             msg: cap["msg"].into(),
+            detail: None,
             policy: cap["policy"].into(),
             serial: cap["serial"].parse::<i32>()?,
         };
@@ -246,6 +258,8 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
+                                    detail: None,
+
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
                     "%Y-%m-%d %H:%M:%S%z"
@@ -273,6 +287,8 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
+                                    detail: None,
+
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
                     "%Y-%m-%d %H:%M:%S%z"
@@ -305,6 +321,7 @@ mod tests {
                     policy: "Common".into(),
                     node_id: "root".into(),
                     serial: 0,
+                    detail: None,
                     execution_datetime: DateTime::parse_from_str(
                         "2018-08-24 15:55:01+00:00",
                         "%Y-%m-%d %H:%M:%S%z"
