@@ -31,6 +31,8 @@
 use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
 use lazy_static::lazy_static;
+use nom::types::CompleteStr;
+use nom::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use slog::{slog_debug, slog_trace, slog_warn};
@@ -39,6 +41,127 @@ use std::{
     fmt::{self, Display},
     str::FromStr,
 };
+
+/*
+"^@@(?P<policy>.*)@@(?P<event_type>.*)@@(?P<rule_id>.*)@@(?P<directive_id>.*)@@(?P<serial>.*)@@
+(?P<component>.*)@@(?P<key_value>.*)@@(?P<start_datetime>.*)##(?P<node_id>.*)@#(?s)(?P<msg>.*)$"
+*/
+
+/*
+impl FromStr for RunInfo {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+
+        }
+    }
+}
+*/
+
+// A detail log entry
+struct LogEntry {
+    Level: AgentLogLevel,
+    Message: String,
+}
+
+type AgentLogLevel = &'static str;
+
+named!(
+    agent_log_level<Option<AgentLogLevel>>,
+    opt!(alt!(
+        // CFEngine logs
+        tag_s!("CRITICAL:")   => { |_| "log_warn" }  |
+        tag_s!("   error:")   => { |_| "log_warn" }  |
+        tag_s!(" warning:")   => { |_| "log_warn" }  |
+        tag_s!("  notice:")   => { |_| "log_info" }  |
+        tag_s!("    info:")   => { |_| "log_info" }  |
+        tag_s!(" verbose:")   => { |_| "log_debug" } |
+        tag_s!("   debug:")   => { |_| "log_debug" } |
+        // ncf logs
+        tag_s!("R: [FATAL]")  => { |_| "log_warn" }  |
+        tag_s!("R: [ERROR]")  => { |_| "log_warn" }  |
+        tag_s!("R: [INFO]")   => { |_| "log_info" }  |
+        tag_s!("R: [DEBUG]")  => { |_| "log_debug" } |
+        // ncf non-standard log
+        tag_s!("R: WARNING")  => { |_| "log_warn" }  |
+        // CFEngine stdlib log
+        tag_s!("R: DEBUG")    => { |_| "log_debug" } |
+        // Untagged non-Rudder reports report, assume info
+        tag_s!("R: ")         => { |_| "log_info" }
+        // TODO R: not @@
+    ))
+);
+
+fn is_space(chr: char) -> bool {
+    chr == ' ' || chr == '\t'
+}
+named!(space<CompleteStr,CompleteStr>, take_while_s!(is_space));
+
+named!(log_entry<CompleteStr, LogEntry>,
+    do_parse!(
+               tag_s!("") >>
+        level: agent_log_level >>
+               opt!(space) >>
+        message: take_till_s!(is_line_ending_or_comment) >>
+    )
+);
+
+named!(runlog<CompleteStr, Vec<Report>>,
+    many1!(
+        alt!(
+            report |
+            log_entry
+        )
+    )
+);
+
+named!(report_entry<CompleteStr, CompleteStr>,
+  is_not_s!("\n\r")
+);
+
+named!(
+    check<u32>,
+    verify!(nom::be_u32, |val: u32| val >= 0 && val < 3)
+);
+
+named!(report<CompleteStr, Report>, do_parse!(
+    // TODO NOT CORRECT
+    // pas de line break dans une ligne
+    detail: take_until_and_consume_s!("R: @@") >>
+    policy: take_until_and_consume_s!("@@") >>
+    event_type: take_until_and_consume_s!("@@") >>
+    rule_id: take_until_and_consume_s!("@@") >>
+    directive_id: take_until_and_consume_s!("@@") >>
+    serial: take_until_and_consume_s!("@@") >>
+    component: take_until_and_consume_s!("@@") >>
+    key_value: take_until_and_consume_s!("@@") >>
+    start_datetime: take_until_and_consume_s!("##") >>
+    node_id: take_until_and_consume_s!("@#") >>
+    msg: map!(take_until_s!("\n")|String::from) >>
+        (Report {
+           // FIXME execution date should be generated at execution
+            execution_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            node_id: node_id.map(String::from),
+            rule_id: rule_id.map(String::from),
+            directive_id: directive_id.map(String::from),
+            serial: serial.parse::<i32>().unwrap(),
+            component: component.map(String::from),
+            key_value: key_value.map(String::from),
+            start_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            event_type: event_type.map(String::from),
+            msg: msg.map(String::from),
+            policy: policy.map(String::from),
+        })
+));
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RawReport {
+    result_report: Report,
+    log_entries: Vec<LogEntry>,
+}
+
+// Impl from between the 2
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Insertable)]
 #[table_name = "ruddersysevents"]
@@ -52,12 +175,11 @@ pub struct Report {
     pub component: String,
     #[column_name = "keyvalue"]
     pub key_value: String,
+    // Not parsed as we do not use it and do not want to prevent future changes
     #[column_name = "eventtype"]
     pub event_type: String,
     #[column_name = "msg"]
     pub msg: String,
-    #[column_name = "detail"]
-    pub detail: Option<String>,
     #[column_name = "policy"]
     pub policy: String,
     #[column_name = "nodeid"]
@@ -97,7 +219,6 @@ impl Display for RunLog {
         for report in &self.reports {
             writeln!(f, "R: {:}", report)?
         }
-
         Ok(())
     }
 }
@@ -128,15 +249,6 @@ impl FromStr for RunInfo {
         Ok(report)
     }
 }
-/*
-        "CRITICAL"
-        "   error"
-        " warning"
-        "  notice"
-        "    info"
-        " verbose"
-        "   debug"
-*/
 
 impl FromStr for Report {
     type Err = Error;
@@ -167,7 +279,7 @@ impl FromStr for Report {
             key_value: cap["key_value"].into(),
             event_type: cap["report_type"].into(),
             msg: cap["msg"].into(),
-            detail: None,
+            detail: "".into(),
             policy: cap["policy"].into(),
             serial: cap["serial"].parse::<i32>()?,
         };
@@ -258,7 +370,7 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
-                                    detail: None,
+                detail: "".into(),
 
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
@@ -287,7 +399,7 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
-                                    detail: None,
+                detail: "".into(),
 
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
@@ -321,7 +433,7 @@ mod tests {
                     policy: "Common".into(),
                     node_id: "root".into(),
                     serial: 0,
-                    detail: None,
+                    detail: "".into(),
                     execution_datetime: DateTime::parse_from_str(
                         "2018-08-24 15:55:01+00:00",
                         "%Y-%m-%d %H:%M:%S%z"
