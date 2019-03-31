@@ -82,17 +82,26 @@ named!(
     )
 );
 
+named!(rudder_report_begin<CompleteStr, &str>,
+    do_parse!(
+    tag_s!("R: @@")     >>
+    ("")
+    )
+);
+
 
 named!(simpleline<CompleteStr, String>, do_parse!(
-    not!(agent_log_level) >>
+    not!(alt!(rudder_report_begin | agent_log_level)) >>
     res: take_until_and_consume_s!("\n")      >>
     (res.to_string())
 ));
 
-named!(multilines<CompleteStr, Vec<String>>,
+named!(multilines<CompleteStr, String>,
+do_parse!(
     // at least one
-    many1!(simpleline)
-);
+    res: many1!(simpleline) >>
+    (res.join("\n"))
+));
 
 named!(
     log_entry<CompleteStr, LogEntry>,
@@ -102,7 +111,7 @@ named!(
             >> message: multilines
             >> (LogEntry {
                 level,
-                message: message.join("\n"),
+                message,
             })
     )
 );
@@ -117,11 +126,12 @@ named!(runlog<CompleteStr, Vec<Report>>,
             log_entry
         )
     )
-);
+);*/
 
-named!(report<CompleteStr, Report>, do_parse!(
+named!(report<CompleteStr, RawReport>, do_parse!(
     // TODO NOT CORRECT
     // pas de line break dans une ligne
+    logs: log_entries >>
     detail: take_until_and_consume_s!("R: @@") >>
     policy: take_until_and_consume_s!("@@") >>
     event_type: take_until_and_consume_s!("@@") >>
@@ -132,29 +142,32 @@ named!(report<CompleteStr, Report>, do_parse!(
     key_value: take_until_and_consume_s!("@@") >>
     start_datetime: take_until_and_consume_s!("##") >>
     node_id: take_until_and_consume_s!("@#") >>
-    msg: take_until_s!("\n") >>
-        (Report {
+    msg: multilines >>
+        (RawReport {
+            report: Report {
            // FIXME execution date should be generated at execution
-            execution_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
-            node_id: node_id,
-            rule_id: rule_id,
-            directive_id: directive_id,
+           // We could skip parsing it but it would prevent consistency check that cannot
+           // be done once inserted.
+            execution_datetime: DateTime::parse_from_str(&start_datetime.to_string(), "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            node_id: node_id.to_string(),
+            rule_id: rule_id.to_string(),
+            directive_id: directive_id.to_string(),
             serial: serial.parse::<i32>().unwrap(),
-            component: component,
-            key_value: key_value,
-            start_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
-            event_type: event_type,
-            msg: msg,
-            policy: policy,
+            component: component.to_string(),
+            key_value: key_value.to_string(),
+            start_datetime: DateTime::parse_from_str(&start_datetime.to_string(), "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            event_type: event_type.to_string(),
+            msg: msg.to_string(),
+            policy: policy.to_string(),
+        },
+        logs
         })
 ));
 
-*/
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawReport {
-    result_report: Report,
-    log_entries: Vec<LogEntry>,
+    report: Report,
+    logs: Vec<LogEntry>,
 }
 
 // Impl from between the 2
