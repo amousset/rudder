@@ -50,8 +50,8 @@ use std::{
 // A detail log entry
 #[derive(Debug, PartialEq, Eq)]
 struct LogEntry {
-    level: AgentLogLevel,
-    message: String,
+    event_type: AgentLogLevel,
+    msg: String,
 }
 
 type AgentLogLevel = &'static str;
@@ -77,8 +77,16 @@ named!(
         // CFEngine stdlib log
         tag_s!("R: DEBUG")    => { |_| "log_debug" } |
         // Untagged non-Rudder reports report, assume info
-        tag_s!("R: ")         => { |_| "log_info" }
+        non_rudder_report_begin
         // TODO R: not @@
+    )
+);
+
+named!(non_rudder_report_begin<CompleteStr, AgentLogLevel>,
+    do_parse!(
+    tag_s!("R: ")     >>
+    not!(tag_s!("@@")) >>
+    ("log_info")
     )
 );
 
@@ -88,7 +96,6 @@ named!(rudder_report_begin<CompleteStr, &str>,
     ("")
     )
 );
-
 
 named!(simpleline<CompleteStr, String>, do_parse!(
     not!(alt!(rudder_report_begin | agent_log_level)) >>
@@ -100,6 +107,7 @@ named!(multilines<CompleteStr, String>,
 do_parse!(
     // at least one
     res: many1!(simpleline) >>
+    // TODO perf: avoid reallocating everything twice and use the source slice
     (res.join("\n"))
 ));
 
@@ -108,31 +116,27 @@ named!(
     do_parse!(
         level: agent_log_level
             >> opt!(space)
-            >> message: multilines
+            >> msg: multilines
             >> (LogEntry {
-                level,
-                message,
+                event_type: level,
+                msg,
             })
     )
 );
 
 named!(log_entries<CompleteStr, Vec<LogEntry>>, many0!(log_entry));
 
-/*
-named!(runlog<CompleteStr, Vec<Report>>,
+named!(runlog<CompleteStr, Vec<RawReport>>,
     many1!(
-        alt!(
-            report |
-            log_entry
-        )
+        report
     )
-);*/
+);
 
 named!(report<CompleteStr, RawReport>, do_parse!(
     // TODO NOT CORRECT
     // pas de line break dans une ligne
     logs: log_entries >>
-    detail: take_until_and_consume_s!("R: @@") >>
+    rudder_report_begin >>
     policy: take_until_and_consume_s!("@@") >>
     event_type: take_until_and_consume_s!("@@") >>
     rule_id: take_until_and_consume_s!("@@") >>
@@ -170,9 +174,22 @@ pub struct RawReport {
     logs: Vec<LogEntry>,
 }
 
-// Impl from between the 2
+impl From<RawReport> for Vec<Report> {
+    fn from(raw_report: RawReport) -> Self {
+        let mut res = vec![];
+        for log in raw_report.logs {
+            res.push(Report {
+                event_type: log.event_type.to_string(),
+                msg: log.msg,
+                ..raw_report.report.clone()
+            })
+        }
+        res.push(raw_report.report);
+        res
+    }
+}
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Insertable)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Insertable)]
 #[table_name = "ruddersysevents"]
 pub struct Report {
     #[column_name = "executiondate"]
@@ -474,7 +491,12 @@ mod tests {
 
     #[test]
     fn test_parse_log_level() {
-        assert_eq!(agent_log_level(CompleteStr::from("CRITICAL: toto")).unwrap().1, "log_warn")
+        assert_eq!(
+            agent_log_level(CompleteStr::from("CRITICAL: toto"))
+                .unwrap()
+                .1,
+            "log_warn"
+        )
     }
 
     #[test]
@@ -484,15 +506,13 @@ mod tests {
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline(CompleteStr::from("The thing\nR: report")).unwrap().1,
+            simpleline(CompleteStr::from("The thing\nR: report"))
+                .unwrap()
+                .1,
             "The thing".to_string()
         );
-        assert!(
-            simpleline(CompleteStr::from("R: The thing\nreport")).is_err()
-        );
-        assert!(
-            simpleline(CompleteStr::from("CRITICAL: plop\nreport")).is_err()
-        );
+        assert!(simpleline(CompleteStr::from("R: The thing\nreport")).is_err());
+        assert!(simpleline(CompleteStr::from("CRITICAL: plop\nreport")).is_err());
     }
 
     #[test]
@@ -500,8 +520,8 @@ mod tests {
         assert_eq!(
             log_entry(CompleteStr::from("CRITICAL: toto\n")).unwrap().1,
             LogEntry {
-                level: "log_warn",
-                message: "toto".to_string(),
+                event_type: "log_warn",
+                msg: "toto".to_string(),
             }
         )
     }
@@ -509,15 +529,17 @@ mod tests {
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries(CompleteStr::from("CRITICAL: toto\nsuite\nCRITICAL: tutu\n")).unwrap().1,
+            log_entries(CompleteStr::from("CRITICAL: toto\nsuite\nCRITICAL: tutu\n"))
+                .unwrap()
+                .1,
             vec![
                 LogEntry {
-                    level: "log_warn",
-                    message: "toto\nsuite".to_string(),
+                    event_type: "log_warn",
+                    msg: "toto\nsuite".to_string(),
                 },
                 LogEntry {
-                    level: "log_warn",
-                    message: "tutu".to_string()
+                    event_type: "log_warn",
+                    msg: "tutu".to_string()
                 }
             ]
         )
