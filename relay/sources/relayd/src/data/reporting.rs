@@ -83,13 +83,13 @@ named!(
 );
 
 
-named!(simpleline<CompleteStr, CompleteStr>, do_parse!(
+named!(simpleline<CompleteStr, String>, do_parse!(
     not!(agent_log_level) >>
     res: take_until_and_consume_s!("\n")      >>
-    (res)
+    (res.to_string())
 ));
 
-named!(multilines<CompleteStr, Vec<CompleteStr>>,
+named!(multilines<CompleteStr, Vec<String>>,
     // at least one
     many1!(simpleline)
 );
@@ -99,10 +99,10 @@ named!(
     do_parse!(
         level: agent_log_level
             >> opt!(space)
-            >> message: take_until_and_consume_s!("\n")
+            >> message: multilines
             >> (LogEntry {
                 level,
-                message: message.to_string(),
+                message: message.join("\n"),
             })
     )
 );
@@ -468,11 +468,11 @@ mod tests {
     fn test_parse_multiline() {
         assert_eq!(
             simpleline(CompleteStr::from("The thing\n")).unwrap().1,
-            CompleteStr::from("The thing")
+            "The thing".to_string()
         );
         assert_eq!(
             simpleline(CompleteStr::from("The thing\nR: report")).unwrap().1,
-            CompleteStr::from("The thing")
+            "The thing".to_string()
         );
         assert!(
             simpleline(CompleteStr::from("R: The thing\nreport")).is_err()
@@ -500,7 +500,7 @@ mod tests {
             vec![
                 LogEntry {
                     level: "log_warn",
-                    message: "toto".to_string(),
+                    message: "toto\nsuite".to_string(),
                 },
                 LogEntry {
                     level: "log_warn",
