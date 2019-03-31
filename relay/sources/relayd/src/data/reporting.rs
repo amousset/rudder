@@ -47,29 +47,18 @@ use std::{
 (?P<component>.*)@@(?P<key_value>.*)@@(?P<start_datetime>.*)##(?P<node_id>.*)@#(?s)(?P<msg>.*)$"
 */
 
-/*
-impl FromStr for RunInfo {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-
-        }
-    }
-}
-*/
-
 // A detail log entry
+#[derive(Debug, PartialEq, Eq)]
 struct LogEntry {
-    Level: AgentLogLevel,
-    Message: String,
+    level: AgentLogLevel,
+    message: String,
 }
 
 type AgentLogLevel = &'static str;
 
 named!(
-    agent_log_level<Option<AgentLogLevel>>,
-    opt!(alt!(
+    agent_log_level<CompleteStr, AgentLogLevel>,
+    alt!(
         // CFEngine logs
         tag_s!("CRITICAL:")   => { |_| "log_warn" }  |
         tag_s!("   error:")   => { |_| "log_warn" }  |
@@ -90,23 +79,26 @@ named!(
         // Untagged non-Rudder reports report, assume info
         tag_s!("R: ")         => { |_| "log_info" }
         // TODO R: not @@
-    ))
-);
-
-fn is_space(chr: char) -> bool {
-    chr == ' ' || chr == '\t'
-}
-named!(space<CompleteStr,CompleteStr>, take_while_s!(is_space));
-
-named!(log_entry<CompleteStr, LogEntry>,
-    do_parse!(
-               tag_s!("") >>
-        level: agent_log_level >>
-               opt!(space) >>
-        message: take_till_s!(is_line_ending_or_comment) >>
     )
 );
 
+
+named!(
+    log_entry<CompleteStr, LogEntry>,
+    do_parse!(
+        level: agent_log_level
+            >> opt!(space)
+            >> message: take_until_and_consume_s!("\n")
+            >> (LogEntry {
+                level,
+                message: message.to_string(),
+            })
+    )
+);
+
+named!(log_entries<CompleteStr, Vec<LogEntry>>, many0!(log_entry));
+
+/*
 named!(runlog<CompleteStr, Vec<Report>>,
     many1!(
         alt!(
@@ -114,15 +106,6 @@ named!(runlog<CompleteStr, Vec<Report>>,
             log_entry
         )
     )
-);
-
-named!(report_entry<CompleteStr, CompleteStr>,
-  is_not_s!("\n\r")
-);
-
-named!(
-    check<u32>,
-    verify!(nom::be_u32, |val: u32| val >= 0 && val < 3)
 );
 
 named!(report<CompleteStr, Report>, do_parse!(
@@ -138,24 +121,26 @@ named!(report<CompleteStr, Report>, do_parse!(
     key_value: take_until_and_consume_s!("@@") >>
     start_datetime: take_until_and_consume_s!("##") >>
     node_id: take_until_and_consume_s!("@#") >>
-    msg: map!(take_until_s!("\n")|String::from) >>
+    msg: take_until_s!("\n") >>
         (Report {
            // FIXME execution date should be generated at execution
             execution_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
-            node_id: node_id.map(String::from),
-            rule_id: rule_id.map(String::from),
-            directive_id: directive_id.map(String::from),
+            node_id: node_id,
+            rule_id: rule_id,
+            directive_id: directive_id,
             serial: serial.parse::<i32>().unwrap(),
-            component: component.map(String::from),
-            key_value: key_value.map(String::from),
+            component: component,
+            key_value: key_value,
             start_datetime: DateTime::parse_from_str(start_datetime, "%Y-%m-%d %H:%M:%S%z").unwrap(),
-            event_type: event_type.map(String::from),
-            msg: msg.map(String::from),
-            policy: policy.map(String::from),
+            event_type: event_type,
+            msg: msg,
+            policy: policy,
         })
 ));
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+*/
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct RawReport {
     result_report: Report,
     log_entries: Vec<LogEntry>,
@@ -279,7 +264,6 @@ impl FromStr for Report {
             key_value: cap["key_value"].into(),
             event_type: cap["report_type"].into(),
             msg: cap["msg"].into(),
-            detail: "".into(),
             policy: cap["policy"].into(),
             serial: cap["serial"].parse::<i32>()?,
         };
@@ -370,7 +354,6 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
-                detail: "".into(),
 
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
@@ -399,7 +382,6 @@ mod tests {
                 policy: "Common".into(),
                 node_id: "root".into(),
                 serial: 0,
-                detail: "".into(),
 
                 execution_datetime: DateTime::parse_from_str(
                     "2018-08-24 15:55:01+00:00",
@@ -433,7 +415,6 @@ mod tests {
                     policy: "Common".into(),
                     node_id: "root".into(),
                     serial: 0,
-                    detail: "".into(),
                     execution_datetime: DateTime::parse_from_str(
                         "2018-08-24 15:55:01+00:00",
                         "%Y-%m-%d %H:%M:%S%z"
@@ -464,6 +445,39 @@ mod tests {
                 node_id: "root".into(),
             }
         );
+    }
+
+    #[test]
+    fn test_parse_log_level() {
+        assert_eq!(agent_log_level(CompleteStr::from("CRITICAL: toto")).unwrap().1, "log_warn")
+    }
+
+    #[test]
+    fn test_parse_log_entry() {
+        assert_eq!(
+            log_entry(CompleteStr::from("CRITICAL: toto\n")).unwrap().1,
+            LogEntry {
+                level: "log_warn",
+                message: "toto".to_string(),
+            }
+        )
+    }
+
+    #[test]
+    fn test_parse_log_entries() {
+        assert_eq!(
+            log_entries(CompleteStr::from("CRITICAL: toto\nCRITICAL: tutu\n")).unwrap().1,
+            vec![
+                LogEntry {
+                    level: "log_warn",
+                    message: "toto".to_string(),
+                },
+                LogEntry {
+                    level: "log_warn",
+                    message: "tutu".to_string()
+                }
+            ]
+        )
     }
 
     #[test]

@@ -56,7 +56,6 @@ pub fn runlog(node_id: Option<NodeId>) -> RunLog {
         msg: "Start execution".to_string(),
         policy: "Common".to_string(),
         node_id: node_id.clone(),
-        detail: None,
         execution_datetime: timestamp,
         serial: 0,
     };
@@ -70,7 +69,6 @@ pub fn runlog(node_id: Option<NodeId>) -> RunLog {
         msg: "End execution".to_string(),
         policy: "Common".to_string(),
         node_id: node_id.clone(),
-        detail: None,
         execution_datetime: timestamp,
         serial: 0,
     };
@@ -88,7 +86,6 @@ pub fn runlog(node_id: Option<NodeId>) -> RunLog {
             msg: "test".to_string(),
             policy: "rule".to_string(),
             node_id: node_id.clone(),
-            detail: None,
             execution_datetime: timestamp,
             serial: 0,
         });
