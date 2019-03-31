@@ -83,6 +83,17 @@ named!(
 );
 
 
+named!(simpleline<CompleteStr, CompleteStr>, do_parse!(
+    not!(agent_log_level) >>
+    res: take_until_and_consume_s!("\n")      >>
+    (res)
+));
+
+named!(multilines<CompleteStr, Vec<CompleteStr>>,
+    // at least one
+    many1!(simpleline)
+);
+
 named!(
     log_entry<CompleteStr, LogEntry>,
     do_parse!(
@@ -208,6 +219,7 @@ impl Display for RunLog {
     }
 }
 
+// 35 73 97 38 45
 impl FromStr for RunInfo {
     type Err = Error;
 
@@ -453,6 +465,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_multiline() {
+        assert_eq!(
+            simpleline(CompleteStr::from("The thing\n")).unwrap().1,
+            CompleteStr::from("The thing")
+        );
+        assert_eq!(
+            simpleline(CompleteStr::from("The thing\nR: report")).unwrap().1,
+            CompleteStr::from("The thing")
+        );
+        assert!(
+            simpleline(CompleteStr::from("R: The thing\nreport")).is_err()
+        );
+        assert!(
+            simpleline(CompleteStr::from("CRITICAL: plop\nreport")).is_err()
+        );
+    }
+
+    #[test]
     fn test_parse_log_entry() {
         assert_eq!(
             log_entry(CompleteStr::from("CRITICAL: toto\n")).unwrap().1,
@@ -466,7 +496,7 @@ mod tests {
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries(CompleteStr::from("CRITICAL: toto\nCRITICAL: tutu\n")).unwrap().1,
+            log_entries(CompleteStr::from("CRITICAL: toto\nsuite\nCRITICAL: tutu\n")).unwrap().1,
             vec![
                 LogEntry {
                     level: "log_warn",
