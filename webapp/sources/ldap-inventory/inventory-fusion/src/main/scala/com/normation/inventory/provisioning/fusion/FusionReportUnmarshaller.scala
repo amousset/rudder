@@ -670,6 +670,7 @@ class FusionReportUnmarshaller(
           if     (x contains  "xp"     )   WindowsXP
           else if(x contains  "vista"  )   WindowsVista
           else if(x contains  "seven"  )   WindowsSeven
+          else if(x contains  "10"  )      Windows10
           else if(x contains  "2000"   )   Windows2000
           else if(x contains  "2003"   )   Windows2003
           else if(x contains  "2008 r2")   Windows2008R2 //must be before 2008 for obvious reason
@@ -682,16 +683,17 @@ class FusionReportUnmarshaller(
           else                             UnknownWindowsType
 
         case ("linux"  , x ) =>
-          if     (x contains "debian" ) Debian
-          else if(x contains "ubuntu" ) Ubuntu
-          else if(x contains "redhat" ) Redhat
-          else if(x contains "centos" ) Centos
-          else if(x contains "fedora" ) Fedora
-          else if(x contains "suse"   ) Suse
-          else if(x contains "android") Android
+          if     (x contains "debian"    ) Debian
+          else if(x contains "ubuntu"    ) Ubuntu
+          else if(x contains "redhat"    ) Redhat
+          else if(x contains "centos"    ) Centos
+          else if(x contains "fedora"    ) Fedora
+          else if(x contains "suse"      ) Suse
+          else if(x contains "android"   ) Android
           else if(x contains "oracle"    ) Oracle
           else if(x contains "scientific") Scientific
-          else if(x contains "slackware") Slackware
+          else if(x contains "slackware" ) Slackware
+          else if(x contains "mint"      ) Mint
           else                          UnknownLinuxType
 
         case("solaris", _) => SolarisOS

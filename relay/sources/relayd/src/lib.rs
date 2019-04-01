@@ -45,10 +45,10 @@ use crate::{
     api::api,
     cli::parse,
     configuration::LogConfig,
-    configuration::{Configuration, ReportingOutputSelect},
+    configuration::{Configuration, ReportingOutputSelect, InventoryOutputSelect},
     data::nodes::parse_nodeslist,
     error::Error,
-    input::serve,
+    input::{serve_inventories, serve_reports},
     output::database::{pg_pool, PgPool},
     stats::Stats,
 };
@@ -203,7 +203,12 @@ pub fn start() -> Result<(), Error> {
         //tokio::spawn(shutdown);
         tokio::spawn(reload);
 
-        serve(job_config, tx_stats);
+        if job_config.cfg.processing.reporting.output != ReportingOutputSelect::Disabled {
+            serve_reports(job_config.clone(), tx_stats.clone());
+        }
+        if job_config.cfg.processing.inventory.output != InventoryOutputSelect::Disabled {
+            serve_inventories(job_config, tx_stats);
+        }
         Ok(())
     }));
 

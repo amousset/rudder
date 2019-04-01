@@ -186,6 +186,7 @@ object LDAPConstants {
   val A_OS_WIN_XP = "WindowsXp"
   val A_OS_WIN_VISTA = "WindowsVista"
   val A_OS_WIN_SEVEN = "WindowsSeven"
+  val A_OS_WIN_10    = "Windows10"
   val A_OS_WIN_2000 = "Windows2000"
   val A_OS_WIN_2003 = "Windows2003"
   val A_OS_WIN_2008 = "Windows2008"
@@ -211,6 +212,7 @@ object LDAPConstants {
   val A_OS_ORACLE = "Oracle"
   val A_OS_SCIENTIFIC = "Scientific"
   val A_OS_SLACKWARE = "Slackware"
+  val A_OS_MINT = "Mint"
 
   /*
    * A bunch of name, just to be sur to use variable

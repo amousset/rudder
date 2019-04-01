@@ -61,7 +61,7 @@ use tokio::{
 
 pub type ReceivedFile = PathBuf;
 
-pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
+pub fn serve_reports(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     let (reporting_tx, reporting_rx) = mpsc::channel(1_024);
     tokio::spawn(treat_reports(
         job_config.clone(),
@@ -79,7 +79,9 @@ pub fn serve(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
         job_config.clone(),
         &reporting_tx,
     );
+}
 
+pub fn serve_inventories(job_config: Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     let (inventory_tx, inventory_rx) = mpsc::channel(1_024);
     tokio::spawn(treat_inventories(job_config.clone(), inventory_rx, stats));
     watch(
@@ -124,6 +126,7 @@ fn treat_reports(
         let treat_file = match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => insert(&file, job_config.clone(), stats.clone()),
             ReportingOutputSelect::Upstream => unimplemented!(),
+            ReportingOutputSelect::Disabled => unreachable!(),
         };
 
         tokio::spawn(lazy(|| treat_file));
@@ -147,6 +150,7 @@ fn treat_inventories(
         debug!("received: {:?}", file; "component" => "watcher");
         let treat_file = match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => insert(&file, job_config.clone(), stats.clone()),
+            InventoryOutputSelect::Disabled => unreachable!(),
         };
 
         tokio::spawn(lazy(|| treat_file));

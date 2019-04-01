@@ -87,6 +87,7 @@ pub struct InventoryConfig {
 #[serde(rename_all = "lowercase")]
 pub enum InventoryOutputSelect {
     Upstream,
+    Disabled,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -101,6 +102,7 @@ pub struct ReportingConfig {
 pub enum ReportingOutputSelect {
     Database,
     Upstream,
+    Disabled,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]

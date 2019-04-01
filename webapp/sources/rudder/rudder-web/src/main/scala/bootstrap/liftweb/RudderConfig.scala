@@ -80,7 +80,7 @@ import com.normation.rudder.rest.lift._
 import com.normation.rudder.rest.v1._
 import com.normation.rudder.rule.category.GitRuleCategoryArchiverImpl
 import com.normation.rudder.rule.category._
-import com.normation.rudder.services.{ClearCacheServiceImpl, DebugInfoService, DebugInfoServiceImpl}
+import com.normation.rudder.services._
 import com.normation.rudder.services.eventlog.EventLogFactoryImpl
 import com.normation.rudder.services.eventlog.HistorizationServiceImpl
 import com.normation.rudder.services.eventlog._
@@ -113,6 +113,7 @@ import com.normation.templates.FillTemplatesService
 import com.normation.utils.StringUuidGenerator
 import com.normation.utils.StringUuidGeneratorImpl
 import com.typesafe.config.Config
+import com.typesafe.config.ConfigException
 import com.typesafe.config.ConfigFactory
 import net.liftweb.common.Loggable
 import net.liftweb.common._
@@ -185,6 +186,14 @@ object RudderConfig extends Loggable {
   // Here, we define static nouns for all theses properties
   //
 
+  private[this] def splitProperty(s: String): List[String] = {
+    s.split(",").toList.flatMap { s =>
+      s.trim match {
+        case "" => None
+        case x  => Some(x)
+      }
+    }
+  }
   private[this] val filteredPasswords = scala.collection.mutable.Buffer[String]()
 
   //the LDAP password used for authentication is not used here, but should not appear nonetheless
@@ -259,10 +268,16 @@ object RudderConfig extends Loggable {
   // The base directory for hooks. I'm not sure it needs to be configurable
   // as we only use it in generation.
   val HOOKS_D = "/opt/rudder/etc/hooks.d"
-  val HOOKS_IGNORE_SUFFIXES = config.getString("rudder.hooks.ignore-suffixes").split(",").toList.flatMap { s =>
-    s.trim match {
-      case "" => None
-      case x  => Some(x)
+  val HOOKS_IGNORE_SUFFIXES = splitProperty(config.getString("rudder.hooks.ignore-suffixes"))
+
+  val RUDDER_FATAL_EXCEPTIONS = {
+    try {
+      splitProperty(config.getString("rudder.jvm.fatal.exceptions")).toSet
+    } catch {
+      case ex:ConfigException =>
+        ex.printStackTrace()
+        ApplicationLogger.info("Property 'rudder.jvm.fatal.exceptions' is missing or empty in rudder.configFile. Only java.lang.Error will be fatal.")
+        Set[String]()
     }
   }
 
@@ -592,6 +607,7 @@ object RudderConfig extends Loggable {
     , uuidGen
     , restExtractorService
     , restDataSerializer
+    , roAgentRunsRepository
   )
 
   val nodeApiService8 = {
@@ -612,6 +628,7 @@ object RudderConfig extends Loggable {
     , restExtractorService
     , restDataSerializer
     , queryProcessor
+    , roAgentRunsRepository
   )
 
   val parameterApiService2 =
@@ -895,7 +912,15 @@ object RudderConfig extends Loggable {
 
   ///// end /////
 
-  private[this] lazy val logRepository = new EventLogJdbcRepository(doobie, eventLogFactory)
+  private[this] lazy val logRepository = {
+    val eventLogRepo = new EventLogJdbcRepository(doobie, eventLogFactory)
+    techniqueRepositoryImpl.registerCallback(new LogEventOnTechniqueReloadCallback(
+        "LogEventTechnique"
+      , 100 // must be before most of other
+      , eventLogRepo
+    ))
+    eventLogRepo
+  }
   private[this] lazy val inventoryLogEventServiceImpl = new InventoryEventLogServiceImpl(logRepository)
   private[this] lazy val licenseRepository = new LicenseRepositoryXML(RUDDER_DIR_LICENSESFOLDER + "/" + licensesConfiguration)
   private[this] lazy val gitRepo = new GitRepositoryProviderImpl(RUDDER_DIR_GITROOT)

@@ -149,6 +149,7 @@ object WindowsType {
        WindowsXP
     :: WindowsVista
     :: WindowsSeven
+    :: Windows10
     :: Windows2000
     :: Windows2003
     :: Windows2008
@@ -166,6 +167,7 @@ case object UnknownWindowsType extends WindowsType                 { val name = 
 case object WindowsXP     extends WindowsType with HashcodeCaching { val name = "WindowsXP"     }
 case object WindowsVista  extends WindowsType with HashcodeCaching { val name = "WindowsVista"  }
 case object WindowsSeven  extends WindowsType with HashcodeCaching { val name = "WindowsSeven"  }
+case object Windows10     extends WindowsType with HashcodeCaching { val name = "Windows10"  }
 case object Windows2000   extends WindowsType with HashcodeCaching { val name = "Windows2000"   }
 case object Windows2003   extends WindowsType with HashcodeCaching { val name = "Windows2003"   }
 case object Windows2008   extends WindowsType with HashcodeCaching { val name = "Windows2008"   }
@@ -195,6 +197,7 @@ object LinuxType {
     :: Oracle
     :: Scientific
     :: Slackware
+    :: Mint
     :: Nil
   )
 }
@@ -210,6 +213,7 @@ case object Android          extends LinuxType with HashcodeCaching { val name =
 case object Oracle           extends LinuxType with HashcodeCaching { val name = "Oracle"       }
 case object Scientific       extends LinuxType with HashcodeCaching { val name = "Scientific"   }
 case object Slackware        extends LinuxType with HashcodeCaching { val name = "Slackware"    }
+case object Mint             extends LinuxType with HashcodeCaching { val name = "Mint"    }
 
 //solaris has only one flavour for now
 //to be updated in the future with OSS verison

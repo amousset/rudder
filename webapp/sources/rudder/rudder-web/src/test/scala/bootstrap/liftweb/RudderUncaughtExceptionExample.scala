@@ -1,6 +1,6 @@
 /*
 *************************************************************************************
-* Copyright 2011 Normation SAS
+* Copyright 2019 Normation SAS
 *************************************************************************************
 *
 * This file is part of Rudder.
@@ -35,28 +35,50 @@
 *************************************************************************************
 */
 
-package com.normation.rudder.domain.policies
-
-import com.normation.utils.HashcodeCaching
-import com.normation.cfclerk.domain.TechniqueName
+package bootstrap.liftweb
 
 
-/**
- * That file define "diff" object between rules.
+/*
+ * Test the uncaught exception class. It's very hard to make that
+ * actual unit test because we can't really test from java the value
+ * of exit method, and I don't seem to be able to figure how to
+ * make the UncaughtExceptionHandler do other thing than terminating
+ * the thread.
  */
+object RudderUncaughtException1 {
+  def main(args: Array[String]): Unit = {
+    FatalException.init(Set())
+    throw new java.lang.Error("I'm an error")
+  }
+}
 
-sealed trait TechniqueDiff
+object RudderUncaughtException2 {
+  def main(args: Array[String]): Unit = {
+    FatalException.init(Set())
+    var plop = new Array[Array[String]](10000000)
+    var i = 0
+    while(true) {
+      plop(i) = Array.fill(1000000)("a")
+      i += 1
+    }
+  }
+}
 
-final case class AddTechniqueDiff(
-    technique: ActiveTechnique
-) extends TechniqueDiff with HashcodeCaching
+object RudderUncaughtException3 {
 
-final case class DeleteTechniqueDiff(
-    technique: ActiveTechnique
-) extends TechniqueDiff with HashcodeCaching
+  class FillStack(value: String) {
+    val fill = new FillStack(value)
+  }
 
-final case class ModifyTechniqueDiff(
-    id                  : ActiveTechniqueId
-  , name                : TechniqueName
-  , modIsEnabled: Option[SimpleDiff[Boolean]] = None
-) extends TechniqueDiff with HashcodeCaching
+  def main(args: Array[String]): Unit = {
+    FatalException.init(Set())
+    new FillStack("let's fill it!")
+  }
+}
+
+object RudderUncaughtException4 {
+  def main(args: Array[String]): Unit = {
+    FatalException.init(Set())
+    throw new NoClassDefFoundError("oups/I/don/t/exist/actually")
+  }
+}
