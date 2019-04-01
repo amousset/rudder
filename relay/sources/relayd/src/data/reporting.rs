@@ -124,20 +124,28 @@ named!(parse_runlog<CompleteStr, Vec<RawReport>>,
     )
 );
 
+fn parse_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
+  DateTime::parse_from_str(input.as_ref(), "%Y-%m-%d %H:%M:%S%z")
+}
+
+fn parse_i32(input: CompleteStr) -> IResult<CompleteStr, i32> {
+   parse_to!(input, i32)
+}
+
 named!(report<CompleteStr, RawReport>, do_parse!(
     // TODO NOT CORRECT
-    // pas de line break dans une ligne
-    // gérer les reports interrompus
+    // no line break inside a filed (except message)
+    // handle partial reports without breaking following ones
     logs: log_entries >>
     rudder_report_begin >>
     policy: take_until_and_consume_s!("@@") >>
     event_type: take_until_and_consume_s!("@@") >>
     rule_id: take_until_and_consume_s!("@@") >>
     directive_id: take_until_and_consume_s!("@@") >>
-    serial: parse_to!(take_until_and_consume_s!("@@"), i32) >>
+    serial: map_res!(take_until_and_consume_s!("@@"), parse_i32) >>
     component: take_until_and_consume_s!("@@") >>
     key_value: take_until_and_consume_s!("@@") >>
-    start_datetime: take_until_and_consume_s!("##") >>
+    start_datetime: map_res!(take_until_and_consume_s!("##"), parse_date) >>
     node_id: take_until_and_consume_s!("@#") >>
     msg: multilines >>
         (RawReport {
@@ -145,14 +153,14 @@ named!(report<CompleteStr, RawReport>, do_parse!(
            // FIXME execution date should be generated at execution
            // We could skip parsing it but it would prevent consistency check that cannot
            // be done once inserted.
-            execution_datetime: DateTime::parse_from_str(&start_datetime.to_string(), "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            execution_datetime: start_datetime,
             node_id: node_id.to_string(),
             rule_id: rule_id.to_string(),
             directive_id: directive_id.to_string(),
-            serial: serial,
+            serial: serial.1,
             component: component.to_string(),
             key_value: key_value.to_string(),
-            start_datetime: DateTime::parse_from_str(&start_datetime.to_string(), "%Y-%m-%d %H:%M:%S%z").unwrap(),
+            start_datetime: start_datetime,
             event_type: event_type.to_string(),
             msg: msg.to_string(),
             policy: policy.to_string(),
@@ -263,15 +271,19 @@ pub struct RunInfo {
     pub timestamp: DateTime<FixedOffset>,
 }
 
+fn parse_iso_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
+  DateTime::parse_from_str(input.as_ref(), "%+")
+}
+
 named!(parse_runinfo<CompleteStr, RunInfo>,
     do_parse!(
-        timestamp: take_until_and_consume_s!("@") >>
+        timestamp: map_res!(take_until_and_consume_s!("@"), parse_iso_date) >>
         node_id: take_until_and_consume_s!(".") >>
         tag_s!("log") >>
         (
             RunInfo {
                 // FIXME same timestamp format as in the reports?
-                timestamp: DateTime::parse_from_str(&timestamp.to_string(), "%+").unwrap(),
+                timestamp: timestamp,
                 node_id: node_id.to_string(),
             }
         )
