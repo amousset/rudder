@@ -40,11 +40,6 @@ use std::{
     str::FromStr,
 };
 
-/*
-"^@@(?P<policy>.*)@@(?P<event_type>.*)@@(?P<rule_id>.*)@@(?P<directive_id>.*)@@(?P<serial>.*)@@
-(?P<component>.*)@@(?P<key_value>.*)@@(?P<start_datetime>.*)##(?P<node_id>.*)@#(?s)(?P<msg>.*)$"
-*/
-
 // A detail log entry
 #[derive(Debug, PartialEq, Eq)]
 struct LogEntry {

@@ -14,6 +14,9 @@ lint:
 install: clean lint audit
 	cargo install --bin relayd --path=. --root=$(DESTDIR)
 
+bench:
+	cargo +nightly bench
+
 yum-dependencies:
 	yum install pkgconf-pkg-config libpqxx openssl-devel
 
