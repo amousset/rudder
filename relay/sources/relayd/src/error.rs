@@ -43,8 +43,10 @@ use toml;
 #[derive(Debug)]
 pub enum Error {
     /// Report parsing
-    InvalidReport,
-    /// Empty report
+    /// Unspecified nom parsing error
+    /// TODO add details
+    InvalidRunLog,
+    InvalidRunInfo,
     EmptyRunlog,
     /// Internal client error
     Message(String),
@@ -71,7 +73,8 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         fmt.write_str(&match *self {
-            InvalidReport => "invalid report".to_owned(),
+            InvalidRunLog => "invalid run log".to_owned(),
+            InvalidRunInfo => "invalid run info".to_owned(),
             EmptyRunlog => "agent run log is empty".to_owned(),
             Message(ref message) => message.clone(),
             Database(ref err) => err.to_string(),
