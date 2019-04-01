@@ -297,7 +297,7 @@ impl FromStr for RunInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RunLog {
     pub info: RunInfo,
     pub reports: Vec<Report>,
@@ -435,17 +435,9 @@ mod tests {
 
     #[test]
     fn test_parse_runlog() {
-        let run_log = &read_to_string("tests/runlogs/2018-08-24T15:55:01+00:00@root.log").unwrap();
-        let run = RunLog::from_str(run_log).unwrap();
-        assert_eq!(run.info.node_id, "root".to_owned());
-        assert_eq!(run.reports[0].msg, "Start execution".to_owned());
-        assert_eq!(
-            run.reports[1].msg,
-            "Configuration library initialization\nwas correct".to_owned()
-        );
-        assert_eq!(
-            run.reports[11].msg,
-            "Remove file /var/rudder/tmp/rudder_monitoring.csv was correct".to_owned()
-        );
+        let runlog = RunLog::from_str(&read_to_string("tests/runlogs/normal.log").unwrap()).unwrap();
+        //println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
+        let reference: RunLog = serde_json::from_str(&read_to_string("tests/runlogs/normal.json").unwrap()).unwrap();
+        assert_eq!(runlog, reference);
     }
 }

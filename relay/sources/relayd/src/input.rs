@@ -126,6 +126,7 @@ fn treat_reports(
         let treat_file = match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => insert(&file, job_config.clone(), stats.clone()),
             ReportingOutputSelect::Upstream => unimplemented!(),
+            // The job should not be started in this case
             ReportingOutputSelect::Disabled => unreachable!(),
         };
 
@@ -150,6 +151,7 @@ fn treat_inventories(
         debug!("received: {:?}", file; "component" => "watcher");
         let treat_file = match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => insert(&file, job_config.clone(), stats.clone()),
+            // The job should not be started in this case
             InventoryOutputSelect::Disabled => unreachable!(),
         };
 
