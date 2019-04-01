@@ -330,6 +330,7 @@ impl FromStr for RunLog {
 mod tests {
     use super::*;
     use std::fs::read_to_string;
+    use std::fs::read_dir;
 
     #[test]
     fn test_display_report() {
@@ -435,9 +436,19 @@ mod tests {
 
     #[test]
     fn test_parse_runlog() {
-        let runlog = RunLog::from_str(&read_to_string("tests/runlogs/normal.log").unwrap()).unwrap();
-        //println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
-        let reference: RunLog = serde_json::from_str(&read_to_string("tests/runlogs/normal.json").unwrap()).unwrap();
-        assert_eq!(runlog, reference);
+        // For each .json file, compare it with the matching .log
+        let mut test_done = 0;
+        for entry in read_dir("tests/runlogs/").unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().unwrap() == "json" {
+                let runlog = RunLog::from_str(&read_to_string(path.with_extension("log")).unwrap()).unwrap();
+                //println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
+                let reference: RunLog = serde_json::from_str(&read_to_string(path).unwrap()).unwrap();
+                assert_eq!(runlog, reference);
+                test_done += 1;
+            }
+        }
+        // check we did at least one test
+        assert!(test_done > 0);
     }
 }
