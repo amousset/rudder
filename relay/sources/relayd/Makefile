@@ -1,6 +1,6 @@
 DESTDIR = $(CURDIR)/target
 
-# fmt, build, test, audit, clean, etc.
+# fmt, build, test, audit, clean, bench, etc.
 %:
 	cargo $@
 
@@ -31,8 +31,7 @@ build-env-update:
 	rustup update
 	cargo install-update -a
 
-deps-update: update outdated
-	# done
+deps-update: update outdated;
 
 dev-env: build-env
 	rustup component add rustfmt

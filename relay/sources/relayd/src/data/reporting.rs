@@ -134,7 +134,7 @@ named!(report<CompleteStr, RawReport>, do_parse!(
     event_type: take_until_and_consume_s!("@@") >>
     rule_id: take_until_and_consume_s!("@@") >>
     directive_id: take_until_and_consume_s!("@@") >>
-    serial: take_until_and_consume_s!("@@") >>
+    serial: parse_to!(take_until_and_consume_s!("@@"), i32) >>
     component: take_until_and_consume_s!("@@") >>
     key_value: take_until_and_consume_s!("@@") >>
     start_datetime: take_until_and_consume_s!("##") >>
@@ -149,7 +149,7 @@ named!(report<CompleteStr, RawReport>, do_parse!(
             node_id: node_id.to_string(),
             rule_id: rule_id.to_string(),
             directive_id: directive_id.to_string(),
-            serial: serial.parse::<i32>().unwrap(),
+            serial: serial,
             component: component.to_string(),
             key_value: key_value.to_string(),
             start_datetime: DateTime::parse_from_str(&start_datetime.to_string(), "%Y-%m-%d %H:%M:%S%z").unwrap(),
