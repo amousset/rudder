@@ -13,6 +13,10 @@ path = "src/agent.rs"
 name = "relayd"
 path = "src/relayd.rs"
 
+[[bench]]
+name = "runlog"
+harness = false
+
 [dependencies]
 
 ## Good
@@ -43,6 +47,9 @@ tokio-signal = "0.2"
 futures = "0.1"
 warp = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+bencher = "0.1"
 
 [profile.release]
 # Smaller binaries

@@ -45,7 +45,7 @@ use crate::{
     api::api,
     cli::parse,
     configuration::LogConfig,
-    configuration::{Configuration, ReportingOutputSelect, InventoryOutputSelect},
+    configuration::{Configuration, InventoryOutputSelect, ReportingOutputSelect},
     data::nodes::parse_nodeslist,
     error::Error,
     input::{serve_inventories, serve_reports},

@@ -324,8 +324,8 @@ impl FromStr for RunLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::read_to_string;
     use std::fs::read_dir;
+    use std::fs::read_to_string;
 
     #[test]
     fn test_display_report() {
@@ -436,9 +436,11 @@ mod tests {
         for entry in read_dir("tests/runlogs/").unwrap() {
             let path = entry.unwrap().path();
             if path.extension().unwrap() == "json" {
-                let runlog = RunLog::from_str(&read_to_string(path.with_extension("log")).unwrap()).unwrap();
+                let runlog =
+                    RunLog::from_str(&read_to_string(path.with_extension("log")).unwrap()).unwrap();
                 //println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
-                let reference: RunLog = serde_json::from_str(&read_to_string(path).unwrap()).unwrap();
+                let reference: RunLog =
+                    serde_json::from_str(&read_to_string(path).unwrap()).unwrap();
                 assert_eq!(runlog, reference);
                 test_done += 1;
             }
