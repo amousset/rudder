@@ -38,6 +38,7 @@ use crate::{
     stats::Event,
     JobConfig,
 };
+use flate2::read::GzDecoder;
 use futures::{
     future::{poll_fn, Future},
     lazy,
@@ -58,7 +59,6 @@ use tokio::{
     prelude::*,
     timer::Interval,
 };
-use flate2::read::GzDecoder;
 
 pub type ReceivedFile = PathBuf;
 
@@ -290,18 +290,17 @@ fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = E
             }
         })
 
-
     /*
-        .map(|data| {
-            if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
-                debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
-                data
-            } else {
-                debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
-                data
-            }
-        })
-        */
+    .map(|data| {
+        if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
+            debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
+            data
+        } else {
+            debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
+            data
+        }
+    })
+    */
 }
 
 /*
@@ -314,18 +313,26 @@ fn uncompress(content: Vec<u8>) -> impl Future<Item = String, Error = Error> {
 mod tests {
     use super::*;
     use std::{
-        fs::{create_dir_all, remove_file, File, read_to_string},
+        fs::{create_dir_all, read_to_string, remove_file, File},
         str::FromStr,
     };
 
     #[test]
-    fn it_reads_files() {
+    fn it_reads_gzipped_files() {
         let reference = read_to_string("tests/runlogs/normal.log").unwrap();
         let test = read_file_content(PathBuf::from_str("tests/runlogs/normal.log.gz").unwrap())
-        .map_err(|_| panic!())
-        .map(move|data| assert_eq!(data, reference));
+            .map_err(|_| panic!())
+            .map(move |data| assert_eq!(data, reference));
+        tokio::run(test);
+    }
 
-        tokio::run(test)
+    #[test]
+    fn it_reads_plain_files() {
+        let reference = read_to_string("tests/runlogs/normal.log").unwrap();
+        let test = read_file_content(PathBuf::from_str("tests/runlogs/normal.log").unwrap())
+            .map_err(|_| panic!())
+            .map(move |data| assert_eq!(data, reference));
+        tokio::run(test);
     }
 
     #[test]
