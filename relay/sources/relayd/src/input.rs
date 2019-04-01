@@ -289,25 +289,7 @@ fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = E
                 Ok(String::from_utf8(data)?)
             }
         })
-
-    /*
-    .map(|data| {
-        if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
-            debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
-            data
-        } else {
-            debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
-            data
-        }
-    })
-    */
 }
-
-/*
-fn uncompress(content: Vec<u8>) -> impl Future<Item = String, Error = Error> {
-
-}
-*/
 
 #[cfg(test)]
 mod tests {
