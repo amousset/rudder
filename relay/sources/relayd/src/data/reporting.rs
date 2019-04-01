@@ -125,11 +125,11 @@ named!(parse_runlog<CompleteStr, Vec<RawReport>>,
 );
 
 fn parse_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
-  DateTime::parse_from_str(input.as_ref(), "%Y-%m-%d %H:%M:%S%z")
+    DateTime::parse_from_str(input.as_ref(), "%Y-%m-%d %H:%M:%S%z")
 }
 
 fn parse_i32(input: CompleteStr) -> IResult<CompleteStr, i32> {
-   parse_to!(input, i32)
+    parse_to!(input, i32)
 }
 
 named!(report<CompleteStr, RawReport>, do_parse!(
@@ -165,7 +165,7 @@ named!(report<CompleteStr, RawReport>, do_parse!(
             msg: msg.to_string(),
             policy: policy.to_string(),
         },
-        logs
+            logs
         })
 ));
 
@@ -272,7 +272,7 @@ pub struct RunInfo {
 }
 
 fn parse_iso_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
-  DateTime::parse_from_str(input.as_ref(), "%+")
+    DateTime::parse_from_str(input.as_ref(), "%+")
 }
 
 named!(parse_runinfo<CompleteStr, RunInfo>,
@@ -336,13 +336,11 @@ impl FromStr for RunLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::read_dir;
-    use std::fs::read_to_string;
+    use std::fs::{read_dir, read_to_string};
 
     #[test]
     fn test_display_report() {
         let report = "@@Common@@result_repaired@@hasPolicyServer-root@@common-root@@0@@CRON Daemon@@None@@2018-08-24 15:55:01 +00:00##root@#Cron daemon status was repaired";
-        //let report = Report::from_str(report).unwrap();
         assert_eq!(
             report,
             format!(

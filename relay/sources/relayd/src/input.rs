@@ -54,10 +54,11 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 use tokio::{
-    fs::{file::File, read_dir},
+    fs::{read, read_dir},
     prelude::*,
     timer::Interval,
 };
+use flate2::read::GzDecoder;
 
 pub type ReceivedFile = PathBuf;
 
@@ -252,7 +253,7 @@ fn insert(
     stats: mpsc::Sender<Event>,
 ) -> impl Future<Item = (), Error = ()> {
     // TODO blocking
-    read_file(&path)
+    read_file_content(path.clone())
         .and_then(|res| res.parse::<RunLog>())
         .map_err(|e| warn!("send error: {}", e; "component" => "parser"))
         .map(move |runlog| {
@@ -273,23 +274,59 @@ fn insert(
         })
 }
 
-fn read_file(path: &ReceivedFile) -> impl Future<Item = String, Error = Error> {
-    File::open(path.clone())
-        .and_then(|file| {
-            let buf: Vec<u8> = Vec::new();
-            tokio::io::read_to_end(file, buf)
-        })
+fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = Error> {
+    read(path.clone())
         .map_err(Error::from)
-        .and_then(|item| Ok(String::from_utf8(item.1)?))
+        .and_then(move |data| {
+            if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
+                debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
+                let mut gz = GzDecoder::new(data.as_slice());
+                let mut s = String::new();
+                gz.read_to_string(&mut s)?;
+                Ok(s)
+            } else {
+                debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
+                Ok(String::from_utf8(data)?)
+            }
+        })
+
+
+    /*
+        .map(|data| {
+            if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
+                debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
+                data
+            } else {
+                debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
+                data
+            }
+        })
+        */
 }
+
+/*
+fn uncompress(content: Vec<u8>) -> impl Future<Item = String, Error = Error> {
+
+}
+*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{
-        fs::{create_dir_all, remove_file, File},
+        fs::{create_dir_all, remove_file, File, read_to_string},
         str::FromStr,
     };
+
+    #[test]
+    fn it_reads_files() {
+        let reference = read_to_string("tests/runlogs/normal.log").unwrap();
+        let test = read_file_content(PathBuf::from_str("tests/runlogs/normal.log.gz").unwrap())
+        .map_err(|_| panic!())
+        .map(move|data| assert_eq!(data, reference));
+
+        tokio::run(test)
+    }
 
     #[test]
     fn it_watches_files() {
