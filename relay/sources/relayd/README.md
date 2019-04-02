@@ -1,25 +1,25 @@
-# protocol-v2-poc
+# relayd
 
 ## Install
 
 ### Dependencies
 
-Dependencies are:
+Runtime dependencies are:
 
-* pkg-config (only for dev)
 * openssl
 * libpq
+* zlib
 
 To install build dependencies on Debian/Ubuntu:
 
 ```bash
-make apt-dependencies
+sudo make apt-dependencies
 ```
 
 To install build dependencies on RHEL/Fedora:
 
 ```bash
-make yum-dependencies
+sudo make yum-dependencies
 ```
 
 ### Installation
@@ -39,14 +39,6 @@ The best option to install the Rust compiler is to use
 
 Best IDEs for Rust development are *VSCode* or *IntelliJ IdeaC*
 with their Rust plugin.
-
-You may want to install `rls` for *VSCode* integration 
-(IdeaC has its own embedded tools):
-
-```bash
-rustup component add rls rust-analysis rust-src
-cargo install racer
-```
 
 Useful tools include:
 

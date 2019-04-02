@@ -15,10 +15,10 @@ install: clean lint audit
 	cargo install --bin relayd --path=. --root=$(DESTDIR)
 
 yum-dependencies:
-	yum install pkgconf-pkg-config libpqxx openssl-devel
+	yum install pkgconf-pkg-config libpqxx openssl-devel zlib-devel
 
 apt-dependencies:
-	apt install pkg-config libpq-dev libssl-dev
+	apt install pkg-config libpq-dev libssl-dev zlib1g-dev
 
 build-env:
 	curl https://sh.rustup.rs -sSf | sh
