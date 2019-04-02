@@ -280,6 +280,7 @@ named!(parse_runinfo<CompleteStr, RunInfo>,
         timestamp: map_res!(take_until_and_consume_s!("@"), parse_iso_date) >>
         node_id: take_until_and_consume_s!(".") >>
         tag_s!("log") >>
+        opt!(tag_s!(".gz")) >>
         (
             RunInfo {
                 // FIXME same timestamp format as in the reports?

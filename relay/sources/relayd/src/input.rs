@@ -274,7 +274,7 @@ fn insert(
         })
 }
 
-fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = Error> {
+pub fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = Error> {
     read(path.clone())
         .map_err(Error::from)
         .and_then(move |data| {
