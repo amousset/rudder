@@ -1,4 +1,5 @@
 DESTDIR = $(CURDIR)/target
+RUDDER_VERSION_TO_PACKAGE = "5.1.0-alpha1"
 
 ### Packaging
 
@@ -17,17 +18,18 @@ target/man/%.gz: target/man/%
 	gzip -f $<
 
 install: build-all
-	# Install binary
+	# Directories
 	mkdir -p $(DESTDIR)/opt/rudder/bin/
+	mkdir -p $(DESTDIR)/opt/rudder/etc/
+	mkdir -p $(DESTDIR)/opt/rudder/share/man/man1/
+	mkdir -p $(DESTDIR)/usr/lib/systemd/system/
+	# Install binary
 	install -m 755 target/release/rudder-relayd $(DESTDIR)/opt/rudder/bin/rudder-relayd
 	# Install service
-	mkdir -p $(DESTDIR)/usr/lib/systemd/system/
 	install -m 644 tools/rudder-relayd.service $(DESTDIR)/usr/lib/systemd/system/rudder-relayd.service
 	# Install man pages
-	mkdir -p $(DESTDIR)/opt/rudder/share/man/man1/
 	install -m 644 target/man/rudder-relayd.1.gz $(DESTDIR)/opt/rudder/share/man/man1/
 	# Install default configuration file
-	mkdir -p $(DESTDIR)/opt/rudder/etc/
 	install -m 644 tools/rudder-relayd.conf $(DESTDIR)/opt/rudder/etc/rudder-relayd.conf
 
 ### Build

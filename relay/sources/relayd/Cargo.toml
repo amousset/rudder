@@ -47,7 +47,7 @@ warp = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
-bencher = "0.1"
+criterion = "0.2"
 
 [profile.release]
 # Smaller binaries
