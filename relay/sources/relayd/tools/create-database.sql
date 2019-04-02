@@ -4,5 +4,6 @@ create user rudderreports with encrypted password 'PASSWORD';
 \c rudder
 grant select on table ruddersysevents to rudderreports;
 grant insert on table ruddersysevents to rudderreports;
+/* grant delete on table ruddersysevents to rudderreports; */
 /* grant truncate on table ruddersysevents to rudderreports; */
 grant usage on sequence serial to rudderreports;

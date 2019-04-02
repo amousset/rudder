@@ -31,5 +31,6 @@
 use relayd::{error::Error, start};
 
 fn main() -> Result<(), Error> {
-    start()
+    // Everything in a lib to allow complete testing
+    start(None)
 }

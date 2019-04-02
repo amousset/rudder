@@ -120,7 +120,7 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     ctrl.set(drain.map(slog::Fuse));
 }
 
-pub fn start() -> Result<(), Error> {
+pub fn start(hardcoded_configuration_file: Option<&Path>) -> Result<(), Error> {
     // ---- Default logger for fist steps ----
 
     let drain = AtomicSwitch::new(logger_drain());
@@ -137,7 +137,10 @@ pub fn start() -> Result<(), Error> {
 
     // ---- Load configuration ----
 
-    let cfg = load_configuration(&cli_cfg.configuration_file)?;
+    let cfg = load_configuration(match hardcoded_configuration_file {
+        None => &cli_cfg.configuration_file,
+        Some(file) => &file,
+    })?;
 
     // ---- Setup loggers with actual configuration ----
 

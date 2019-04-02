@@ -44,17 +44,16 @@ pub mod schema {
         ruddersysevents {
             id -> BigInt,
             executiondate -> Timestamptz,
-            nodeid -> Text,
-            directiveid -> Text,
             ruleid -> Text,
-            serial -> Integer,
+            directiveid -> Text,
             component -> Text,
             keyvalue -> Nullable<Text>,
-            executiontimestamp -> Nullable<Timestamptz>,
             eventtype -> Nullable<Text>,
-            policy -> Nullable<Text>,
             msg -> Nullable<Text>,
-            detail -> Nullable<Text>,
+            policy -> Nullable<Text>,
+            nodeid -> Text,
+            executiontimestamp -> Nullable<Timestamptz>,
+            serial -> Integer,
         }
     }
 }

@@ -190,6 +190,32 @@ impl RawReport {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Queryable)]
+pub struct QueryableReport {
+    pub id: i64,
+    #[column_name = "executiondate"]
+    pub start_datetime: DateTime<Utc>,
+    #[column_name = "ruleid"]
+    pub rule_id: String,
+    #[column_name = "directiveid"]
+    pub directive_id: String,
+    pub component: String,
+    #[column_name = "keyvalue"]
+    pub key_value: Option<String>,
+    // Not parsed as we do not use it and do not want to prevent future changes
+    #[column_name = "eventtype"]
+    pub event_type: Option<String>,
+    #[column_name = "msg"]
+    pub msg: Option<String>,
+    #[column_name = "policy"]
+    pub policy: Option<String>,
+    #[column_name = "nodeid"]
+    pub node_id: NodeId,
+    #[column_name = "executiontimestamp"]
+    pub execution_datetime: Option<DateTime<Utc>>,
+    pub serial: i32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Insertable)]
 #[table_name = "ruddersysevents"]
 pub struct Report {
@@ -329,7 +355,10 @@ impl FromStr for RunLog {
                 debug!("Parsed runlog {:#?}", raw_runlog.1; "component" => "parser");
                 Ok(Self::from_reports(raw_runlog.1)?)
             }
-            Err(_) => Err(Error::InvalidRunInfo),
+            Err(_) => {
+                warn!("Could not parse: {}", s);
+                Err(Error::InvalidRunLog)
+            }
         }
     }
 }
