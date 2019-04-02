@@ -285,7 +285,7 @@ fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = E
                 gz.read_to_string(&mut s)?;
                 Ok(s)
             } else {
-                debug!("{:?} has no .gz extension, skipping extraction", path; "component" => "watcher");
+                debug!("{:?} has no .gz extension, no extraction needed", path; "component" => "watcher");
                 Ok(String::from_utf8(data)?)
             }
         })
