@@ -73,7 +73,13 @@ pub fn pg_pool(configuration: &DatabaseConfig) -> Result<PgPool, Error> {
         .build(manager)?)
 }
 
-pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
+pub enum RunlogInsertion {
+    Inserted,
+    AlreadyThere,
+}
+
+// TODO return if it inserted the runlog or not
+pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<RunlogInsertion, Error> {
     use self::schema::ruddersysevents::dsl::*;
     let connection = &*pool.get()?;
 
@@ -114,7 +120,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
                     .values(report)
                     .execute(connection)?;
             }
-            Ok(())
+            Ok(RunlogInsertion::Inserted)
         })
     } else {
         info!("The {} runlog was already there, skipping insertion", runlog.info; "component" => LogComponent::Database, "node" => &first_report.node_id);
@@ -122,6 +128,6 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
             "The report that was already present in database is: {}",
             first_report; "component" => LogComponent::Database, "node" => &first_report.node_id
         );
-        Ok(())
+        Ok(RunlogInsertion::AlreadyThere)
     }
 }
