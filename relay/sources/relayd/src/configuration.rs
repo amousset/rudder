@@ -142,6 +142,7 @@ pub struct UpstreamConfig {
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct LogConfig {
     pub general: LoggerConfig,
+    pub filter: LogFilterConfig,
 }
 
 #[serde(remote = "Level")]
@@ -203,7 +204,6 @@ pub struct LogFilterConfig {
 pub struct LoggerConfig {
     #[serde(with = "LogLevel")]
     pub level: Level,
-    pub filter: LogFilterConfig,
 }
 
 #[cfg(test)]
@@ -262,11 +262,11 @@ mod tests {
             logging: LogConfig {
                 general: LoggerConfig {
                     level: Level::Info,
-                    filter: LogFilterConfig {
+                },
+                filter: LogFilterConfig {
                         level: Level::Debug,
                         nodes: HashSet::from_iter(vec!["root".to_string()].iter().cloned()),
                         components: HashSet::from_iter(vec![LogComponent::Database].iter().cloned()),
-                    },
                 },
             },
         };
