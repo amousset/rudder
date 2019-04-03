@@ -33,6 +33,7 @@ use serde::Serialize;
 use slog::slog_trace;
 use slog_scope::trace;
 use std::sync::{Arc, RwLock};
+use crate::configuration::LogComponent;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 pub struct Stats {
@@ -79,7 +80,7 @@ pub fn stats_job(
             .write()
             .expect("could not write lock stats")
             .event(event);
-        trace!("Received stat event: {:?}", event; "component" => "statistics");
+        trace!("Received stat event: {:?}", event; "component" => LogComponent::Statistics);
         Ok(())
     })
 }

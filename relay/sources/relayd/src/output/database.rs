@@ -29,7 +29,7 @@
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    configuration::DatabaseConfig,
+    configuration::{LogComponent, DatabaseConfig},
     data::reporting::{QueryableReport, RunLog},
     error::Error,
 };
@@ -85,7 +85,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
         .first()
         .expect("a runlog should never be empty");
 
-    trace!("Checking if first report {} is in the database", first_report; "component" => "database", "node" => &first_report.node_id);
+    trace!("Checking if first report {} is in the database", first_report; "component" => LogComponent::Database, "node" => &first_report.node_id);
     let new_runlog = ruddersysevents
         .filter(
             component
@@ -107,7 +107,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
         .is_empty();
 
     if new_runlog {
-        trace!("Inserting runlog {:#?}", runlog; "component" => "database", "node" => &first_report.node_id);
+        trace!("Inserting runlog {:#?}", runlog; "component" => LogComponent::Database, "node" => &first_report.node_id);
         connection.transaction::<_, Error, _>(|| {
             for report in &runlog.reports {
                 insert_into(ruddersysevents)
@@ -117,10 +117,10 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
             Ok(())
         })
     } else {
-        info!("The {} runlog was already there, skipping insertion", runlog.info; "component" => "database", "node" => &first_report.node_id);
+        info!("The {} runlog was already there, skipping insertion", runlog.info; "component" => LogComponent::Database, "node" => &first_report.node_id);
         debug!(
             "The report that was already present in database is: {}",
-            first_report; "component" => "database", "node" => &first_report.node_id
+            first_report; "component" => LogComponent::Database, "node" => &first_report.node_id
         );
         Ok(())
     }

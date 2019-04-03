@@ -28,7 +28,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::stats::Stats;
+use crate::{configuration::LogComponent, stats::Stats};
 use futures::Future;
 use slog::slog_info;
 use slog_scope::info;
@@ -48,6 +48,6 @@ pub fn api(
         warp::path("stats").map(move || warp::reply::json(&(*stats.clone().read().unwrap())));
     let routes = warp::get2().and(stats_simple);
     let (addr, server) = warp::serve(routes).bind_with_graceful_shutdown(listen, shutdown);
-    info!("Started stats API on {}", addr; "component" => "statistics");
+    info!("Started stats API on {}", addr; "component" => LogComponent::Statistics);
     server
 }

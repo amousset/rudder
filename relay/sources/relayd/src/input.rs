@@ -38,6 +38,7 @@ use crate::{
     stats::Event,
     JobConfig,
 };
+use crate::configuration::LogComponent;
 use flate2::read::GzDecoder;
 use futures::{
     future::{poll_fn, Future},
@@ -118,11 +119,11 @@ fn treat_reports(
         let stat_event = stats
             .clone()
             .send(Event::ReportReceived)
-            .map_err(|e| warn!("receive error: {}", e; "component" => "watcher"))
+            .map_err(|e| warn!("receive error: {}", e; "component" => LogComponent::Watcher))
             .map(|_| ());
         tokio::spawn(lazy(|| stat_event));
 
-        debug!("received: {:?}", file; "component" => "watcher");
+        debug!("received: {:?}", file; "component" => LogComponent::Watcher);
 
         let treat_file = match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => insert(&file, job_config.clone(), stats.clone()),
@@ -144,12 +145,12 @@ fn treat_inventories(
     let stat_event = stats
         .clone()
         .send(Event::ReportReceived)
-        .map_err(|e| warn!("receive error: {}", e; "component" => "watcher"))
+        .map_err(|e| warn!("receive error: {}", e; "component" => LogComponent::Watcher))
         .map(|_| ());
     tokio::spawn(lazy(|| stat_event));
 
     rx.for_each(move |file| {
-        debug!("received: {:?}", file; "component" => "watcher");
+        debug!("received: {:?}", file; "component" => LogComponent::Watcher);
         let treat_file = match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => insert(&file, job_config.clone(), stats.clone()),
             // The job should not be started in this case
@@ -162,7 +163,7 @@ fn treat_inventories(
 }
 
 fn watch(path: &WatchedDirectory, job_config: Arc<JobConfig>, tx: &mpsc::Sender<ReceivedFile>) {
-    info!("Starting file watcher on {:#?}", &path; "component" => "watcher");
+    info!("Starting file watcher on {:#?}", &path; "component" => LogComponent::Watcher);
     // Try to create target dir
     create_dir_all(path).expect("Could not create watched directory");
     tokio::spawn(list_files(
@@ -179,9 +180,9 @@ fn list_files(
     tx: mpsc::Sender<ReceivedFile>,
 ) -> impl Future<Item = (), Error = ()> {
     Interval::new(Instant::now(), Duration::from_secs(cfg.frequency))
-        .map_err(|e| warn!("interval error: {}", e; "component" => "watcher"))
+        .map_err(|e| warn!("interval error: {}", e; "component" => LogComponent::Watcher))
         .for_each(move |_instant| {
-            debug!("listing {:?}", path; "component" => "watcher");
+            debug!("listing {:?}", path; "component" => LogComponent::Watcher);
 
             let tx = tx.clone();
             let sys_time = SystemTime::now();
@@ -189,7 +190,7 @@ fn list_files(
             read_dir(path.clone())
                 .flatten_stream()
                 .take(cfg.limit)
-                .map_err(|e| warn!("list error: {}", e; "component" => "watcher"))
+                .map_err(|e| warn!("list error: {}", e; "component" => LogComponent::Watcher))
                 .filter(move |entry| {
                     poll_fn(move || entry.poll_metadata())
                         // If metadata can't be fetched, skip it for now
@@ -201,17 +202,17 @@ fn list_files(
                                 .unwrap_or_else(|_| Duration::new(0, 0))
                         })
                         .map(|duration| duration > Duration::from_secs(30))
-                        .map_err(|e| warn!("list filter error: {}", e; "component" => "watcher"))
+                        .map_err(|e| warn!("list filter error: {}", e; "component" => LogComponent::Watcher))
                         // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
                         .wait()
                         .unwrap_or(false)
                 })
                 .for_each(move |entry| {
                     let path = entry.path();
-                    debug!("list: {:?}", path; "component" => "watcher");
+                    debug!("list: {:?}", path; "component" => LogComponent::Watcher);
                     tx.clone()
                         .send(path)
-                        .map_err(|e| warn!("list error: {}", e; "component" => "watcher"))
+                        .map_err(|e| warn!("list error: {}", e; "component" => LogComponent::Watcher))
                         .map(|_| ())
                 })
         })
@@ -233,7 +234,7 @@ fn watch_files(
     let path_prefix = path.clone();
     watch_stream(path.clone())
         .map_err(|e| {
-            warn!("watch error: {}", e; "component" => "watcher");
+            warn!("watch error: {}", e; "component" => LogComponent::Watcher);
         })
         .map(|entry| entry.name)
         // If it is None, it means it is not an event on a file in the directory, skipping
@@ -243,13 +244,13 @@ fn watch_files(
         .map(move |p| {
             let mut full_path = path_prefix.clone();
             full_path.push(p);
-            debug!("inotify: {:?}", path; "component" => "watcher");
+            debug!("inotify: {:?}", path; "component" => LogComponent::Watcher);
             full_path
         })
         .for_each(move |entry| {
             tx.clone()
                 .send(entry)
-                .map_err(|e| warn!("watch send error: {}", e; "component" => "watcher"))
+                .map_err(|e| warn!("watch send error: {}", e; "component" => LogComponent::Watcher))
                 .map(|_| ())
         })
 }
@@ -263,7 +264,7 @@ fn insert(
     debug!("Starting insertion of {:#?}", path);
     read_file_content(path.clone())
         .and_then(|res| res.parse::<RunLog>())
-        .map_err(|e| warn!("send error: {}", e; "component" => "parser"))
+        .map_err(|e| warn!("send error: {}", e; "component" => LogComponent::Parser))
         .map(move |runlog| {
             insert_runlog(
                 &job_config
@@ -272,12 +273,12 @@ fn insert(
                     .expect("output uses database but no config provided"),
                 &runlog,
             )
-            .map_err(|e| warn!("parse error: {}", e; "component" => "parser"))
+            .map_err(|e| warn!("parse error: {}", e; "component" => LogComponent::Parser))
         })
         .and_then(|_| {
             stats
                 .send(Event::ReportInserted)
-                .map_err(|e| warn!("send error: {}", e; "component" => "watcher"))
+                .map_err(|e| warn!("send error: {}", e; "component" => LogComponent::Parser))
                 .map(|_| ())
         })
 }
@@ -289,13 +290,13 @@ pub fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error
         .map_err(Error::from)
         .and_then(move |data| {
             if path.extension().map(|s|s.to_str()) == Some(Some("gz")) {
-                debug!("{:?} has .gz extension, extracting", path; "component" => "watcher");
+                debug!("{:?} has .gz extension, extracting", path; "component" => LogComponent::Watcher);
                 let mut gz = GzDecoder::new(data.as_slice());
                 let mut s = String::new();
                 gz.read_to_string(&mut s)?;
                 Ok(s)
             } else {
-                debug!("{:?} has no .gz extension, no extraction needed", path; "component" => "watcher");
+                debug!("{:?} has no .gz extension, no extraction needed", path; "component" => LogComponent::Watcher);
                 Ok(String::from_utf8(data)?)
             }
         })

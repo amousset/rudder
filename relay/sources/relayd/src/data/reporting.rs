@@ -28,7 +28,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents};
+use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents,
+configuration::LogComponent};
 use chrono::prelude::*;
 use nom::{types::CompleteStr, *};
 use serde::{Deserialize, Serialize};
@@ -297,7 +298,7 @@ impl FromStr for RunInfo {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parse_runinfo(CompleteStr::from(s)) {
             Ok(raw_runinfo) => {
-                debug!("Parsed run info {:#?}", raw_runinfo.1; "component" => "parser");
+                debug!("Parsed run info {:#?}", raw_runinfo.1; "component" => LogComponent::Parser);
                 Ok(raw_runinfo.1)
             }
             Err(_) => Err(Error::InvalidRunInfo),
@@ -327,7 +328,7 @@ impl FromStr for RunLog {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parse_runlog(CompleteStr::from(s)) {
             Ok(raw_runlog) => {
-                debug!("Parsed runlog {:#?}", raw_runlog.1; "component" => "parser");
+                debug!("Parsed runlog {:#?}", raw_runlog.1; "component" => LogComponent::Parser);
                 Ok(Self::from_reports(raw_runlog.1)?)
             }
             Err(_) => {
@@ -355,7 +356,7 @@ impl RunLog {
 
         for report in &reports {
             if info.node_id != report.node_id {
-                warn!("Wrong node id in report {:#?}", report; "component" => "parser");
+                warn!("Wrong node id in report {:#?}", report; "component" => LogComponent::Parser);
             }
             if info.timestamp != report.start_datetime {
                 warn!(

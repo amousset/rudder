@@ -30,13 +30,16 @@
 
 use crate::{data::nodes::NodeId, error::Error};
 use serde::Deserialize;
-use slog::Level;
+use slog;
+use slog::{Key, Level, Record, Serializer, Value};
 use std::{
     collections::HashSet,
     net::SocketAddr,
     path::{Path, PathBuf},
 };
 use toml;
+use std::fmt::Display;
+use std::fmt;
 
 pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
@@ -153,10 +156,46 @@ pub enum LogLevel {
     Trace,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum LogComponent {
+    Database,
+    Parser,
+    Watcher,
+    Statistics,
+}
+
+impl LogComponent {
+    pub fn tag(&self) -> &'static str {
+        match *self {
+            LogComponent::Database => "database",
+            LogComponent::Parser => "parser",
+            LogComponent::Watcher => "watcher",
+            LogComponent::Statistics => "statistics",
+        }
+    }
+}
+
+impl Display for LogComponent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{}", self.tag())
+    }
+}
+
+impl Value for LogComponent {
+    fn serialize(&self, _record: &Record, key: Key, serializer: &mut Serializer) -> slog::Result {
+        serializer.emit_str(
+            key,
+            self.tag(),
+        )
+    }
+}
+
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct LogFilterConfig {
     #[serde(with = "LogLevel")]
     pub level: Level,
+    pub components: HashSet<LogComponent>,
     pub nodes: HashSet<NodeId>,
 }
 
@@ -225,6 +264,7 @@ mod tests {
                     filter: LogFilterConfig {
                         level: Level::Trace,
                         nodes: HashSet::new(),
+                        components: HashSet::new(),
                     },
                 },
             },

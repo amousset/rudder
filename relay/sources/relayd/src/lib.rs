@@ -73,6 +73,9 @@ use std::{
 };
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
 
+use std::collections::HashSet;
+use std::iter::FromIterator;
+
 pub struct JobConfig {
     pub cfg: Configuration,
     pub nodes: NodesList,
@@ -117,6 +120,7 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     } else {
         let mut node_filter = HashMap::new();
         node_filter.insert("node".to_string(), cfg.general.filter.nodes.clone());
+        node_filter.insert("component".to_string(), HashSet::from_iter(cfg.general.filter.components.clone().iter().map(|s|s.to_string())));
         let drain = KVFilter::new(
             slog::LevelFilter::new(logger_drain(), cfg.general.filter.level),
             // decrement because the user provides the log level they want to see
