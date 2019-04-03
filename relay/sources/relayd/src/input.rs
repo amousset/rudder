@@ -348,8 +348,5 @@ mod tests {
                 );
             }
         }
-
-        // cleanup
-        let _ = remove_file("target/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
     }
 }
