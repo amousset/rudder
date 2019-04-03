@@ -1,6 +1,5 @@
 use diesel::{self, prelude::*, PgConnection};
-use filetime::set_file_times;
-use filetime::FileTime;
+use filetime::{set_file_times, FileTime};
 use relayd::{
     configuration::CliConfiguration, data::reporting::QueryableReport,
     output::database::schema::ruddersysevents::dsl::*, start,

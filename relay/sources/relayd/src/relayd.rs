@@ -47,10 +47,12 @@ fn parse() -> CliConfiguration {
                 .help("Sets a custom config file")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("check")
+        .arg(
+            Arg::with_name("check")
                 .short("k")
                 .long("check")
-                .help("Checks configuration file syntax"))
+                .help("Checks configuration file syntax"),
+        )
         .get_matches();
 
     CliConfiguration {

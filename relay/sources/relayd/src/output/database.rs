@@ -73,6 +73,7 @@ pub fn pg_pool(configuration: &DatabaseConfig) -> Result<PgPool, Error> {
         .build(manager)?)
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum RunlogInsertion {
     Inserted,
     AlreadyThere,
@@ -129,5 +130,66 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<RunlogInsertion, 
             first_report; "component" => LogComponent::Database, "node" => &first_report.node_id
         );
         Ok(RunlogInsertion::AlreadyThere)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        data::reporting::QueryableReport, output::database::schema::ruddersysevents::dsl::*,
+    };
+    use diesel;
+    use std::fs::read_to_string;
+    use std::str::FromStr;
+
+    pub fn db() -> PgPool {
+        let db_config = DatabaseConfig {
+            url: "postgres://rudderreports:PASSWORD@127.0.0.1/rudder".to_string(),
+            max_pool_size: 5,
+        };
+        pg_pool(&db_config).unwrap()
+    }
+
+    #[test]
+    fn it_inserts_runlog() {
+        let pool = db();
+        let db = &*pool.get().unwrap();
+
+        diesel::delete(ruddersysevents).execute(db).unwrap();
+
+        let results = ruddersysevents
+            .limit(1)
+            .load::<QueryableReport>(db)
+            .expect("Error loading posts");
+
+        assert_eq!(results.len(), 0);
+
+        let runlog =
+            RunLog::from_str(&read_to_string("tests/runlogs/normal.log").unwrap()).unwrap();
+
+        assert_eq!(
+            insert_runlog(&pool, &runlog).unwrap(),
+            RunlogInsertion::Inserted
+        );
+
+        let results = ruddersysevents
+            .limit(100)
+            .load::<QueryableReport>(db)
+            .expect("Error loading posts");
+
+        assert_eq!(results.len(), 71);
+
+        assert_eq!(
+            insert_runlog(&pool, &runlog).unwrap(),
+            RunlogInsertion::AlreadyThere
+        );
+
+        let results = ruddersysevents
+            .limit(100)
+            .load::<QueryableReport>(db)
+            .expect("Error loading posts");
+
+        assert_eq!(results.len(), 71);
     }
 }
