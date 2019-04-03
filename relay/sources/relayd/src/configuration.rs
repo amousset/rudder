@@ -35,11 +35,14 @@ use std::net::SocketAddr;
 use std::{collections::HashSet, path::PathBuf};
 use toml;
 
-pub const DEFAULT_CONFIGURATION_FILE: &str = "/opt/rudder/etc/rudder-relayd.conf";
-
 pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
 pub type NodesListFile = PathBuf;
+
+#[derive(Debug)]
+pub struct CliConfiguration {
+    pub configuration_file: PathBuf,
+}
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 // Default can be implemented in serde using the Default trait

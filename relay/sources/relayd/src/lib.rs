@@ -32,7 +32,6 @@
 extern crate diesel;
 
 pub mod api;
-pub mod cli;
 pub mod configuration;
 pub mod data;
 pub mod error;
@@ -43,9 +42,8 @@ pub mod stats;
 
 use crate::{
     api::api,
-    cli::parse,
     configuration::LogConfig,
-    configuration::{Configuration, InventoryOutputSelect, ReportingOutputSelect},
+    configuration::{Configuration, CliConfiguration, InventoryOutputSelect, ReportingOutputSelect},
     data::nodes::parse_nodeslist,
     error::Error,
     input::{serve_inventories, serve_reports},
@@ -120,7 +118,9 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     ctrl.set(drain.map(slog::Fuse));
 }
 
-pub fn start(hardcoded_configuration_file: Option<&Path>) -> Result<(), Error> {
+// Hardcoded config allows ignoring cli parameters when using
+// relayd as a lib (mainly in tests)
+pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // ---- Default logger for fist steps ----
 
     let drain = AtomicSwitch::new(logger_drain());
@@ -131,16 +131,9 @@ pub fn start(hardcoded_configuration_file: Option<&Path>) -> Result<(), Error> {
     // Integrate libs using standard log crate
     slog_stdlog::init().expect("Could not initialize standard logging");
 
-    // ---- Process cli arguments ----
-
-    let cli_cfg = parse();
-
     // ---- Load configuration ----
 
-    let cfg = load_configuration(match hardcoded_configuration_file {
-        None => &cli_cfg.configuration_file,
-        Some(file) => &file,
-    })?;
+    let cfg = load_configuration(&cli_cfg.configuration_file)?;
 
     // ---- Setup loggers with actual configuration ----
 

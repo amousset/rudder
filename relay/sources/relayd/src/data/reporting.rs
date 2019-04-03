@@ -202,7 +202,6 @@ pub struct QueryableReport {
     pub component: String,
     #[column_name = "keyvalue"]
     pub key_value: Option<String>,
-    // Not parsed as we do not use it and do not want to prevent future changes
     #[column_name = "eventtype"]
     pub event_type: Option<String>,
     #[column_name = "msg"]
