@@ -40,12 +40,11 @@ pub mod input;
 pub mod output;
 pub mod stats;
 
-use clap::crate_version;
 use crate::{
     api::api,
     configuration::LogConfig,
     configuration::{
-        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect
+        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect,
     },
     data::nodes::parse_nodeslist,
     error::Error,
@@ -53,13 +52,14 @@ use crate::{
     output::database::{pg_pool, PgPool},
     stats::Stats,
 };
+use clap::crate_version;
 use data::nodes::NodesList;
 use futures::{
     future::{lazy, Future},
     stream::Stream,
     sync::mpsc,
 };
-use slog::{o, slog_debug, slog_error, slog_info, slog_trace, Drain, Logger, Level};
+use slog::{o, slog_debug, slog_error, slog_info, slog_trace, Drain, Level, Logger};
 use slog_async::Async;
 use slog_atomic::{AtomicSwitch, AtomicSwitchCtrl};
 use slog_kvfilter::KVFilter;
@@ -118,9 +118,8 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     } else {
         let drain = KVFilter::new(
             slog::LevelFilter::new(logger_drain(), cfg.general.filter.level),
-            // FIXME handle trace increment
-            // increment because the user provides the log level they want to see
-            // while this displays logs unconditionally above the given level.
+            // decrement because the user provides the log level they want to see
+            // while this displays logs unconditionally above the given level included.
             match cfg.general.level {
                 Level::Critical => Level::Error,
                 Level::Error => Level::Warning,
@@ -129,7 +128,7 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
                 Level::Debug => Level::Trace,
                 Level::Trace => unreachable!("Global trace log level is handled separately"),
             },
-                    )
+        )
         .only_pass_any_on_all_keys(Some(node_filter));
         ctrl.set(drain.map(slog::Fuse));
     }
