@@ -17,6 +17,12 @@ pub fn db_connection() -> PgConnection {
 fn it_reads_and_inserts_a_runlog() {
     let db = db_connection();
     diesel::delete(ruddersysevents).execute(&db).unwrap();
+    let results = ruddersysevents
+        .limit(1)
+        .load::<QueryableReport>(&db)
+        .unwrap();
+    assert_eq!(results.len(), 0);
+
     let _ = remove_dir_all("target/tmp/test_simple");
     create_dir_all("target/tmp/test_simple/incoming").unwrap();
     let cli_cfg = CliConfiguration::new("tests/test_simple/relayd.conf", false);
@@ -50,7 +56,6 @@ fn it_reads_and_inserts_a_runlog() {
         .filter(component.eq("start"))
         .limit(3)
         .load::<QueryableReport>(&db)
-        .expect("Error loading posts");
-
+        .unwrap();
     assert_eq!(results.len(), 2);
 }

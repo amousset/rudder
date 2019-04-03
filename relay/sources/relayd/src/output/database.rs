@@ -157,16 +157,16 @@ mod tests {
         let db = &*pool.get().unwrap();
 
         diesel::delete(ruddersysevents).execute(db).unwrap();
-
         let results = ruddersysevents
             .limit(1)
             .load::<QueryableReport>(db)
-            .expect("Error loading posts");
-
+            .unwrap();
         assert_eq!(results.len(), 0);
 
         let runlog =
             RunLog::from_str(&read_to_string("tests/runlogs/normal.log").unwrap()).unwrap();
+
+        // Test inserting the runlog
 
         assert_eq!(
             insert_runlog(&pool, &runlog).unwrap(),
@@ -176,9 +176,10 @@ mod tests {
         let results = ruddersysevents
             .limit(100)
             .load::<QueryableReport>(db)
-            .expect("Error loading posts");
-
+            .unwrap();
         assert_eq!(results.len(), 71);
+
+        // Test inserting twice the same runlog
 
         assert_eq!(
             insert_runlog(&pool, &runlog).unwrap(),
@@ -188,8 +189,7 @@ mod tests {
         let results = ruddersysevents
             .limit(100)
             .load::<QueryableReport>(db)
-            .expect("Error loading posts");
-
+            .unwrap();
         assert_eq!(results.len(), 71);
     }
 }
