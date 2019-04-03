@@ -7,7 +7,7 @@ rudder-relayd - Rudder relay daemon that makes the link between nodes and root s
 
 == SYNOPSIS
 
-*rudder-relayd* [--config _file_]
+*rudder-relayd* [--check] [--config _file_]
 
 *rudder-relayd* --help
 
@@ -20,6 +20,8 @@ the upstream relay or send them to the root server.
 
 *-c, --config* _file_::
   Configuration file to load (default is _/opt/rudder/etc/rudder-relayd.conf_).
+*-k, --check*::
+  Test configuration file syntax and exit.
 *-h, --help*::
   Print help information.
 

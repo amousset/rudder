@@ -28,6 +28,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::configuration::LogComponent;
 use crate::{
     configuration::{
         CatchupConfig, InventoryOutputSelect, ReportingOutputSelect, WatchedDirectory,
@@ -38,7 +39,6 @@ use crate::{
     stats::Event,
     JobConfig,
 };
-use crate::configuration::LogComponent;
 use flate2::read::GzDecoder;
 use futures::{
     future::{poll_fn, Future},

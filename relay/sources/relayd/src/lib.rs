@@ -120,7 +120,10 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     } else {
         let mut node_filter = HashMap::new();
         node_filter.insert("node".to_string(), cfg.filter.nodes.clone());
-        node_filter.insert("component".to_string(), HashSet::from_iter(cfg.filter.components.clone().iter().map(|s|s.to_string())));
+        node_filter.insert(
+            "component".to_string(),
+            HashSet::from_iter(cfg.filter.components.clone().iter().map(|s| s.to_string())),
+        );
         let drain = KVFilter::new(
             slog::LevelFilter::new(logger_drain(), cfg.filter.level),
             // decrement because the user provides the log level they want to see
@@ -137,7 +140,6 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
         .only_pass_any_on_all_keys(Some(node_filter.clone()));
         ctrl.set(drain.map(slog::Fuse));
         debug!("Log filters are {:#?}", node_filter);
-
     }
 }
 
@@ -145,6 +147,11 @@ pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // ---- Load configuration ----
 
     let cfg = load_configuration(&cli_cfg.configuration_file)?;
+
+    if cli_cfg.check_configuration {
+        println!("Syntax: OK");
+        return Ok(());
+    }
 
     // ---- Setup loggers ----
 

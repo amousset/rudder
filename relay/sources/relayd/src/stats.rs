@@ -28,12 +28,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::configuration::LogComponent;
 use futures::{stream::Stream, sync::mpsc, Future};
 use serde::Serialize;
 use slog::slog_trace;
 use slog_scope::trace;
 use std::sync::{Arc, RwLock};
-use crate::configuration::LogComponent;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 pub struct Stats {

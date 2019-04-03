@@ -28,8 +28,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents,
-configuration::LogComponent};
+use crate::{
+    configuration::LogComponent, data::nodes::NodeId, error::Error,
+    output::database::schema::ruddersysevents,
+};
 use chrono::prelude::*;
 use nom::{types::CompleteStr, *};
 use serde::{Deserialize, Serialize};

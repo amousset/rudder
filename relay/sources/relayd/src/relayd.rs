@@ -34,7 +34,7 @@ use relayd::{configuration::CliConfiguration, error::Error, start};
 const DEFAULT_CONFIGURATION_FILE: &str = "/opt/rudder/etc/rudder-relayd.conf";
 
 fn parse() -> CliConfiguration {
-    let matches = App::new("relayd")
+    let matches = App::new("rudder-relayd")
         .version(crate_version!())
         .author("Rudder team <dev@rudder.io>")
         .about("Rudder relay server")
@@ -47,6 +47,10 @@ fn parse() -> CliConfiguration {
                 .help("Sets a custom config file")
                 .takes_value(true),
         )
+        .arg(Arg::with_name("check")
+                .short("k")
+                .long("check")
+                .help("Checks configuration file syntax"))
         .get_matches();
 
     CliConfiguration {
@@ -54,6 +58,7 @@ fn parse() -> CliConfiguration {
             .value_of("config")
             .expect("No configuration file specified")
             .into(),
+        check_configuration: matches.is_present("check"),
     }
 }
 

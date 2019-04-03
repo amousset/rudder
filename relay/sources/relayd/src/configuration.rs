@@ -32,14 +32,14 @@ use crate::{data::nodes::NodeId, error::Error};
 use serde::Deserialize;
 use slog;
 use slog::{Key, Level, Record, Serializer, Value};
+use std::fmt;
+use std::fmt::Display;
 use std::{
     collections::HashSet,
     net::SocketAddr,
     path::{Path, PathBuf},
 };
 use toml;
-use std::fmt::Display;
-use std::fmt;
 
 pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
@@ -48,12 +48,14 @@ pub type NodesListFile = PathBuf;
 #[derive(Debug)]
 pub struct CliConfiguration {
     pub configuration_file: PathBuf,
+    pub check_configuration: bool,
 }
 
 impl CliConfiguration {
-    pub fn new<P: AsRef<Path>>(path: P) -> CliConfiguration {
+    pub fn new<P: AsRef<Path>>(path: P, check_configuration: bool) -> CliConfiguration {
         CliConfiguration {
             configuration_file: path.as_ref().to_path_buf(),
+            check_configuration,
         }
     }
 }
@@ -185,10 +187,7 @@ impl Display for LogComponent {
 
 impl Value for LogComponent {
     fn serialize(&self, _record: &Record, key: Key, serializer: &mut Serializer) -> slog::Result {
-        serializer.emit_str(
-            key,
-            self.tag(),
-        )
+        serializer.emit_str(key, self.tag())
     }
 }
 
@@ -260,13 +259,11 @@ mod tests {
                 },
             },
             logging: LogConfig {
-                general: LoggerConfig {
-                    level: Level::Info,
-                },
+                general: LoggerConfig { level: Level::Info },
                 filter: LogFilterConfig {
-                        level: Level::Debug,
-                        nodes: HashSet::from_iter(vec!["root".to_string()].iter().cloned()),
-                        components: HashSet::from_iter(vec![LogComponent::Database].iter().cloned()),
+                    level: Level::Debug,
+                    nodes: HashSet::from_iter(vec!["root".to_string()].iter().cloned()),
+                    components: HashSet::from_iter(vec![LogComponent::Database].iter().cloned()),
                 },
             },
         };

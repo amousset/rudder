@@ -29,7 +29,7 @@
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    configuration::{LogComponent, DatabaseConfig},
+    configuration::{DatabaseConfig, LogComponent},
     data::reporting::{QueryableReport, RunLog},
     error::Error,
 };
