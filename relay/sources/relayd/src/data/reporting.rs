@@ -260,36 +260,6 @@ impl Display for Report {
     }
 }
 
-impl RunLog {
-    fn from_reports(raw_reports: Vec<RawReport>) -> Result<Self, Error> {
-        let reports: Vec<Report> = raw_reports
-            .into_iter()
-            .flat_map(|x| x.into_reports())
-            .collect();
-
-        let info = match reports.first() {
-            None => return Err(Error::EmptyRunlog),
-            Some(report) => RunInfo {
-                node_id: report.node_id.clone(),
-                timestamp: report.start_datetime,
-            },
-        };
-
-        for report in &reports {
-            if info.node_id != report.node_id {
-                warn!("Wrong node id in report {:#?}", report; "component" => "parser");
-            }
-            if info.timestamp != report.start_datetime {
-                warn!(
-                    "Wrong execution timestamp in report {:#?}",
-                    report; "component" => "parser"
-                );
-            }
-        }
-        Ok(RunLog { info, reports })
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RunInfo {
     pub node_id: NodeId,
@@ -339,6 +309,7 @@ impl FromStr for RunInfo {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RunLog {
     pub info: RunInfo,
+    // Never empty vec
     pub reports: Vec<Report>,
 }
 
@@ -365,6 +336,36 @@ impl FromStr for RunLog {
                 Err(Error::InvalidRunLog)
             }
         }
+    }
+}
+
+impl RunLog {
+    fn from_reports(raw_reports: Vec<RawReport>) -> Result<Self, Error> {
+        let reports: Vec<Report> = raw_reports
+            .into_iter()
+            .flat_map(|x| x.into_reports())
+            .collect();
+
+        let info = match reports.first() {
+            None => return Err(Error::EmptyRunlog),
+            Some(report) => RunInfo {
+                node_id: report.node_id.clone(),
+                timestamp: report.start_datetime,
+            },
+        };
+
+        for report in &reports {
+            if info.node_id != report.node_id {
+                warn!("Wrong node id in report {:#?}", report; "component" => "parser");
+            }
+            if info.timestamp != report.start_datetime {
+                warn!(
+                    "Wrong execution timestamp in report {:#?}",
+                    report; "component" => "parser"
+                );
+            }
+        }
+        Ok(RunLog { info, reports })
     }
 }
 

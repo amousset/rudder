@@ -79,12 +79,13 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
 
     // Non perfect as there could be race-condition
     // but should avoid most duplicates
+
     let first_report = runlog
         .reports
         .first()
         .expect("a runlog should never be empty");
 
-    let results = ruddersysevents
+    let new_runlog = ruddersysevents
         .filter(
             component
                 .eq(&first_report.component)
@@ -101,9 +102,10 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
         )
         .limit(1)
         .load::<QueryableReport>(connection)
-        .expect("Error loading posts");
+        .expect("Error loading reports")
+        .is_empty();
 
-    if results.is_empty() {
+    if new_runlog {
         connection.transaction::<_, Error, _>(|| {
             for report in &runlog.reports {
                 insert_into(ruddersysevents)
