@@ -1,9 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use flate2::read::GzDecoder;
 use relayd::data::reporting::RunLog;
-use std::fs::{read, read_to_string};
-use std::io::Read;
-use std::str::FromStr;
+use std::{
+    fs::{read, read_to_string},
+    io::Read,
+    str::FromStr,
+};
 
 fn bench_parse_runlog(c: &mut Criterion) {
     let runlog = read_to_string("tests/runlogs/normal.log").unwrap();

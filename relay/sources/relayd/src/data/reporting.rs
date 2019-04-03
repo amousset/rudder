@@ -30,8 +30,7 @@
 
 use crate::{data::nodes::NodeId, error::Error, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
-use nom::types::CompleteStr;
-use nom::*;
+use nom::{types::CompleteStr, *};
 use serde::{Deserialize, Serialize};
 use slog::{slog_debug, slog_warn};
 use slog_scope::{debug, warn};

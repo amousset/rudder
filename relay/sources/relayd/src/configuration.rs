@@ -31,9 +31,11 @@
 use crate::{data::nodes::NodeId, error::Error};
 use serde::Deserialize;
 use slog::Level;
-use std::net::SocketAddr;
-use std::path::Path;
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+    collections::HashSet,
+    net::SocketAddr,
+    path::{Path, PathBuf},
+};
 use toml;
 
 pub type BaseDirectory = PathBuf;

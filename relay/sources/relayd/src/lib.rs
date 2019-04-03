@@ -42,9 +42,8 @@ pub mod stats;
 
 use crate::{
     api::api,
-    configuration::LogConfig,
     configuration::{
-        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect,
+        CliConfiguration, Configuration, InventoryOutputSelect, LogConfig, ReportingOutputSelect,
     },
     data::nodes::parse_nodeslist,
     error::Error,
@@ -66,8 +65,8 @@ use slog_kvfilter::KVFilter;
 use slog_scope::{debug, error, info, trace};
 use slog_term::{CompactFormat, TermDecorator};
 use stats::{stats_job, Event};
-use std::collections::HashMap;
 use std::{
+    collections::HashMap,
     fs::read_to_string,
     path::Path,
     sync::{Arc, RwLock},
@@ -110,12 +109,14 @@ fn logger_drain() -> slog::Fuse<slog_async::Async> {
 }
 
 fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
-    let mut node_filter = HashMap::new();
-    node_filter.insert("node".to_string(), cfg.general.filter.nodes.clone());
     if cfg.general.level == Level::Trace {
-        // No filter at all
+        // No filter at all if general level is trace.
+        // This needs to be handled separately as KVFilter cannot skip
+        // its filters completely.
         ctrl.set(logger_drain());
     } else {
+        let mut node_filter = HashMap::new();
+        node_filter.insert("node".to_string(), cfg.general.filter.nodes.clone());
         let drain = KVFilter::new(
             slog::LevelFilter::new(logger_drain(), cfg.general.filter.level),
             // decrement because the user provides the log level they want to see
@@ -148,9 +149,7 @@ pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
     let _guard = slog_scope::set_global_logger(log);
     // Integrate libs using standard log crate
     slog_stdlog::init().expect("Could not initialize standard logging");
-
-    // ---- Apply loggers configuration ----
-
+    // Load configuration
     load_loggers(&ctrl, &cfg.logging);
 
     // ---- Start execution ----
@@ -190,6 +189,8 @@ pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
             Ok(())
         })
         .map_err(|e| error!("signal error {}", e));
+
+    // ---- Setup data structures ----
 
     let stats = Arc::new(RwLock::new(Stats::default()));
     let http_api = api(cfg.general.listen, shutdown, stats.clone());

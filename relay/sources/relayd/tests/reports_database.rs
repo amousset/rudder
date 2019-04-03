@@ -1,12 +1,12 @@
-use diesel;
-use diesel::prelude::*;
-use diesel::PgConnection;
-use relayd::configuration::CliConfiguration;
-use relayd::data::reporting::QueryableReport;
-use relayd::output::database::schema::ruddersysevents::dsl::*;
-use relayd::start;
-use std::fs::{copy, create_dir_all, remove_dir_all};
-use std::{thread, time};
+use diesel::{self, prelude::*, PgConnection};
+use relayd::{
+    configuration::CliConfiguration, data::reporting::QueryableReport,
+    output::database::schema::ruddersysevents::dsl::*, start,
+};
+use std::{
+    fs::{copy, create_dir_all, remove_dir_all},
+    thread, time,
+};
 
 pub fn db_connection() -> PgConnection {
     PgConnection::establish("postgres://rudderreports:PASSWORD@127.0.0.1/rudder").unwrap()

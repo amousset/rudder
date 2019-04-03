@@ -32,8 +32,10 @@ use crate::stats::Stats;
 use futures::Future;
 use slog::slog_info;
 use slog_scope::info;
-use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 use warp::Filter;
 
 pub fn api(
