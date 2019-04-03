@@ -40,11 +40,12 @@ pub mod input;
 pub mod output;
 pub mod stats;
 
+use clap::crate_version;
 use crate::{
     api::api,
     configuration::LogConfig,
     configuration::{
-        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect,
+        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect
     },
     data::nodes::parse_nodeslist,
     error::Error,
@@ -58,7 +59,7 @@ use futures::{
     stream::Stream,
     sync::mpsc,
 };
-use slog::{o, slog_debug, slog_error, slog_info, slog_trace, Drain, Logger};
+use slog::{o, slog_debug, slog_error, slog_info, slog_trace, Drain, Logger, Level};
 use slog_async::Async;
 use slog_atomic::{AtomicSwitch, AtomicSwitchCtrl};
 use slog_kvfilter::KVFilter;
@@ -88,7 +89,6 @@ pub fn stats(rx: mpsc::Receiver<Event>) -> impl Future<Item = (), Error = ()> {
 }
 
 pub fn load_configuration(file: &Path) -> Result<Configuration, Error> {
-    info!("Reading configuration from {:#?}", file);
     Ok(Configuration::read_configuration(&read_to_string(file)?)?)
 }
 
@@ -112,18 +112,35 @@ fn logger_drain() -> slog::Fuse<slog_async::Async> {
 fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
     let mut node_filter = HashMap::new();
     node_filter.insert("node".to_string(), cfg.general.filter.nodes.clone());
-    let drain = KVFilter::new(
-        slog::LevelFilter::new(logger_drain(), cfg.general.filter.level),
-        cfg.general.level,
-    )
-    .only_pass_any_on_all_keys(Some(node_filter));
-    ctrl.set(drain.map(slog::Fuse));
+    if cfg.general.level == Level::Trace {
+        // No filter at all
+        ctrl.set(logger_drain());
+    } else {
+        let drain = KVFilter::new(
+            slog::LevelFilter::new(logger_drain(), cfg.general.filter.level),
+            // FIXME handle trace increment
+            // increment because the user provides the log level they want to see
+            // while this displays logs unconditionally above the given level.
+            match cfg.general.level {
+                Level::Critical => Level::Error,
+                Level::Error => Level::Warning,
+                Level::Warning => Level::Info,
+                Level::Info => Level::Debug,
+                Level::Debug => Level::Trace,
+                Level::Trace => unreachable!("Global trace log level is handled separately"),
+            },
+                    )
+        .only_pass_any_on_all_keys(Some(node_filter));
+        ctrl.set(drain.map(slog::Fuse));
+    }
 }
 
-// Hardcoded config allows ignoring cli parameters when using
-// relayd as a lib (mainly in tests)
 pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
-    // ---- Default logger for fist steps ----
+    // ---- Load configuration ----
+
+    let cfg = load_configuration(&cli_cfg.configuration_file)?;
+
+    // ---- Setup loggers ----
 
     let drain = AtomicSwitch::new(logger_drain());
     let ctrl = drain.ctrl();
@@ -133,19 +150,15 @@ pub fn start(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // Integrate libs using standard log crate
     slog_stdlog::init().expect("Could not initialize standard logging");
 
-    // ---- Load configuration ----
-
-    let cfg = load_configuration(&cli_cfg.configuration_file)?;
-
-    // ---- Setup loggers with actual configuration ----
+    // ---- Apply loggers configuration ----
 
     load_loggers(&ctrl, &cfg.logging);
 
     // ---- Start execution ----
 
-    info!("Starting rudder relayd");
-
+    info!("Starting rudder-relayd {}", crate_version!());
     debug!("Parsed cli configuration:\n{:#?}", &cli_cfg);
+    info!("Read configuration from {:#?}", &cli_cfg.configuration_file);
     debug!("Parsed configuration:\n{:#?}", &cfg);
 
     let nodes = load_nodeslist(&cfg.general.nodes_list_file)?;

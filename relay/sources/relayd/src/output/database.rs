@@ -39,8 +39,8 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, Pool},
 };
-use slog::{slog_debug, slog_info};
-use slog_scope::{debug, info};
+use slog::{slog_debug, slog_info, slog_trace};
+use slog_scope::{debug, info, trace};
 
 pub mod schema {
     table! {
@@ -77,7 +77,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
     use self::schema::ruddersysevents::dsl::*;
     let connection = &*pool.get()?;
 
-    // Non perfect as there could be race-condition
+    // Non perfect as there could be race-conditions
     // but should avoid most duplicates
 
     let first_report = runlog
@@ -85,6 +85,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
         .first()
         .expect("a runlog should never be empty");
 
+    trace!("Checking if first report {} is in the database", first_report; "component" => "database", "node" => &first_report.node_id);
     let new_runlog = ruddersysevents
         .filter(
             component
@@ -106,6 +107,7 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
         .is_empty();
 
     if new_runlog {
+        trace!("Inserting runlog {:#?}", runlog; "component" => "database", "node" => &first_report.node_id);
         connection.transaction::<_, Error, _>(|| {
             for report in &runlog.reports {
                 insert_into(ruddersysevents)
@@ -115,10 +117,10 @@ pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
             Ok(())
         })
     } else {
-        info!("The {} runlog was already there, skipping", runlog.info);
+        info!("The {} runlog was already there, skipping insertion", runlog.info; "component" => "database", "node" => &first_report.node_id);
         debug!(
             "The report that was already present in database is: {}",
-            first_report
+            first_report; "component" => "database", "node" => &first_report.node_id
         );
         Ok(())
     }

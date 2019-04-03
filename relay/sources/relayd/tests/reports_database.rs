@@ -18,7 +18,7 @@ fn it_reads_and_inserts_a_runlog() {
     diesel::delete(ruddersysevents).execute(&db).unwrap();
     let _ = remove_dir_all("tests/tmp/test_simple");
     create_dir_all("tests/tmp/test_simple/incoming").unwrap();
-    let cli_cfg = CliConfiguration::new("tests/files/relayd.conf");
+    let cli_cfg = CliConfiguration::new("tests/test_simple/relayd.conf");
 
     thread::spawn(move || {
         start(cli_cfg).unwrap();

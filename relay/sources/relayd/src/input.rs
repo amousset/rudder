@@ -128,7 +128,7 @@ fn treat_reports(
             ReportingOutputSelect::Database => insert(&file, job_config.clone(), stats.clone()),
             ReportingOutputSelect::Upstream => unimplemented!(),
             // The job should not be started in this case
-            ReportingOutputSelect::Disabled => unreachable!(),
+            ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
         };
 
         tokio::spawn(lazy(|| treat_file));
@@ -153,7 +153,7 @@ fn treat_inventories(
         let treat_file = match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => insert(&file, job_config.clone(), stats.clone()),
             // The job should not be started in this case
-            InventoryOutputSelect::Disabled => unreachable!(),
+            InventoryOutputSelect::Disabled => unreachable!("Inventory server should be disabled"),
         };
 
         tokio::spawn(lazy(|| treat_file));
