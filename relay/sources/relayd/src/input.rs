@@ -221,7 +221,7 @@ fn watch_stream(path: WatchedDirectory) -> inotify::EventStream<Vec<u8>> {
     // https://github.com/linkerd/linkerd2-proxy/blob/c54377fe097208071a88d7b27501faa54ca212b0/lib/fs-watch/src/lib.rs#L189
     let mut inotify = Inotify::init().expect("Could not initialize inotify");
     inotify
-        .add_watch(path.clone(), WatchMask::CREATE | WatchMask::MODIFY)
+        .add_watch(path.clone(), WatchMask::CREATE)
         .expect("Could not watch with inotify");
     inotify.event_stream(Vec::from(&[0; 2048][..]))
 }
@@ -230,7 +230,8 @@ fn watch_files(
     path: WatchedDirectory,
     tx: mpsc::Sender<ReceivedFile>,
 ) -> impl Future<Item = (), Error = ()> {
-    watch_stream(path)
+    let path_prefix = path.clone();
+    watch_stream(path.clone())
         .map_err(|e| {
             warn!("watch error: {}", e; "component" => "watcher");
         })
@@ -238,7 +239,13 @@ fn watch_files(
         // If it is None, it means it is not an event on a file in the directory, skipping
         .filter(|entry| entry.is_some())
         .map(|entry| entry.expect("inotify entry has no name"))
-        .map(PathBuf::from)
+        // inotify gives the filename, add the entire path
+        .map(move |p| {
+            let mut full_path = path_prefix.clone();
+            full_path.push(p);
+            debug!("inotify: {:?}", path; "component" => "watcher");
+            full_path
+        })
         .for_each(move |entry| {
             tx.clone()
                 .send(entry)
@@ -253,6 +260,7 @@ fn insert(
     stats: mpsc::Sender<Event>,
 ) -> impl Future<Item = (), Error = ()> {
     // TODO blocking
+    debug!("Starting insertion of {:#?}", path);
     read_file_content(path.clone())
         .and_then(|res| res.parse::<RunLog>())
         .map_err(|e| warn!("send error: {}", e; "component" => "parser"))
@@ -275,6 +283,8 @@ fn insert(
 }
 
 pub fn read_file_content(path: ReceivedFile) -> impl Future<Item = String, Error = Error> {
+    debug!("Reading {:#?} content", path);
+
     read(path.clone())
         .map_err(Error::from)
         .and_then(move |data| {
