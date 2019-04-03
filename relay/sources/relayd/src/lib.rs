@@ -43,7 +43,9 @@ pub mod stats;
 use crate::{
     api::api,
     configuration::LogConfig,
-    configuration::{Configuration, CliConfiguration, InventoryOutputSelect, ReportingOutputSelect},
+    configuration::{
+        CliConfiguration, Configuration, InventoryOutputSelect, ReportingOutputSelect,
+    },
     data::nodes::parse_nodeslist,
     error::Error,
     input::{serve_inventories, serve_reports},

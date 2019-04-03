@@ -28,8 +28,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use relayd::{error::Error, start, configuration::CliConfiguration};
 use clap::{crate_version, App, Arg};
+use relayd::{configuration::CliConfiguration, error::Error, start};
 
 const DEFAULT_CONFIGURATION_FILE: &str = "/opt/rudder/etc/rudder-relayd.conf";
 
@@ -58,7 +58,7 @@ fn parse() -> CliConfiguration {
 }
 
 fn main() -> Result<(), Error> {
-    // Everything in a lib to allow complete testing
     let cli_cfg = parse();
+    // Everything in a lib to allow extensive testing
     start(cli_cfg)
 }

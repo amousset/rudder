@@ -32,6 +32,7 @@ use crate::{data::nodes::NodeId, error::Error};
 use serde::Deserialize;
 use slog::Level;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::{collections::HashSet, path::PathBuf};
 use toml;
 
@@ -42,6 +43,14 @@ pub type NodesListFile = PathBuf;
 #[derive(Debug)]
 pub struct CliConfiguration {
     pub configuration_file: PathBuf,
+}
+
+impl CliConfiguration {
+    pub fn new<P: AsRef<Path>>(path: P) -> CliConfiguration {
+        CliConfiguration {
+            configuration_file: path.as_ref().to_path_buf(),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]

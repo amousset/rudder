@@ -296,6 +296,12 @@ pub struct RunInfo {
     pub timestamp: DateTime<FixedOffset>,
 }
 
+impl Display for RunInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:}@{:}", self.timestamp, self.node_id,)
+    }
+}
+
 fn parse_iso_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
     DateTime::parse_from_str(input.as_ref(), "%+")
 }

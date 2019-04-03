@@ -28,13 +28,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{configuration::DatabaseConfig, data::reporting::RunLog, error::Error};
+use crate::{
+    configuration::DatabaseConfig,
+    data::reporting::{QueryableReport, RunLog},
+    error::Error,
+};
 use diesel::{
     insert_into,
     pg::PgConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool},
 };
+use slog::{slog_debug, slog_info};
+use slog_scope::{debug, info};
 
 pub mod schema {
     table! {
@@ -69,16 +75,49 @@ pub fn pg_pool(configuration: &DatabaseConfig) -> Result<PgPool, Error> {
 
 pub fn insert_runlog(pool: &PgPool, runlog: &RunLog) -> Result<(), Error> {
     use self::schema::ruddersysevents::dsl::*;
-
-    // TODO test presence of runlog before inserting
-
     let connection = &*pool.get()?;
-    connection.transaction::<_, Error, _>(|| {
-        for report in &runlog.reports {
-            insert_into(ruddersysevents)
-                .values(report)
-                .execute(connection)?;
-        }
+
+    // Non perfect as there could be race-condition
+    // but should avoid most duplicates
+    let first_report = runlog
+        .reports
+        .first()
+        .expect("a runlog should never be empty");
+
+    let results = ruddersysevents
+        .filter(
+            component
+                .eq(&first_report.component)
+                .and(nodeid.eq(&first_report.node_id))
+                .and(keyvalue.eq(&first_report.key_value))
+                .and(eventtype.eq(&first_report.event_type))
+                .and(msg.eq(&first_report.msg))
+                .and(policy.eq(&first_report.policy))
+                .and(executiontimestamp.eq(&first_report.execution_datetime))
+                .and(executiondate.eq(&first_report.start_datetime))
+                .and(serial.eq(&first_report.serial))
+                .and(ruleid.eq(&first_report.rule_id))
+                .and(directiveid.eq(&first_report.directive_id)),
+        )
+        .limit(1)
+        .load::<QueryableReport>(connection)
+        .expect("Error loading posts");
+
+    if results.is_empty() {
+        connection.transaction::<_, Error, _>(|| {
+            for report in &runlog.reports {
+                insert_into(ruddersysevents)
+                    .values(report)
+                    .execute(connection)?;
+            }
+            Ok(())
+        })
+    } else {
+        info!("The {} runlog was already there, skipping", runlog.info);
+        debug!(
+            "The report that was already present in database is: {}",
+            first_report
+        );
         Ok(())
-    })
+    }
 }

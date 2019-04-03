@@ -1,12 +1,11 @@
 use diesel;
 use diesel::prelude::*;
 use diesel::PgConnection;
+use relayd::configuration::CliConfiguration;
 use relayd::data::reporting::QueryableReport;
 use relayd::output::database::schema::ruddersysevents::dsl::*;
 use relayd::start;
-use relayd::configuration::CliConfiguration;
 use std::fs::{copy, create_dir_all, remove_dir_all};
-use std::path::PathBuf;
 use std::{thread, time};
 
 pub fn db_connection() -> PgConnection {
@@ -17,17 +16,14 @@ pub fn db_connection() -> PgConnection {
 fn it_reads_and_inserts_a_runlog() {
     let db = db_connection();
     diesel::delete(ruddersysevents).execute(&db).unwrap();
-
-    let cli_cfg = CliConfiguration {
-        configuration_file: PathBuf::from("tests/files/relayd.conf"),
-    };
+    let _ = remove_dir_all("tests/tmp/test_simple");
+    create_dir_all("tests/tmp/test_simple/incoming").unwrap();
+    let cli_cfg = CliConfiguration::new("tests/files/relayd.conf");
 
     thread::spawn(move || {
         start(cli_cfg).unwrap();
     });
 
-    let _ = remove_dir_all("tests/tmp/test_simple");
-    create_dir_all("tests/tmp/test_simple/incoming").unwrap();
     copy(
         "tests/runlogs/normal.log",
         "tests/tmp/test_simple/incoming/2019-01-24T15:55:01+00:00@root.log",
