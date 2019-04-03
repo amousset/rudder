@@ -134,8 +134,10 @@ fn load_loggers(ctrl: &AtomicSwitchCtrl, cfg: &LogConfig) {
                 Level::Trace => unreachable!("Global trace log level is handled separately"),
             },
         )
-        .only_pass_any_on_all_keys(Some(node_filter));
+        .only_pass_any_on_all_keys(Some(node_filter.clone()));
         ctrl.set(drain.map(slog::Fuse));
+        debug!("Log filters are {:#?}", node_filter);
+
     }
 }
 

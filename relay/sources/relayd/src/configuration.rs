@@ -178,7 +178,7 @@ impl LogComponent {
 
 impl Display for LogComponent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}", self.tag())
+        write!(f, "{}", self.tag())
     }
 }
 
@@ -210,6 +210,7 @@ pub struct LoggerConfig {
 mod tests {
     use super::*;
     use std::fs::read_to_string;
+    use std::iter::FromIterator;
 
     #[test]
     fn test_empty_configuration() {
@@ -233,7 +234,7 @@ mod tests {
             },
             processing: ProcessingConfig {
                 inventory: InventoryConfig {
-                    directory: PathBuf::from("tests/tmp/inventories/"),
+                    directory: PathBuf::from("target/tmp/inventories/"),
                     output: InventoryOutputSelect::Upstream,
                     catchup: CatchupConfig {
                         frequency: 10,
@@ -241,7 +242,7 @@ mod tests {
                     },
                 },
                 reporting: ReportingConfig {
-                    directory: PathBuf::from("tests/tmp/runlogs/"),
+                    directory: PathBuf::from("target/tmp/runlogs/"),
                     output: ReportingOutputSelect::Database,
                     catchup: CatchupConfig {
                         frequency: 10,
@@ -262,9 +263,9 @@ mod tests {
                 general: LoggerConfig {
                     level: Level::Info,
                     filter: LogFilterConfig {
-                        level: Level::Trace,
-                        nodes: HashSet::new(),
-                        components: HashSet::new(),
+                        level: Level::Debug,
+                        nodes: HashSet::from_iter(vec!["root".to_string()].iter().cloned()),
+                        components: HashSet::from_iter(vec![LogComponent::Database].iter().cloned()),
                     },
                 },
             },
