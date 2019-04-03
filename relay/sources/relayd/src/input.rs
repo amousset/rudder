@@ -301,8 +301,8 @@ mod tests {
 
     #[test]
     fn it_reads_gzipped_files() {
-        let reference = read_to_string("tests/runlogs/normal.log").unwrap();
-        let test = read_file_content(PathBuf::from_str("tests/runlogs/normal.log.gz").unwrap())
+        let reference = read_to_string("tests/test_gz/normal.log").unwrap();
+        let test = read_file_content(PathBuf::from_str("tests/test_gz/normal.log.gz").unwrap())
             .map_err(|_| panic!())
             .map(move |data| assert_eq!(data, reference));
         tokio::run(test);
@@ -310,8 +310,8 @@ mod tests {
 
     #[test]
     fn it_reads_plain_files() {
-        let reference = read_to_string("tests/runlogs/normal.log").unwrap();
-        let test = read_file_content(PathBuf::from_str("tests/runlogs/normal.log").unwrap())
+        let reference = read_to_string("tests/test_gz/normal.log").unwrap();
+        let test = read_file_content(PathBuf::from_str("tests/test_gz/normal.log").unwrap())
             .map_err(|_| panic!())
             .map(move |data| assert_eq!(data, reference));
         tokio::run(test);
@@ -320,12 +320,12 @@ mod tests {
     #[test]
     fn it_watches_files() {
         // TODO improve tmp dir handling
-        create_dir_all("tests/tmp/test_watch").unwrap();
+        create_dir_all("target/tmp/test_watch").unwrap();
         // just in case
-        let _ = remove_file("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
+        let _ = remove_file("target/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
 
-        let watch = watch_stream(PathBuf::from_str("tests/tmp/test_watch").unwrap());
-        File::create("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log").unwrap();
+        let watch = watch_stream(PathBuf::from_str("target/tmp/test_watch").unwrap());
+        File::create("target/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log").unwrap();
         let events = watch.take(1).wait().collect::<Vec<_>>();
 
         assert_eq!(events.len(), 1);
@@ -340,6 +340,6 @@ mod tests {
         }
 
         // cleanup
-        let _ = remove_file("tests/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
+        let _ = remove_file("target/tmp/test_watch/2019-01-24T15:55:01+00:00@root.log");
     }
 }

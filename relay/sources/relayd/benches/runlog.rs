@@ -8,7 +8,7 @@ use std::{
 };
 
 fn bench_parse_runlog(c: &mut Criterion) {
-    let runlog = read_to_string("tests/runlogs/normal.log").unwrap();
+    let runlog = read_to_string("tests/test_gz/normal.log").unwrap();
     c.bench_function("parse runlog", move |b| {
         b.iter(|| black_box(RunLog::from_str(&runlog).unwrap()))
     });
@@ -17,7 +17,7 @@ fn bench_parse_runlog(c: &mut Criterion) {
 // Allows comparing gzip implementations
 fn bench_uncompress_runlog(c: &mut Criterion) {
     // same as in input.rs
-    let data = read("tests/runlogs/normal.log.gz").unwrap();
+    let data = read("tests/test_gz/normal.log.gz").unwrap();
     c.bench_function("uncompress runlog", move |b| {
         b.iter(|| {
             let mut gz = GzDecoder::new(data.as_slice());
