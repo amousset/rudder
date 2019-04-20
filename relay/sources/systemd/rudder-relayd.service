@@ -3,6 +3,7 @@ Description=Rudder Relay Daemon
 After=network-online.target
 
 [Service]
+Environment="RUST_BACKTRACE=1"
 ExecStart=/opt/rudder/bin/rudder-relayd
 
 [Install]

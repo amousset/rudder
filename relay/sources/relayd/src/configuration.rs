@@ -47,10 +47,21 @@ pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
 pub type NodesListFile = PathBuf;
 
-#[derive(Debug)]
+#[derive(StructOpt, Debug)]
 #[allow(clippy::module_name_repetitions)]
+#[structopt(name = "rudder-relayd")]
 pub struct CliConfiguration {
+    /// Sets a custom config file
+    #[structopt(
+        short = "c",
+        long = "config",
+        default_value = "/opt/rudder/etc/rudder-relayd.conf",
+        parse(from_os_str)
+    )]
     pub configuration_file: PathBuf,
+
+    /// Checks the syntax of the configuration file
+    #[structopt(short = "k", long = "check")]
     pub check_configuration: bool,
 }
 
@@ -148,7 +159,10 @@ pub struct DatabaseConfig {
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct UpstreamConfig {
+    // TODO better URL type
     pub url: String,
+    pub user: String,
+    pub password: String,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -260,6 +274,8 @@ mod tests {
             output: OutputConfig {
                 upstream: UpstreamConfig {
                     url: "https://127.0.0.1:8080".to_string(),
+                    user: "rudder".to_string(),
+                    password: "password".to_string(),
                 },
                 database: DatabaseConfig {
                     url: "postgres://rudderreports:PASSWORD@127.0.0.1/rudder".to_string(),

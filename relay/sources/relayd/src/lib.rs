@@ -30,6 +30,8 @@
 
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate structopt;
 
 pub mod api;
 pub mod configuration;
@@ -51,7 +53,6 @@ use crate::{
     processing::{serve_inventories, serve_reports},
     stats::Stats,
 };
-use clap::crate_version;
 use futures::{
     future::{lazy, Future},
     stream::Stream,
@@ -72,6 +73,7 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
+use structopt::clap::crate_version;
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
 
 pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {

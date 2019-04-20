@@ -25,6 +25,8 @@ max_pool_size = 5
 
 [output.upstream]
 url = "https://127.0.0.1:8080"
+user = "rudder"
+password = "password"
 
 [logging.general]
 level = "info"
