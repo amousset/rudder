@@ -33,6 +33,7 @@ use crate::input::read_file_content;
 use crate::input::watch::*;
 use crate::{
     configuration::{InventoryOutputSelect, ReportingOutputSelect},
+    data::RunInfo,
     data::RunLog,
     error::Error,
     output::database::{insert_runlog, InsertionBehavior},
@@ -109,7 +110,6 @@ fn treat_reports(
     stats: mpsc::Sender<Event>,
 ) -> impl Future<Item = (), Error = ()> {
     rx.for_each(move |file| {
-        // TODO parse file name
         let stat_event = stats
             .clone()
             .send(Event::ReportReceived)
@@ -117,6 +117,18 @@ fn treat_reports(
             .map(|_| ());
         // FIXME: no need for a spawn
         tokio::spawn(lazy(|| stat_event));
+
+        // Check uuid        
+        let info = file.file_name().expect("Should be a file").to_str().unwrap().parse::<RunInfo>().unwrap();
+        // TODO log run info
+        if ! job_config.nodes.read().expect("Cannot read nodes list").is_subnode(&info.node_id) {
+            let fail = fail(file, job_config.clone(), stats.clone());
+
+            // FIXME: no need for a spawn
+            tokio::spawn(lazy(|| fail));
+            error!("refused: report from {:?}, unknown id", &info.node_id; "component" => LogComponent::Watcher);
+            return Err(());
+        }
 
         debug!("received: {:?}", file; "component" => LogComponent::Watcher);
 
@@ -141,35 +153,7 @@ fn treat_reports(
                     })
                     })
                     .or_else(|_| {
-                        stats_err
-                    .send(Event::ReportRefused)
-                    .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
-                    .then(move |_| {
-                        rename(
-                            file_move.clone(),
-                            job_config_clone
-                                .cfg
-                                .processing
-                                .reporting
-                                .directory
-                                .join("failed")
-                                .join(file_move.file_name().expect("not a file")),
-                        )
-                        .map(move |_| {
-                            debug!(
-                                "moved: {:#?} to {:#?}",
-                                file_move,
-                                job_config_clone
-                                    .cfg
-                                    .processing
-                                    .reporting
-                                    .directory
-                                    .join("failed")
-                                    .join(file_move.file_name().expect("not a file"))
-                            )
-                        })
-                        .map_err(|e| error!("error: {}", e; "component" => LogComponent::Parser))
-                    })
+                        fail(file_move, job_config_clone, stats_err)
                     })
             }
             ReportingOutputSelect::Upstream => unimplemented!(),
@@ -206,6 +190,42 @@ fn treat_inventories(
         tokio::spawn(lazy(|| treat_file));
         Ok(())
     })
+}
+
+fn fail(
+    file: ReceivedFile,
+    job_config: Arc<JobConfig>,
+    stats: mpsc::Sender<Event>,
+) -> impl Future<Item = (), Error = ()> {
+    stats
+        .send(Event::ReportRefused)
+        .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
+        .then(move |_| {
+            rename(
+                file.clone(),
+                job_config
+                    .cfg
+                    .processing
+                    .reporting
+                    .directory
+                    .join("failed")
+                    .join(file.file_name().expect("not a file")),
+            )
+            .map(move |_| {
+                debug!(
+                    "moved: {:#?} to {:#?}",
+                    file,
+                    job_config
+                        .cfg
+                        .processing
+                        .reporting
+                        .directory
+                        .join("failed")
+                        .join(file.file_name().expect("not a file"))
+                )
+            })
+            .map_err(|e| error!("error: {}", e; "component" => LogComponent::Parser))
+        })
 }
 
 fn output_report_database(

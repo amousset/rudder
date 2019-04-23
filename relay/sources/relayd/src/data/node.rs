@@ -63,6 +63,10 @@ impl List {
         trace!("Parsed nodes list:\n{:#?}", nodes);
         Ok(nodes)
     }
+
+    pub fn is_subnode(&self, id: &Id) -> bool {
+        self.data.get(id).is_some()
+    }
 }
 
 impl FromStr for List {

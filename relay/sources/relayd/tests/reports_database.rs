@@ -5,7 +5,8 @@ use relayd::{
     output::database::schema::ruddersysevents::dsl::*,
 };
 use std::{
-    fs::{copy, create_dir_all, remove_dir_all, File},
+    fs::{copy, create_dir_all, remove_dir_all},
+    path::Path,
     thread, time,
 };
 
@@ -60,11 +61,11 @@ fn it_reads_and_inserts_a_runlog() {
     assert_eq!(results.len(), 2);
 
     // Test files have been removed
-    assert!(File::open(file_old).is_err());
-    assert!(File::open(file_new).is_err());
+    assert!(!Path::new(file_old).exists());
+    assert!(!Path::new(file_new).exists());
     // Test broken file has been moved
-    assert!(File::open(file_broken).is_err());
-    assert!(File::open(file_failed).is_ok());
+    assert!(!Path::new(file_broken).exists());
+    assert!(Path::new(file_failed).exists());
 
     // TODO check stats api
 }

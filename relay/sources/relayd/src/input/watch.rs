@@ -146,11 +146,7 @@ fn watch_files<P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{
-        fs::File,
-        path::PathBuf,
-        str::FromStr,
-    };
+    use std::{fs::File, path::PathBuf, str::FromStr};
     use tempfile::tempdir;
 
     #[test]
