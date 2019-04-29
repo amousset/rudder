@@ -55,6 +55,7 @@ use tokio::prelude::*;
 use tokio_threadpool::blocking;
 
 pub type ReceivedFile = PathBuf;
+pub type RootDirectory = PathBuf;
 
 pub fn serve_reports(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
     let (reporting_tx, reporting_rx) = mpsc::channel(1_024);
@@ -118,11 +119,16 @@ fn treat_reports(
         // FIXME: no need for a spawn
         tokio::spawn(lazy(|| stat_event));
 
-        // Check uuid        
+        // Check uuid
+        // FIXME unwrap
         let info = file.file_name().expect("Should be a file").to_str().unwrap().parse::<RunInfo>().unwrap();
         // TODO log run info
         if ! job_config.nodes.read().expect("Cannot read nodes list").is_subnode(&info.node_id) {
-            let fail = fail(file, job_config.clone(), stats.clone());
+            let fail = fail(file, job_config
+            .cfg
+            .processing
+            .reporting
+            .directory.clone(), Event::ReportRefused, stats.clone());
 
             // FIXME: no need for a spawn
             tokio::spawn(lazy(|| fail));
@@ -134,26 +140,20 @@ fn treat_reports(
 
         let stats_ok = stats.clone();
         let stats_err = stats.clone();
-        let file_clone = file.clone();
         let file_move = file.clone();
         let job_config_clone = job_config.clone();
         let treat_file = match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => {
-                output_report_database(file_clone, job_config.clone())
+                output_report_database(file.clone(), job_config.clone())
                     .and_then(|_| {
-                        stats_ok
-                    .send(Event::ReportInserted)
-                    .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
-                    .then(|_| {
-                        remove_file(file.clone())
-                            .map(move |_| debug!("deleted: {:#?}", file))
-                            .map_err(
-                                |e| error!("error: {}", e; "component" => LogComponent::Parser),
-                            )
+                        success(file, Event::ReportInserted, stats_ok)
                     })
-                    })
-                    .or_else(|_| {
-                        fail(file_move, job_config_clone, stats_err)
+                    .or_else(move |_| {
+                        fail(file_move, job_config_clone
+                            .cfg
+                            .processing
+                            .reporting
+                            .directory.clone(), Event::ReportRefused, stats_err)
                     })
             }
             ReportingOutputSelect::Upstream => unimplemented!(),
@@ -191,23 +191,58 @@ fn treat_inventories(
         Ok(())
     })
 }
-
-fn fail(
-    file: ReceivedFile,
+/*
+fn is_report_valid(file: ReceivedFile,
     job_config: Arc<JobConfig>,
+        stats: mpsc::Sender<Event>
+
+) -> impl Future<Item = (), Error = ()> {
+        // FIXME unwrap
+        let info = file.file_name().expect("Should be a file").to_str().unwrap().parse::<RunInfo>().unwrap();
+        // TODO log run info
+        if ! job_config.nodes.read().expect("Cannot read nodes list").is_subnode(&info.node_id) {
+            let fail = fail(file, job_config
+            .cfg
+            .processing
+            .reporting
+            .directory.clone(), Event::ReportRefused, stats.clone());
+
+            // FIXME: no need for a spawn
+            tokio::spawn(lazy(|| fail));
+            error!("refused: report from {:?}, unknown id", &info.node_id; "component" => LogComponent::Watcher);
+            return Err(());
+        }
+        Ok(())
+}*/
+
+fn success(
+    file: ReceivedFile,
+    event: Event,
     stats: mpsc::Sender<Event>,
 ) -> impl Future<Item = (), Error = ()> {
     stats
-        .send(Event::ReportRefused)
+        .send(event)
+        .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
+        .then(|_| {
+            remove_file(file.clone())
+                .map(move|_| debug!("deleted: {:#?}", file))
+                .map_err(|e| error!("error: {}", e; "component" => LogComponent::Parser))
+        })
+}
+
+fn fail(
+    file: ReceivedFile,
+    directory: RootDirectory,
+    event: Event,
+    stats: mpsc::Sender<Event>,
+) -> impl Future<Item = (), Error = ()> {
+    stats
+        .send(event)
         .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
         .then(move |_| {
             rename(
                 file.clone(),
-                job_config
-                    .cfg
-                    .processing
-                    .reporting
-                    .directory
+                directory
                     .join("failed")
                     .join(file.file_name().expect("not a file")),
             )
@@ -215,11 +250,7 @@ fn fail(
                 debug!(
                     "moved: {:#?} to {:#?}",
                     file,
-                    job_config
-                        .cfg
-                        .processing
-                        .reporting
-                        .directory
+                    directory
                         .join("failed")
                         .join(file.file_name().expect("not a file"))
                 )

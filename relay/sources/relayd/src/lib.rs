@@ -122,6 +122,7 @@ pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {
     // SIGHUP: reload logging configuration + nodes list
     let cfg_file = cli_cfg.configuration_file.clone();
     let job_config_reload = job_config.clone();
+    
     let reload = Signal::new(SIGHUP)
         .flatten_stream()
         .for_each(move |_signal| {
