@@ -28,18 +28,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use relayd::{configuration::CliConfiguration, init};
+use relayd::{configuration::CliConfiguration, init, error::Error};
 use std::process::exit;
 use structopt::StructOpt;
 
 fn main() {
-    let toto: Vec<String> = vec![];
-    let _ = toto[12];
-
     let cli_cfg = CliConfiguration::from_args();
     // Everything in a lib to allow extensive testing
     if let Err(e) = init(&cli_cfg) {
         eprintln!("{}", e);
-        exit(1);
+        exit(match e {
+            Error::ConfigurationParsing(_) => 2,
+            _ => 1,
+        });
     }
 }
