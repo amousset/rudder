@@ -225,7 +225,7 @@ fn success(
         .map_err(|e| error!("send error: {}", e; "component" => LogComponent::Parser))
         .then(|_| {
             remove_file(file.clone())
-                .map(move|_| debug!("deleted: {:#?}", file))
+                .map(move |_| debug!("deleted: {:#?}", file))
                 .map_err(|e| error!("error: {}", e; "component" => LogComponent::Parser))
         })
 }

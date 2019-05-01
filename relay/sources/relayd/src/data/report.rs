@@ -90,12 +90,13 @@ named!(simpleline<CompleteStr, String>, do_parse!(
 ));
 
 named!(multilines<CompleteStr, String>,
-do_parse!(
-    // at least one
-    res: many1!(simpleline) >>
-    // TODO perf: avoid reallocating everything twice and use the source slice
-    (res.join("\n"))
-));
+    do_parse!(
+        // at least one
+        res: many1!(simpleline) >>
+        // TODO perf: avoid reallocating everything twice and use the source slice
+        (res.join("\n"))
+    )
+);
 
 named!(
     log_entry<CompleteStr, LogEntry>,

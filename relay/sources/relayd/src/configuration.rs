@@ -145,6 +145,22 @@ pub enum ReportingOutputSelect {
     Disabled,
 }
 
+pub trait OutputSelect {
+    fn is_enabled(&self) -> bool;
+}
+
+impl OutputSelect for ReportingOutputSelect {
+    fn is_enabled(&self) -> bool {
+        *self != ReportingOutputSelect::Disabled
+    }
+}
+
+impl OutputSelect for InventoryOutputSelect {
+    fn is_enabled(&self) -> bool {
+        *self != InventoryOutputSelect::Disabled
+    }
+}
+
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct OutputConfig {
     pub database: DatabaseConfig,

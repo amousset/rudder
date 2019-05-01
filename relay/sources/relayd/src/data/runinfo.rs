@@ -84,3 +84,21 @@ impl FromStr for RunInfo {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_runinfo() {
+        let runlog_file = "2018-08-24T15:55:01+00:00@root.log";
+        let runinfo = RunInfo::from_str(runlog_file).unwrap();
+        assert_eq!(
+            runinfo,
+            RunInfo {
+                timestamp: DateTime::parse_from_str("2018-08-24T15:55:01+00:00", "%+").unwrap(),
+                node_id: "root".into(),
+            }
+        );
+    }
+}
