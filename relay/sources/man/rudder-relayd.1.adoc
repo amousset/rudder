@@ -27,6 +27,13 @@ the upstream relay or send them to the root server.
 *-V, --version*::
   Print version information.
 
+== EXIT CODES
+
+*1*::
+  Unspecified error.
+*2*::
+  Configuration parsing error.
+
 == AUTHOR
 
 Rudder developers <dev@rudder.io>

@@ -37,7 +37,7 @@ slog-kvfilter = "0.7"
 structopt = "0.2"
 toml = "0.5"
 inotify = "0.7"
-xz2 = "0.1"
+openssl = "0.10"
 # Disable uneeded features (udp, unix socket, etc.)
 tokio = { version = "0.1", default-features = false, features = ["fs", "io", "reactor", "rt-full"] }
 tokio-signal = "0.2"

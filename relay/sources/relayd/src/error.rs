@@ -58,6 +58,7 @@ pub enum Error {
     JsonParsing(serde_json::Error),
     IntegerParsing(num::ParseIntError),
     Utf8(std::string::FromUtf8Error),
+    Ssl(openssl::error::ErrorStack),
 }
 
 impl Display for Error {
@@ -77,6 +78,7 @@ impl Display for Error {
             JsonParsing(ref err) => write!(f, "json parsing error: {}", err),
             IntegerParsing(ref err) => write!(f, "integer parsing error: {}", err),
             Utf8(ref err) => write!(f, "UTF-8 decoding error: {}", err),
+            Ssl(ref err) => write!(f, "Ssl error: {}", err),
         }
     }
 }
@@ -93,6 +95,7 @@ impl StdError for Error {
             JsonParsing(ref err) => Some(err),
             IntegerParsing(ref err) => Some(err),
             Utf8(ref err) => Some(err),
+            Ssl(ref err) => Some(err),
             _ => None,
         }
     }
@@ -154,5 +157,11 @@ impl From<num::ParseIntError> for Error {
 impl From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
         Error::Utf8(err)
+    }
+}
+
+impl From<openssl::error::ErrorStack> for Error {
+    fn from(err: openssl::error::ErrorStack) -> Self {
+        Error::Ssl(err)
     }
 }

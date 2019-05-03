@@ -64,7 +64,7 @@ impl List {
         Ok(nodes)
     }
 
-    pub fn is_subnode(&self, id: &Id) -> bool {
+    pub fn is_subnode(&self, id: &str) -> bool {
         self.data.get(id).is_some()
     }
 }
