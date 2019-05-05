@@ -86,6 +86,16 @@ pub enum InsertionBehavior {
     AllowDuplicate,
 }
 
+pub fn ping(pool: &PgPool) -> Result<(), Error> {
+    use self::schema::ruddersysevents::dsl::*;
+    let connection = &*pool.get()?;
+
+    let _ = ruddersysevents
+        .limit(1)
+        .load::<QueryableReport>(connection)?;
+    Ok(())
+}
+
 // TODO return if it inserted the runlog or not
 pub fn insert_runlog(
     pool: &PgPool,

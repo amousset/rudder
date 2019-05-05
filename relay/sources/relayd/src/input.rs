@@ -34,11 +34,11 @@ use crate::configuration::LogComponent;
 use crate::error::Error;
 use crate::processing::ReceivedFile;
 use flate2::read::GzDecoder;
+use openssl::pkcs7::Pkcs7;
 use slog::slog_debug;
 use slog_scope::debug;
 use std::ffi::OsStr;
 use std::io::Read;
-use openssl::pkcs7::Pkcs7;
 
 pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
     debug!("Reading {:#?} content", path);
@@ -95,8 +95,13 @@ mod tests {
         assert_eq!(
             // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
             //         -out normal.signed -inkey ../keys/localhost.priv -passin "pass:Cfengine passphrase"
-            signature(read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap()).unwrap().as_bytes()).unwrap(),
+            signature(
+                read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
+                    .unwrap()
+                    .as_bytes()
+            )
+            .unwrap(),
             reference
         );
-    } 
+    }
 }

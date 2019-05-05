@@ -41,6 +41,7 @@ pub mod input;
 pub mod output;
 pub mod processing;
 pub mod stats;
+pub mod status;
 
 use crate::{
     api::api,
@@ -77,7 +78,7 @@ use std::{
 use structopt::clap::crate_version;
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
 
-pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {
+pub fn init(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // ---- Load configuration ----
 
     let cfg = Configuration::new(&cli_cfg.configuration_file)?;
@@ -102,8 +103,9 @@ pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {
 
     // ---- Setup data structures ----
 
+    let cfg_file = cli_cfg.configuration_file.clone();
     let stats = Arc::new(RwLock::new(Stats::default()));
-    let job_config = JobConfig::new(&cli_cfg.configuration_file)?;
+    let job_config = JobConfig::new(cli_cfg)?;
 
     // ---- Setup signal handlers ----
 
@@ -121,7 +123,6 @@ pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {
         .map_err(|e| error!("signal error {}", e.0));
 
     // SIGHUP: reload logging configuration + nodes list
-    let cfg_file = cli_cfg.configuration_file.clone();
     let job_config_reload = job_config.clone();
 
     let reload = Signal::new(SIGHUP)
@@ -151,7 +152,12 @@ pub fn init(cli_cfg: &CliConfiguration) -> Result<(), Error> {
         let (tx_stats, rx_stats) = mpsc::channel(1_024);
 
         tokio::spawn(Stats::receiver(stats.clone(), rx_stats));
-        tokio::spawn(api(cfg.general.listen, shutdown, stats.clone()));
+        tokio::spawn(api(
+            cfg.general.listen,
+            shutdown,
+            job_config.clone(),
+            stats.clone(),
+        ));
 
         //tokio::spawn(shutdown);
         tokio::spawn(reload);
@@ -242,14 +248,15 @@ impl LoggerCtrl {
 }
 
 pub struct JobConfig {
+    pub cli_cfg: CliConfiguration,
     pub cfg: Configuration,
     pub nodes: RwLock<node::List>,
     pub pool: Option<PgPool>,
 }
 
 impl JobConfig {
-    pub fn new(configuration_file: &Path) -> Result<Arc<Self>, Error> {
-        let cfg = Configuration::new(configuration_file)?;
+    pub fn new(cli_cfg: CliConfiguration) -> Result<Arc<Self>, Error> {
+        let cfg = Configuration::new(cli_cfg.configuration_file.clone())?;
 
         // Create dirs
         if cfg.processing.inventory.output != InventoryOutputSelect::Disabled {
@@ -274,7 +281,12 @@ impl JobConfig {
         };
         let nodes = RwLock::new(node::List::new(&cfg.general.nodes_list_file)?);
 
-        Ok(Arc::new(Self { cfg, nodes, pool }))
+        Ok(Arc::new(Self {
+            cli_cfg,
+            cfg,
+            nodes,
+            pool,
+        }))
     }
 
     pub fn reload_nodeslist(&self) -> Result<(), Error> {

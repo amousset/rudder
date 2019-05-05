@@ -28,18 +28,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use relayd::{configuration::CliConfiguration, error::Error, init};
-use std::process::exit;
-use structopt::StructOpt;
+use crate::configuration::Configuration;
+use crate::output::database::ping;
+use crate::JobConfig;
+use serde::Serialize;
+use std::sync::Arc;
 
-fn main() {
-    let cli_cfg = CliConfiguration::from_args();
-    // Everything in a lib to allow extensive testing
-    if let Err(e) = init(cli_cfg) {
-        eprintln!("{}", e);
-        exit(match e {
-            Error::ConfigurationParsing(_) => 2,
-            _ => 1,
-        });
+// TODO better serialized representation
+pub type State = Result<(), String>;
+
+#[derive(Serialize, Debug, PartialEq, Eq)]
+pub struct Status {
+    database: Option<State>,
+    configuration: State,
+}
+
+impl Status {
+    pub fn poll(job_config: Arc<JobConfig>) -> Self {
+        Self {
+            database: job_config
+                .pool
+                .clone()
+                .map(|p| ping(&p).map_err(|e| e.to_string())),
+            configuration: Configuration::new(job_config.cli_cfg.configuration_file.clone())
+                .map(|_| ())
+                .map_err(|e| e.to_string()),
+        }
     }
 }
