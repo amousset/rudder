@@ -38,6 +38,7 @@ use openssl::pkcs7::Pkcs7;
 use openssl::pkcs7::Pkcs7Flags;
 use openssl::stack::Stack;
 use openssl::x509::store::X509StoreBuilder;
+use openssl::x509::store::X509Store;
 use openssl::x509::X509;
 use slog::slog_debug;
 use slog_scope::debug;
@@ -65,19 +66,19 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
 }
 
 // SMIME content and node certificate
-// impl NodeCertificate (X509 store par machine)
-pub fn signature(input: &[u8], certificate: X509) -> Result<String, Error> {
+// impl NodeCertificate (X509 store par machine?)
+// FIXME check certs are individually compared
+
+// DETACHED??? -detached -> non
+// valider le bon node
+
+pub fn signature(input: &[u8], certs: &Stack<X509>, store: &X509Store) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
 
-    // Store
-    let mut builder = X509StoreBuilder::new().unwrap();
-    builder.add_cert(certificate.clone())?;
-    let store = builder.build();
-
     signature.verify(
-        // No need for certs as all our nodes certs are individually trusted in store
-        Stack::new()?.as_ref(),
-        &store,
+        // No need for certs as all our nodes certs are individually trusted in store?
+        certs,
+        store,
         Some(&content.clone().unwrap()),
         // TODO use out buffer or content directly?
         None,
@@ -114,11 +115,27 @@ mod tests {
     #[test]
     fn it_reads_signed_content() {
         let reference = read_to_string("tests/test_smime/normal.log").unwrap();
+
         let x509 = X509::from_pem(
             read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
                 .unwrap()
                 .as_bytes(),
         ).unwrap();
+        let x509bis = X509::from_pem(
+            read_file_content(&PathBuf::from_str("tests/keys/localhost2.cert").unwrap())
+                .unwrap()
+                .as_bytes(),
+        ).unwrap();
+
+        // Store
+        let mut builder = X509StoreBuilder::new().unwrap();
+        builder.add_cert(x509.clone()).unwrap();
+        builder.add_cert(x509bis.clone()).unwrap();
+        let store = builder.build();
+
+        // Certs
+        let mut certs = Stack::new().unwrap();
+        certs.push(x509bis);
 
         assert_eq!(
             // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
@@ -127,7 +144,8 @@ mod tests {
                 read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
                     .unwrap()
                     .as_bytes(),
-                x509
+                &certs,
+                &store,
             )
             .unwrap(),
             reference
