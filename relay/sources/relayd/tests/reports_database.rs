@@ -38,7 +38,7 @@ fn it_reads_and_inserts_a_runlog() {
     set_file_times(file_old, FileTime::zero(), FileTime::zero()).unwrap();
 
     thread::spawn(move || {
-        init(&cli_cfg).unwrap();
+        init(cli_cfg).unwrap();
     });
     thread::sleep(time::Duration::from_millis(200));
 

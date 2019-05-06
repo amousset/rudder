@@ -35,6 +35,10 @@ use crate::error::Error;
 use crate::processing::ReceivedFile;
 use flate2::read::GzDecoder;
 use openssl::pkcs7::Pkcs7;
+use openssl::pkcs7::Pkcs7Flags;
+use openssl::stack::Stack;
+use openssl::x509::store::X509StoreBuilder;
+use openssl::x509::X509;
 use slog::slog_debug;
 use slog_scope::debug;
 use std::ffi::OsStr;
@@ -60,8 +64,26 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
     })
 }
 
-pub fn signature(input: &[u8]) -> Result<String, Error> {
+// SMIME content and node certificate
+// impl NodeCertificate (X509 store par machine)
+pub fn signature(input: &[u8], certificate: X509) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
+
+    // Store
+    let mut builder = X509StoreBuilder::new().unwrap();
+    builder.add_cert(certificate.clone())?;
+    let store = builder.build();
+
+    signature.verify(
+        // No need for certs as all our nodes certs are individually trusted in store
+        Stack::new()?.as_ref(),
+        &store,
+        Some(&content.clone().unwrap()),
+        // TODO use out buffer or content directly?
+        None,
+        Pkcs7Flags::empty(),
+    )?;
+
     Ok(String::from_utf8(content.expect("empty signed message"))?)
 }
 
@@ -92,13 +114,20 @@ mod tests {
     #[test]
     fn it_reads_signed_content() {
         let reference = read_to_string("tests/test_smime/normal.log").unwrap();
+        let x509 = X509::from_pem(
+            read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
+                .unwrap()
+                .as_bytes(),
+        ).unwrap();
+
         assert_eq!(
             // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
             //         -out normal.signed -inkey ../keys/localhost.priv -passin "pass:Cfengine passphrase"
             signature(
                 read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
                     .unwrap()
-                    .as_bytes()
+                    .as_bytes(),
+                x509
             )
             .unwrap(),
             reference
