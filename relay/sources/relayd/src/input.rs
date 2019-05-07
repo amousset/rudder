@@ -37,8 +37,8 @@ use flate2::read::GzDecoder;
 use openssl::pkcs7::Pkcs7;
 use openssl::pkcs7::Pkcs7Flags;
 use openssl::stack::Stack;
-use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::store::X509Store;
+use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::X509;
 use slog::slog_debug;
 use slog_scope::debug;
@@ -120,12 +120,14 @@ mod tests {
             read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
                 .unwrap()
                 .as_bytes(),
-        ).unwrap();
+        )
+        .unwrap();
         let x509bis = X509::from_pem(
             read_file_content(&PathBuf::from_str("tests/keys/localhost2.cert").unwrap())
                 .unwrap()
                 .as_bytes(),
-        ).unwrap();
+        )
+        .unwrap();
 
         // Store
         let mut builder = X509StoreBuilder::new().unwrap();
@@ -135,7 +137,7 @@ mod tests {
 
         // Certs
         let mut certs = Stack::new().unwrap();
-        certs.push(x509bis);
+        certs.push(x509bis).unwrap();
 
         assert_eq!(
             // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
