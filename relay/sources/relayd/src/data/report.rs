@@ -28,7 +28,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{data::node, output::database::schema::ruddersysevents};
+use crate::{data::node, data::runinfo::parse_iso_date, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
 use nom::character::complete::space0;
 use nom::*;
@@ -40,12 +40,12 @@ use std::fmt::{self, Display};
 struct LogEntry {
     event_type: AgentLogLevel,
     msg: String,
+    datetime: DateTime<FixedOffset>, 
 }
 
 type AgentLogLevel = &'static str;
 
-named!(
-    agent_log_level<&str, AgentLogLevel>,
+named!(agent_log_level<&str, AgentLogLevel>,
     complete!(alt!(
         // CFEngine logs
         tag!("CRITICAL:")   => { |_| "log_warn" }  |
@@ -71,45 +71,76 @@ named!(
 
 named!(non_rudder_report_begin<&str, AgentLogLevel>,
     do_parse!(
-    complete!(tag!("R: ")) >>
-    not!(complete!(tag!("@@"))) >>
-    ("log_info")
+        complete!(
+            tag!("R: ")
+        ) >>
+        not!(
+            complete!(
+                tag!("@@")
+            )
+        ) >>
+        ("log_info")
     )
 );
 
 named!(rudder_report_begin<&str, &str>,
     do_parse!(
-    complete!(tag!("R: @@")) >>
-    ("")
+        complete!(
+            tag!("R: @@")
+        ) >>
+        ("")
     )
 );
 
-named!(simpleline<&str, String>, do_parse!(
-    not!(alt!(rudder_report_begin | agent_log_level)) >>
-    res: take_until!("\n") >>
-    complete!(tag!("\n")) >>
-    (res.to_string())
-));
+// TODO make a cheap version that does not parse the date
+named!(line_timestamp<&str, DateTime<FixedOffset>>,
+    do_parse!(
+        datetime: map_res!(take_until!(" "), parse_iso_date) >>
+        tag!(" ") >>
+        (datetime)
+    )
+);
+
+named!(simpleline<&str, String>,
+    do_parse!(
+        opt!(
+            line_timestamp
+        ) >>
+        not!(
+            alt!(rudder_report_begin | agent_log_level)
+        ) >>
+        res: take_until!("\n") >>
+        complete!(
+            tag!("\n")
+        ) >>
+        (res.to_string())
+    )
+);
 
 named!(multilines<&str, String>,
     do_parse!(
         // at least one
-        res: many1!(complete!(simpleline)) >>
+        res: many1!(
+            complete!(simpleline)
+        ) >>
         // TODO perf: avoid reallocating everything twice and use the source slice
         (res.join("\n"))
     )
 );
 
-named!(
-    log_entry<&str, LogEntry>,
+named!(log_entry<&str, LogEntry>,
     do_parse!(
-        level: agent_log_level
-            >> space0
-            >> msg: multilines
-            >> (LogEntry {
-                event_type: level,
+        datetime: line_timestamp
+     >> event_type: agent_log_level 
+     >> space0
+     >> msg: multilines 
+     >> (
+            LogEntry {
+                event_type,
                 msg,
-            })
+                datetime,
+            }
+        )
     )
 );
 
@@ -128,6 +159,8 @@ named!(pub report<&str, RawReport>, do_parse!(
     // no line break inside a filed (except message)
     // handle partial reports without breaking following ones
     logs: log_entries >>
+    execution_datetime: map_res!(take_until!(" "), parse_iso_date) >>
+    tag!(" ") >>
     rudder_report_begin >>
     policy: take_until!("@@") >>
     tag!("@@") >>
@@ -150,17 +183,16 @@ named!(pub report<&str, RawReport>, do_parse!(
     msg: multilines >>
         (RawReport {
             report: Report {
-           // FIXME execution date should be generated at execution
            // We could skip parsing it but it would prevent consistency check that cannot
            // be done once inserted.
-            execution_datetime: start_datetime,
+            execution_datetime,
             node_id: node_id.to_string(),
             rule_id: rule_id.to_string(),
             directive_id: directive_id.to_string(),
             serial: serial.1,
             component: component.to_string(),
             key_value: key_value.to_string(),
-            start_datetime: start_datetime,
+            start_datetime,
             event_type: event_type.to_string(),
             msg: msg.to_string(),
             policy: policy.to_string(),
@@ -182,6 +214,7 @@ impl RawReport {
             res.push(Report {
                 event_type: log.event_type.to_string(),
                 msg: log.msg,
+                execution_datetime: log.datetime,
                 ..self.report.clone()
             })
         }
@@ -308,15 +341,19 @@ mod tests {
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("The thing\nThe other thing\n").unwrap().1,
+            simpleline("2019-05-09T13:36:46+00:00 The thing\n").unwrap().1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("The thing\nR: report").unwrap().1,
+            simpleline("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
             "The thing".to_string()
         );
-        assert!(simpleline("R: The thing\nreport").is_err());
-        assert!(simpleline("CRITICAL: plop\nreport").is_err());
+        assert_eq!(
+            simpleline("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 R: report").unwrap().1,
+            "The thing".to_string()
+        );
+        assert!(simpleline("2019-05-09T13:36:46+00:00 R: The thing\nreport").is_err());
+        assert!(simpleline("2019-05-09T13:36:46+00:00 CRITICAL: plop\nreport").is_err());
     }
 
     #[test]
@@ -324,9 +361,13 @@ mod tests {
         assert_eq!(
             multilines("The thing\n").unwrap().1,
             "The thing".to_string()
+        );        
+        assert_eq!(
+            multilines("2019-05-09T13:36:46+00:00 The thing\n").unwrap().1,
+            "The thing".to_string()
         );
         assert_eq!(
-            multilines("The thing\nThe other thing\n").unwrap().1,
+            multilines("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
             "The thing\nThe other thing".to_string()
         );
     }
@@ -334,10 +375,11 @@ mod tests {
     #[test]
     fn test_parse_log_entry() {
         assert_eq!(
-            log_entry("CRITICAL: toto\n").unwrap().1,
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n").unwrap().1,
             LogEntry {
                 event_type: "log_warn",
                 msg: "toto".to_string(),
+                datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
             }
         )
     }
@@ -345,17 +387,19 @@ mod tests {
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries("CRITICAL: toto\nsuite\nCRITICAL: tutu\n")
+            log_entries("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2018-05-09T13:36:46+00:00 suite\n2019-05-09T13:36:46+00:00 CRITICAL: tutu\n")
                 .unwrap()
                 .1,
             vec![
                 LogEntry {
                     event_type: "log_warn",
                     msg: "toto\nsuite".to_string(),
+                    datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
                 },
                 LogEntry {
                     event_type: "log_warn",
-                    msg: "tutu".to_string()
+                    msg: "tutu".to_string(),
+                    datetime: DateTime::parse_from_str("2018-05-09T13:36:46+00:00", "%+").unwrap(),
                 }
             ]
         )

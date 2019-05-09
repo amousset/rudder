@@ -51,7 +51,7 @@ impl Display for RunInfo {
     }
 }
 
-fn parse_iso_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
+pub fn parse_iso_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
     DateTime::parse_from_str(input, "%+")
 }
 
