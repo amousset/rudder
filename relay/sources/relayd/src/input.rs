@@ -65,24 +65,27 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
     })
 }
 
-// SMIME content and node certificate
-// impl NodeCertificate (X509 store par machine?)
 // FIXME check certs are individually compared
-
-// DETACHED??? -detached -> non
-// valider le bon node
-
-pub fn signature(input: &[u8], certs: &Stack<X509>, store: &X509Store) -> Result<String, Error> {
+pub fn signature(input: &[u8], certs: &Stack<X509>) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
 
+    let mut flags = Pkcs7Flags::empty();
+    // Ignore certificates contained in the message, we only rely on the one we know
+    // Out messages should not contain certs
+    flags.set(openssl::pkcs7::Pkcs7Flags::NOINTERN, true);
+    // Do not verify chain (as we have no meaningful chaining)
+    // Only verify that the provided cert has signed the message
+    flags.set(openssl::pkcs7::Pkcs7Flags::NOVERIFY, true);
+
+    let store = X509StoreBuilder::new().unwrap().build();
+
     signature.verify(
-        // No need for certs as all our nodes certs are individually trusted in store?
         certs,
-        store,
+        &store,
         Some(&content.clone().unwrap()),
-        // TODO use out buffer or content directly?
+        // Using an out buffer would also clone data
         None,
-        Pkcs7Flags::empty(),
+        flags,
     )?;
 
     Ok(String::from_utf8(content.expect("empty signed message"))?)
@@ -122,35 +125,62 @@ mod tests {
                 .as_bytes(),
         )
         .unwrap();
+
+        // Certs
+        let mut certs = Stack::new().unwrap();
+        certs.push(x509).unwrap();
+
+        assert_eq!(
+            // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
+            //         -out normal.signed -nocerts -inkey ../keys/localhost.priv -passin "pass:Cfengine passphrase"
+            signature(
+                read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
+                    .unwrap()
+                    .as_bytes(),
+                &certs,
+            )
+            .unwrap(),
+            reference
+        );
+    }
+
+    #[test]
+    fn it_detects_wrong_content() {
+        let x509 = X509::from_pem(
+            read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        let mut certs = Stack::new().unwrap();
+        certs.push(x509).unwrap();
+
+        assert!(signature(
+            read_file_content(&PathBuf::from_str("tests/test_smime/normal-diff.signed").unwrap())
+                .unwrap()
+                .as_bytes(),
+            &certs,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn it_detects_wrong_certificates() {
         let x509bis = X509::from_pem(
             read_file_content(&PathBuf::from_str("tests/keys/localhost2.cert").unwrap())
                 .unwrap()
                 .as_bytes(),
         )
         .unwrap();
-
-        // Store
-        let mut builder = X509StoreBuilder::new().unwrap();
-        builder.add_cert(x509.clone()).unwrap();
-        builder.add_cert(x509bis.clone()).unwrap();
-        let store = builder.build();
-
-        // Certs
         let mut certs = Stack::new().unwrap();
         certs.push(x509bis).unwrap();
 
-        assert_eq!(
-            // openssl smime -sign -signer ../keys/localhost.cert -in normal.log
-            //         -out normal.signed -inkey ../keys/localhost.priv -passin "pass:Cfengine passphrase"
-            signature(
-                read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
-                    .unwrap()
-                    .as_bytes(),
-                &certs,
-                &store,
-            )
-            .unwrap(),
-            reference
-        );
+        assert!(signature(
+            read_file_content(&PathBuf::from_str("tests/test_smime/normal.signed").unwrap())
+                .unwrap()
+                .as_bytes(),
+            &certs,
+        )
+        .is_err());
     }
 }

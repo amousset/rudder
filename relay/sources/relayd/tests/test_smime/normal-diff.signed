@@ -5,6 +5,7 @@ This is an S/MIME signed message
 
 ------A739A62D6A76EDB83F19E94CE77A31A4
 R: @@Common@@control@@rudder@@run@@0@@start@@20180824-130007-3ad37587@@2018-08-24 15:55:01+00:00##root@#Start execution
+INSERTED LINE
 R: @@Common@@result_success@@hasPolicyServer-root@@common-root@@0@@ncf Initialization@@None@@2018-08-24 15:55:01+00:00##root@#Configuration library initialization
 was correct
 R: @@Common@@result_success@@hasPolicyServer-root@@common-root@@0@@Security parameters@@None@@2018-08-24 15:55:01+00:00##root@#The internal environment security is acceptable
