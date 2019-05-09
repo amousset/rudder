@@ -30,9 +30,9 @@
 
 use crate::{data::node, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
 use nom::character::complete::space0;
 use nom::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 // A detail log entry
@@ -46,7 +46,7 @@ type AgentLogLevel = &'static str;
 
 named!(
     agent_log_level<&str, AgentLogLevel>,
-    alt!(
+    complete!(alt!(
         // CFEngine logs
         tag!("CRITICAL:")   => { |_| "log_warn" }  |
         tag!("   error:")   => { |_| "log_warn" }  |
@@ -66,20 +66,20 @@ named!(
         tag!("R: DEBUG")    => { |_| "log_debug" } |
         // Untagged non-Rudder reports report, assume info
         non_rudder_report_begin
-    )
+    ))
 );
 
 named!(non_rudder_report_begin<&str, AgentLogLevel>,
     do_parse!(
-    tag!("R: ") >>
-    not!(tag!("@@")) >>
+    complete!(tag!("R: ")) >>
+    not!(complete!(tag!("@@"))) >>
     ("log_info")
     )
 );
 
 named!(rudder_report_begin<&str, &str>,
     do_parse!(
-    tag!("R: @@") >>
+    complete!(tag!("R: @@")) >>
     ("")
     )
 );
@@ -87,14 +87,14 @@ named!(rudder_report_begin<&str, &str>,
 named!(simpleline<&str, String>, do_parse!(
     not!(alt!(rudder_report_begin | agent_log_level)) >>
     res: take_until!("\n") >>
-    tag!("\n") >>
+    complete!(tag!("\n")) >>
     (res.to_string())
 ));
 
 named!(multilines<&str, String>,
     do_parse!(
         // at least one
-        res: many1!(simpleline) >>
+        res: many1!(complete!(simpleline)) >>
         // TODO perf: avoid reallocating everything twice and use the source slice
         (res.join("\n"))
     )
@@ -104,7 +104,7 @@ named!(
     log_entry<&str, LogEntry>,
     do_parse!(
         level: agent_log_level
-            >> opt!(space0)
+            >> space0
             >> msg: multilines
             >> (LogEntry {
                 event_type: level,
@@ -116,7 +116,7 @@ named!(
 named!(log_entries<&str, Vec<LogEntry>>, many0!(log_entry));
 
 fn parse_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
-    DateTime::parse_from_str(input.as_ref(), "%Y-%m-%d %H:%M:%S%z")
+    DateTime::parse_from_str(input, "%Y-%m-%d %H:%M:%S%z")
 }
 
 fn parse_i32(input: &str) -> IResult<&str, i32> {
@@ -298,28 +298,37 @@ mod tests {
 
     #[test]
     fn test_parse_log_level() {
-        assert_eq!(
-            agent_log_level("CRITICAL: toto")
-                .unwrap()
-                .1,
-            "log_warn"
-        )
+        assert_eq!(agent_log_level("CRITICAL: toto").unwrap().1, "log_warn")
     }
 
     #[test]
-    fn test_parse_multiline() {
+    fn test_parse_simpleline() {
         assert_eq!(
             simpleline("The thing\n").unwrap().1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("The thing\nR: report")
-                .unwrap()
-                .1,
+            simpleline("The thing\nThe other thing\n").unwrap().1,
+            "The thing".to_string()
+        );
+        assert_eq!(
+            simpleline("The thing\nR: report").unwrap().1,
             "The thing".to_string()
         );
         assert!(simpleline("R: The thing\nreport").is_err());
         assert!(simpleline("CRITICAL: plop\nreport").is_err());
+    }
+
+    #[test]
+    fn test_parse_multilines() {
+        assert_eq!(
+            multilines("The thing\n").unwrap().1,
+            "The thing".to_string()
+        );
+        assert_eq!(
+            multilines("The thing\nThe other thing\n").unwrap().1,
+            "The thing\nThe other thing".to_string()
+        );
     }
 
     #[test]

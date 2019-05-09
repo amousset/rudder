@@ -52,7 +52,7 @@ impl Display for RunInfo {
 }
 
 fn parse_iso_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
-    DateTime::parse_from_str(input.as_ref(), "%+")
+    DateTime::parse_from_str(input, "%+")
 }
 
 named!(parse_runinfo<&str, RunInfo>,
@@ -61,10 +61,13 @@ named!(parse_runinfo<&str, RunInfo>,
         tag!("@") >>
         node_id: take_until!(".") >>
         tag!(".log") >>
-        opt!(tag!(".gz")) >>
+        opt!(complete!(tag!(".gz"))) >>
+        eof!() >>
         (
             RunInfo {
-                // FIXME same timestamp format as in the reports?
+                // Note this format is not exactly the same as the reports
+                // Here we are parsing ISO8601 dates, report dates replace the T by a space
+                // Kept for compatibility reasons, but we should strive to use ISO everywhere
                 timestamp,
                 node_id: node_id.to_string(),
             }
@@ -81,7 +84,10 @@ impl FromStr for RunInfo {
                 debug!("Parsed run info {:#?}", raw_runinfo.1; "component" => LogComponent::Parser);
                 Ok(raw_runinfo.1)
             }
-            Err(_) => Err(Error::InvalidRunInfo),
+            Err(e) => {
+                std::dbg!(e);
+                Err(Error::InvalidRunInfo)
+            }
         }
     }
 }
@@ -92,14 +98,17 @@ mod tests {
 
     #[test]
     fn test_parse_runinfo() {
-        let runlog_file = "2018-08-24T15:55:01+00:00@root.log";
-        let runinfo = RunInfo::from_str(runlog_file).unwrap();
+        let reference = RunInfo {
+            timestamp: DateTime::parse_from_str("2018-08-24T15:55:01+00:00", "%+").unwrap(),
+            node_id: "root".into(),
+        };
         assert_eq!(
-            runinfo,
-            RunInfo {
-                timestamp: DateTime::parse_from_str("2018-08-24T15:55:01+00:00", "%+").unwrap(),
-                node_id: "root".into(),
-            }
+            RunInfo::from_str("2018-08-24T15:55:01+00:00@root.log").unwrap(),
+            reference
+        );
+        assert_eq!(
+            RunInfo::from_str("2018-08-24T15:55:01+00:00@root.log.gz").unwrap(),
+            reference
         );
     }
 }
