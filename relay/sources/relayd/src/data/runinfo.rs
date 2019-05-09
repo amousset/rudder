@@ -30,7 +30,7 @@
 
 use crate::{configuration::LogComponent, data::node, error::Error};
 use chrono::prelude::*;
-use nom::{types::CompleteStr, *};
+use nom::*;
 use serde::{Deserialize, Serialize};
 use slog::slog_debug;
 use slog_scope::debug;
@@ -51,16 +51,17 @@ impl Display for RunInfo {
     }
 }
 
-fn parse_iso_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
+fn parse_iso_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
     DateTime::parse_from_str(input.as_ref(), "%+")
 }
 
-named!(parse_runinfo<CompleteStr, RunInfo>,
+named!(parse_runinfo<&str, RunInfo>,
     do_parse!(
-        timestamp: map_res!(take_until_and_consume_s!("@"), parse_iso_date) >>
-        node_id: take_until_and_consume_s!(".") >>
-        tag_s!("log") >>
-        opt!(tag_s!(".gz")) >>
+        timestamp: map_res!(take_until!("@"), parse_iso_date) >>
+        tag!("@") >>
+        node_id: take_until!(".") >>
+        tag!(".log") >>
+        opt!(tag!(".gz")) >>
         (
             RunInfo {
                 // FIXME same timestamp format as in the reports?
@@ -75,7 +76,7 @@ impl FromStr for RunInfo {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match parse_runinfo(CompleteStr::from(s)) {
+        match parse_runinfo(s) {
             Ok(raw_runinfo) => {
                 debug!("Parsed run info {:#?}", raw_runinfo.1; "component" => LogComponent::Parser);
                 Ok(raw_runinfo.1)

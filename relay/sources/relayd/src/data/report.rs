@@ -30,8 +30,9 @@
 
 use crate::{data::node, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
-use nom::{types::CompleteStr, *};
 use serde::{Deserialize, Serialize};
+use nom::character::complete::space0;
+use nom::*;
 use std::fmt::{self, Display};
 
 // A detail log entry
@@ -44,52 +45,53 @@ struct LogEntry {
 type AgentLogLevel = &'static str;
 
 named!(
-    agent_log_level<CompleteStr, AgentLogLevel>,
+    agent_log_level<&str, AgentLogLevel>,
     alt!(
         // CFEngine logs
-        tag_s!("CRITICAL:")   => { |_| "log_warn" }  |
-        tag_s!("   error:")   => { |_| "log_warn" }  |
-        tag_s!(" warning:")   => { |_| "log_warn" }  |
-        tag_s!("  notice:")   => { |_| "log_info" }  |
-        tag_s!("    info:")   => { |_| "log_info" }  |
-        tag_s!(" verbose:")   => { |_| "log_debug" } |
-        tag_s!("   debug:")   => { |_| "log_debug" } |
+        tag!("CRITICAL:")   => { |_| "log_warn" }  |
+        tag!("   error:")   => { |_| "log_warn" }  |
+        tag!(" warning:")   => { |_| "log_warn" }  |
+        tag!("  notice:")   => { |_| "log_info" }  |
+        tag!("    info:")   => { |_| "log_info" }  |
+        tag!(" verbose:")   => { |_| "log_debug" } |
+        tag!("   debug:")   => { |_| "log_debug" } |
         // ncf logs
-        tag_s!("R: [FATAL]")  => { |_| "log_warn" }  |
-        tag_s!("R: [ERROR]")  => { |_| "log_warn" }  |
-        tag_s!("R: [INFO]")   => { |_| "log_info" }  |
-        tag_s!("R: [DEBUG]")  => { |_| "log_debug" } |
+        tag!("R: [FATAL]")  => { |_| "log_warn" }  |
+        tag!("R: [ERROR]")  => { |_| "log_warn" }  |
+        tag!("R: [INFO]")   => { |_| "log_info" }  |
+        tag!("R: [DEBUG]")  => { |_| "log_debug" } |
         // ncf non-standard log
-        tag_s!("R: WARNING")  => { |_| "log_warn" }  |
+        tag!("R: WARNING")  => { |_| "log_warn" }  |
         // CFEngine stdlib log
-        tag_s!("R: DEBUG")    => { |_| "log_debug" } |
+        tag!("R: DEBUG")    => { |_| "log_debug" } |
         // Untagged non-Rudder reports report, assume info
         non_rudder_report_begin
     )
 );
 
-named!(non_rudder_report_begin<CompleteStr, AgentLogLevel>,
+named!(non_rudder_report_begin<&str, AgentLogLevel>,
     do_parse!(
-    tag_s!("R: ") >>
-    not!(tag_s!("@@")) >>
+    tag!("R: ") >>
+    not!(tag!("@@")) >>
     ("log_info")
     )
 );
 
-named!(rudder_report_begin<CompleteStr, &str>,
+named!(rudder_report_begin<&str, &str>,
     do_parse!(
-    tag_s!("R: @@") >>
+    tag!("R: @@") >>
     ("")
     )
 );
 
-named!(simpleline<CompleteStr, String>, do_parse!(
+named!(simpleline<&str, String>, do_parse!(
     not!(alt!(rudder_report_begin | agent_log_level)) >>
-    res: take_until_and_consume_s!("\n") >>
+    res: take_until!("\n") >>
+    tag!("\n") >>
     (res.to_string())
 ));
 
-named!(multilines<CompleteStr, String>,
+named!(multilines<&str, String>,
     do_parse!(
         // at least one
         res: many1!(simpleline) >>
@@ -99,10 +101,10 @@ named!(multilines<CompleteStr, String>,
 );
 
 named!(
-    log_entry<CompleteStr, LogEntry>,
+    log_entry<&str, LogEntry>,
     do_parse!(
         level: agent_log_level
-            >> opt!(space)
+            >> opt!(space0)
             >> msg: multilines
             >> (LogEntry {
                 event_type: level,
@@ -111,31 +113,40 @@ named!(
     )
 );
 
-named!(log_entries<CompleteStr, Vec<LogEntry>>, many0!(log_entry));
+named!(log_entries<&str, Vec<LogEntry>>, many0!(log_entry));
 
-fn parse_date(input: CompleteStr) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
+fn parse_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
     DateTime::parse_from_str(input.as_ref(), "%Y-%m-%d %H:%M:%S%z")
 }
 
-fn parse_i32(input: CompleteStr) -> IResult<CompleteStr, i32> {
+fn parse_i32(input: &str) -> IResult<&str, i32> {
     parse_to!(input, i32)
 }
 
-named!(pub report<CompleteStr, RawReport>, do_parse!(
+named!(pub report<&str, RawReport>, do_parse!(
     // TODO NOT CORRECT
     // no line break inside a filed (except message)
     // handle partial reports without breaking following ones
     logs: log_entries >>
     rudder_report_begin >>
-    policy: take_until_and_consume_s!("@@") >>
-    event_type: take_until_and_consume_s!("@@") >>
-    rule_id: take_until_and_consume_s!("@@") >>
-    directive_id: take_until_and_consume_s!("@@") >>
-    serial: map_res!(take_until_and_consume_s!("@@"), parse_i32) >>
-    component: take_until_and_consume_s!("@@") >>
-    key_value: take_until_and_consume_s!("@@") >>
-    start_datetime: map_res!(take_until_and_consume_s!("##"), parse_date) >>
-    node_id: take_until_and_consume_s!("@#") >>
+    policy: take_until!("@@") >>
+    tag!("@@") >>
+    event_type: take_until!("@@") >>
+    tag!("@@") >>
+    rule_id: take_until!("@@") >>
+    tag!("@@") >>
+    directive_id: take_until!("@@") >>
+    tag!("@@") >>
+    serial: map_res!(take_until!("@@"), parse_i32) >>
+    tag!("@@") >>
+    component: take_until!("@@") >>
+    tag!("@@") >>
+    key_value: take_until!("@@") >>
+    tag!("@@") >>
+    start_datetime: map_res!(take_until!("##"), parse_date) >>
+    tag!("##") >>
+    node_id: take_until!("@#") >>
+    tag!("@#") >>
     msg: multilines >>
         (RawReport {
             report: Report {
@@ -288,7 +299,7 @@ mod tests {
     #[test]
     fn test_parse_log_level() {
         assert_eq!(
-            agent_log_level(CompleteStr::from("CRITICAL: toto"))
+            agent_log_level("CRITICAL: toto")
                 .unwrap()
                 .1,
             "log_warn"
@@ -298,23 +309,23 @@ mod tests {
     #[test]
     fn test_parse_multiline() {
         assert_eq!(
-            simpleline(CompleteStr::from("The thing\n")).unwrap().1,
+            simpleline("The thing\n").unwrap().1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline(CompleteStr::from("The thing\nR: report"))
+            simpleline("The thing\nR: report")
                 .unwrap()
                 .1,
             "The thing".to_string()
         );
-        assert!(simpleline(CompleteStr::from("R: The thing\nreport")).is_err());
-        assert!(simpleline(CompleteStr::from("CRITICAL: plop\nreport")).is_err());
+        assert!(simpleline("R: The thing\nreport").is_err());
+        assert!(simpleline("CRITICAL: plop\nreport").is_err());
     }
 
     #[test]
     fn test_parse_log_entry() {
         assert_eq!(
-            log_entry(CompleteStr::from("CRITICAL: toto\n")).unwrap().1,
+            log_entry("CRITICAL: toto\n").unwrap().1,
             LogEntry {
                 event_type: "log_warn",
                 msg: "toto".to_string(),
@@ -325,7 +336,7 @@ mod tests {
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries(CompleteStr::from("CRITICAL: toto\nsuite\nCRITICAL: tutu\n"))
+            log_entries("CRITICAL: toto\nsuite\nCRITICAL: tutu\n")
                 .unwrap()
                 .1,
             vec![
