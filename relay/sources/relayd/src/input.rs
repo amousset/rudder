@@ -34,12 +34,11 @@ use crate::configuration::LogComponent;
 use crate::error::Error;
 use crate::processing::ReceivedFile;
 use flate2::read::GzDecoder;
-use openssl::pkcs7::Pkcs7;
-use openssl::pkcs7::Pkcs7Flags;
-use openssl::stack::Stack;
-use openssl::x509::store::X509Store;
-use openssl::x509::store::X509StoreBuilder;
-use openssl::x509::X509;
+use openssl::{
+    pkcs7::{Pkcs7, Pkcs7Flags},
+    stack::Stack,
+    x509::{store::X509StoreBuilder, X509},
+};
 use slog::slog_debug;
 use slog_scope::debug;
 use std::ffi::OsStr;
@@ -69,26 +68,28 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
 pub fn signature(input: &[u8], certs: &Stack<X509>) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
 
+    let content = content.ok_or(Error::EmptyRunlog)?;
+
     let mut flags = Pkcs7Flags::empty();
     // Ignore certificates contained in the message, we only rely on the one we know
     // Out messages should not contain certs
-    flags.set(openssl::pkcs7::Pkcs7Flags::NOINTERN, true);
+    flags.set(Pkcs7Flags::NOINTERN, true);
     // Do not verify chain (as we have no meaningful chaining)
     // Only verify that the provided cert has signed the message
-    flags.set(openssl::pkcs7::Pkcs7Flags::NOVERIFY, true);
-
+    flags.set(Pkcs7Flags::NOVERIFY, true);
+    // No chaining so no need for ca store
     let store = X509StoreBuilder::new().unwrap().build();
 
     signature.verify(
         certs,
         &store,
-        Some(&content.clone().unwrap()),
+        Some(&content.clone()),
         // Using an out buffer would also clone data
         None,
         flags,
     )?;
 
-    Ok(String::from_utf8(content.expect("empty signed message"))?)
+    Ok(String::from_utf8(content)?)
 }
 
 #[cfg(test)]

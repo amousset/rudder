@@ -72,7 +72,6 @@ use std::string::ToString;
 use std::{
     collections::{HashMap, HashSet},
     fs::create_dir_all,
-    path::Path,
     sync::{Arc, RwLock},
 };
 use structopt::clap::crate_version;
