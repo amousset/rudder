@@ -379,6 +379,10 @@ mod tests {
             "The thing\nThe other thing".to_string()
         );
         assert_eq!(
+            multilines("2019-05-09T13:36:46+00:00 The thing\n\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
+            "The thing\n\nThe other thing".to_string()
+        );
+        assert_eq!(
             multilines("Thething\n2019-05-09T13:36:46+00:00 Theotherthing\n").unwrap().1,
             "Thething\nTheotherthing".to_string()
         );
@@ -423,13 +427,13 @@ mod tests {
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2018-05-09T13:36:46+00:00 suite\n2017-05-09T13:36:46+00:00 CRITICAL: tutu\n")
+            log_entries("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2018-05-09T13:36:46+00:00 suite\nend\n2017-05-09T13:36:46+00:00 CRITICAL: tutu\n")
                 .unwrap()
                 .1,
             vec![
                 LogEntry {
                     event_type: "log_warn",
-                    msg: "toto\nsuite".to_string(),
+                    msg: "toto\nsuite\nend".to_string(),
                     datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
                 },
                 LogEntry {
