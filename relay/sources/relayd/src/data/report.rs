@@ -72,11 +72,11 @@ named!(agent_log_level<&str, AgentLogLevel>,
 named!(non_rudder_report_begin<&str, AgentLogLevel>,
     do_parse!(
         complete!(
-            tag!("R: ")
+            tag!("R:")
         ) >>
         not!(
             complete!(
-                tag!("@@")
+                tag!(" @@")
             )
         ) >>
         ("log_info")

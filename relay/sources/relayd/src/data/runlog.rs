@@ -44,7 +44,7 @@ use std::{
 
 named!(parse_runlog<&str, Vec<RawReport>>,
     many1!(
-        report
+        complete!(report)
     )
 );
 
@@ -129,7 +129,7 @@ mod tests {
             if path.extension().unwrap() == "json" {
                 let runlog =
                     RunLog::from_str(&read_to_string(path.with_extension("log")).unwrap()).unwrap();
-                //println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
+                println!("{}", serde_json::to_string_pretty(&runlog).unwrap());
                 let reference: RunLog =
                     serde_json::from_str(&read_to_string(path).unwrap()).unwrap();
                 assert_eq!(runlog, reference);
