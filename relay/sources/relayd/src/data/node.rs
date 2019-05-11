@@ -52,26 +52,40 @@ pub struct Info {
     pub key_hash: String,
 }
 
-#[derive(Deserialize, Debug, PartialEq, Eq)]
-#[serde(transparent)]
 pub struct List {
-    pub data: HashMap<Id, Info>,
+    pub info: NodesInfo,
+    pub certs: Certificates,
 }
 
 impl List {
+    pub fn new<P: AsRef<Path>>(nodes: P, certificates: P) -> Result<Self, Error> {
+        Ok(List {
+            info: NodesInfo::new(nodes)?,
+            certs: Certificates::new(certificates)?,
+        })
+    }
+
+    pub fn is_subnode(&self, id: &str) -> bool {
+        self.info.data.get(id).is_some()
+    }
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct NodesInfo {
+    pub data: HashMap<Id, Info>,
+}
+
+impl NodesInfo {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         info!("Parsing nodes list from {:#?}", path.as_ref());
         let nodes = read_to_string(path)?.parse::<Self>()?;
         trace!("Parsed nodes list:\n{:#?}", nodes);
         Ok(nodes)
     }
-
-    pub fn is_subnode(&self, id: &str) -> bool {
-        self.data.get(id).is_some()
-    }
 }
 
-impl FromStr for List {
+impl FromStr for NodesInfo {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -92,18 +106,18 @@ impl Certificates {
         let certs = read_to_string(path)?.parse::<Self>()?;
         Ok(certs)
     }
-}
 
-fn id_from_cert(cert: &Cert) -> Result<String, Error> {
-    Ok(cert
-        .subject_name()
-        .entries()
-        // Rudder node id uses "userId"
-        .find(|c| c.object().to_string() == "userId")
-        .ok_or(Error::MissingIdInCertificate)?
-        .data()
-        .as_utf8()?
-        .to_string())
+    fn id_from_cert(cert: &Cert) -> Result<Id, Error> {
+        Ok(cert
+            .subject_name()
+            .entries()
+            // Rudder node id uses "userId"
+            .find(|c| c.object().to_string() == "userId")
+            .ok_or(Error::MissingIdInCertificate)?
+            .data()
+            .as_utf8()?
+            .to_string())
+    }
 }
 
 // Read concatenated pem certs
@@ -113,12 +127,13 @@ impl FromStr for Certificates {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut res = Certificates::default();
         for cert in X509::stack_from_pem(s.as_bytes())? {
-            match id_from_cert(&cert) {
+            match Self::id_from_cert(&cert) {
                 Ok(id) => {
                     trace!("Read certificate for node {}", id);
                     res.data.insert(id, cert);
                 },
                 Err(e) => {
+                    // warn and skip on certificate error
                     warn!("{}", e);
                     continue;
                 },
@@ -134,15 +149,16 @@ mod tests {
 
     #[test]
     fn test_parse_nodeslist() {
-        let nodeslist = List::new("tests/files/nodeslist.json").unwrap();
+        let nodeslist = NodesInfo::new("tests/files/nodeslist.json").unwrap();
         assert_eq!(nodeslist.data["root"].hostname, "server.rudder.local");
     }
 
     #[test]
     fn test_parse_certs() {
-        let certslist = Certificates::new("tests/keys/nodescerts.pem").unwrap();
+        let list = Certificates::new("tests/keys/nodescerts.pem").unwrap();
         let nodes = vec!["37817c4d-fbf7-4850-a985-50021f4e8f41", "e745a140-40bc-4b86-b6dc-084488fc906b"];
-        let actual_nodes: Vec<&String> = certslist.data.keys().collect();
+        let mut actual_nodes: Vec<&String> = list.data.keys().collect();
+        actual_nodes.sort_unstable();
         assert_eq!(actual_nodes, nodes);
     }
 }

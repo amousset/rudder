@@ -46,6 +46,7 @@ use toml;
 pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
 pub type NodesListFile = PathBuf;
+pub type NodesCertsFile = PathBuf;
 
 #[derive(StructOpt, Debug)]
 #[allow(clippy::module_name_repetitions)]
@@ -100,6 +101,7 @@ impl FromStr for Configuration {
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct GeneralConfig {
     pub nodes_list_file: NodesListFile,
+    pub nodes_certs_file: NodesCertsFile,
     pub node_id: node::Id,
     pub listen: SocketAddr,
 }
@@ -266,6 +268,7 @@ mod tests {
         let reference = Configuration {
             general: GeneralConfig {
                 nodes_list_file: PathBuf::from("tests/files/nodeslist.json"),
+                nodes_certs_file: PathBuf::from("tests/keys/nodescerts.pem"),
                 node_id: "root".to_string(),
                 listen: "127.0.0.1:3030".parse().unwrap(),
             },

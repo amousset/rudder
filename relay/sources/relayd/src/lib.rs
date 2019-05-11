@@ -287,7 +287,7 @@ impl JobConfig {
         } else {
             None
         };
-        let nodes = RwLock::new(node::List::new(&cfg.general.nodes_list_file)?);
+        let nodes = RwLock::new(node::List::new(&cfg.general.nodes_list_file, &cfg.general.nodes_certs_file)?);
 
         Ok(Arc::new(Self {
             cli_cfg,
@@ -299,7 +299,7 @@ impl JobConfig {
 
     pub fn reload_nodeslist(&self) -> Result<(), Error> {
         let mut nodes = self.nodes.write().expect("could not write nodes list");
-        *nodes = node::List::new(&self.cfg.general.nodes_list_file)?;
+        *nodes = node::List::new(&self.cfg.general.nodes_list_file, &self.cfg.general.nodes_certs_file)?;
         Ok(())
     }
 }
