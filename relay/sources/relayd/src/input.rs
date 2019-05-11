@@ -33,7 +33,6 @@ pub mod watch;
 use crate::configuration::LogComponent;
 use crate::error::Error;
 use crate::processing::ReceivedFile;
-use crate::data::node::Cert;
 use flate2::read::GzDecoder;
 use openssl::{
     pkcs7::{Pkcs7, Pkcs7Flags},
@@ -66,7 +65,7 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
 }
 
 // FIXME check certs are individually compared
-pub fn signature(input: &[u8], certs: &Stack<Cert>) -> Result<String, Error> {
+pub fn signature(input: &[u8], certs: &Stack<X509>) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
 
     let content = content.ok_or(Error::EmptyRunlog)?;

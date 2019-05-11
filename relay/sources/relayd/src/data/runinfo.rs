@@ -57,7 +57,7 @@ pub fn parse_iso_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::form
 
 named!(parse_runinfo<&str, RunInfo>,
     do_parse!(
-        timestamp: map_res!(take_until!("@"), parse_iso_date) >>
+        timestamp: map_res!(complete!(take_until!("@")), parse_iso_date) >>
         tag!("@") >>
         node_id: take_until!(".") >>
         tag!(".log") >>
