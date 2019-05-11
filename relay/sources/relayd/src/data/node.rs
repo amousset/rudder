@@ -70,7 +70,7 @@ impl List {
     }
 
     pub fn cert(&self, id: &str) -> Option<Cert> {
-        self.certs.data.get(id).map(|c| c.clone())
+        self.certs.data.get(id).cloned()
     }
 }
 
@@ -135,14 +135,14 @@ impl FromStr for Certificates {
                 Ok(id) => {
                     trace!("Read certificate for node {}", id);
                     res.data.insert(id, cert);
-                },
+                }
                 Err(e) => {
                     // warn and skip on certificate error
                     warn!("{}", e);
                     continue;
-                },
+                }
             }
-        };
+        }
         Ok(res)
     }
 }
@@ -160,7 +160,10 @@ mod tests {
     #[test]
     fn test_parse_certs() {
         let list = Certificates::new("tests/keys/nodescerts.pem").unwrap();
-        let nodes = vec!["37817c4d-fbf7-4850-a985-50021f4e8f41", "e745a140-40bc-4b86-b6dc-084488fc906b"];
+        let nodes = vec![
+            "37817c4d-fbf7-4850-a985-50021f4e8f41",
+            "e745a140-40bc-4b86-b6dc-084488fc906b",
+        ];
         let mut actual_nodes: Vec<&String> = list.data.keys().collect();
         actual_nodes.sort_unstable();
         assert_eq!(actual_nodes, nodes);

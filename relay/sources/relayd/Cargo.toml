@@ -42,9 +42,6 @@ openssl = "0.10"
 tokio = { version = "0.1", default-features = false, features = ["fs", "io", "reactor", "rt-full"] }
 tokio-signal = "0.2"
 tokio-threadpool = "0.1"
-tokio-trace = "0.1"
-# Not published for now
-tokio-trace-fmt = { git = "https://github.com/tokio-rs/tokio-trace-nursery/", rev = "08db36d" }
 futures = "0.1"
 warp = "0.1"
 reqwest = "0.9"

@@ -77,9 +77,6 @@ use std::{
 use structopt::clap::crate_version;
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
 
-use tokio_trace::error as terror;
-use tokio_trace::Level as tLevel;
-
 pub fn init(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // ---- Load configuration ----
 
@@ -89,12 +86,6 @@ pub fn init(cli_cfg: CliConfiguration) -> Result<(), Error> {
         println!("Syntax: OK");
         return Ok(());
     }
-
-    let subscriber = tokio_trace_fmt::FmtSubscriber::builder().full().finish();
-
-    tokio_trace::subscriber::with_default(subscriber, || {
-        terror!("Starting rudder-relayd {}", crate_version!());
-    });
 
     // ---- Setup loggers ----
 
@@ -287,7 +278,10 @@ impl JobConfig {
         } else {
             None
         };
-        let nodes = RwLock::new(node::List::new(&cfg.general.nodes_list_file, &cfg.general.nodes_certs_file)?);
+        let nodes = RwLock::new(node::List::new(
+            &cfg.general.nodes_list_file,
+            &cfg.general.nodes_certs_file,
+        )?);
 
         Ok(Arc::new(Self {
             cli_cfg,
@@ -299,7 +293,10 @@ impl JobConfig {
 
     pub fn reload_nodeslist(&self) -> Result<(), Error> {
         let mut nodes = self.nodes.write().expect("could not write nodes list");
-        *nodes = node::List::new(&self.cfg.general.nodes_list_file, &self.cfg.general.nodes_certs_file)?;
+        *nodes = node::List::new(
+            &self.cfg.general.nodes_list_file,
+            &self.cfg.general.nodes_certs_file,
+        )?;
         Ok(())
     }
 }
