@@ -29,10 +29,11 @@
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::error::Error;
+use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use slog::{slog_info, slog_trace};
-use slog_scope::{info, trace};
+use slog::{slog_info, slog_trace, slog_warn};
+use slog_scope::{info, trace, warn};
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -40,6 +41,7 @@ use std::str::FromStr;
 
 pub type Id = String;
 pub type Host = String;
+pub type Cert = X509;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Info {
@@ -77,6 +79,55 @@ impl FromStr for List {
     }
 }
 
+// Certificates are stored independently as they are read from a different source
+#[derive(Default)]
+pub struct Certificates {
+    // Vec ?
+    pub data: HashMap<Id, Cert>,
+}
+
+impl Certificates {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        info!("Parsing certs list from {:#?}", path.as_ref());
+        let certs = read_to_string(path)?.parse::<Self>()?;
+        Ok(certs)
+    }
+}
+
+fn id_from_cert(cert: &Cert) -> Result<String, Error> {
+    Ok(cert
+        .subject_name()
+        .entries()
+        // Rudder node id uses "userId"
+        .find(|c| c.object().to_string() == "userId")
+        .ok_or(Error::MissingIdInCertificate)?
+        .data()
+        .as_utf8()?
+        .to_string())
+}
+
+// Read concatenated pem certs
+impl FromStr for Certificates {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut res = Certificates::default();
+        for cert in X509::stack_from_pem(s.as_bytes())? {
+            match id_from_cert(&cert) {
+                Ok(id) => {
+                    trace!("Read certificate for node {}", id);
+                    res.data.insert(id, cert);
+                },
+                Err(e) => {
+                    warn!("{}", e);
+                    continue;
+                },
+            }
+        };
+        Ok(res)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,5 +136,13 @@ mod tests {
     fn test_parse_nodeslist() {
         let nodeslist = List::new("tests/files/nodeslist.json").unwrap();
         assert_eq!(nodeslist.data["root"].hostname, "server.rudder.local");
+    }
+
+    #[test]
+    fn test_parse_certs() {
+        let certslist = Certificates::new("tests/keys/nodescerts.pem").unwrap();
+        let nodes = vec!["37817c4d-fbf7-4850-a985-50021f4e8f41", "e745a140-40bc-4b86-b6dc-084488fc906b"];
+        let actual_nodes: Vec<&String> = certslist.data.keys().collect();
+        assert_eq!(actual_nodes, nodes);
     }
 }
