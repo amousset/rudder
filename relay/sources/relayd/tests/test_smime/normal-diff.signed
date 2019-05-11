@@ -1,13 +1,13 @@
 MIME-Version: 1.0
-Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----A739A62D6A76EDB83F19E94CE77A31A4"
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----F8538AB7A9923C1EC124DD9D5755FEAE"
 
 This is an S/MIME signed message
 
-------A739A62D6A76EDB83F19E94CE77A31A4
+------F8538AB7A9923C1EC124DD9D5755FEAE
 R: @@Common@@control@@rudder@@run@@0@@start@@20180824-130007-3ad37587@@2018-08-24 15:55:01+00:00##root@#Start execution
-INSERTED LINE
 R: @@Common@@result_success@@hasPolicyServer-root@@common-root@@0@@ncf Initialization@@None@@2018-08-24 15:55:01+00:00##root@#Configuration library initialization
 was correct
+Wrong
 R: @@Common@@result_success@@hasPolicyServer-root@@common-root@@0@@Security parameters@@None@@2018-08-24 15:55:01+00:00##root@#The internal environment security is acceptable
 R: @@Common@@result_na@@hasPolicyServer-root@@common-root@@0@@Process checking@@None@@2018-08-24 15:55:01+00:00##root@#Rudder agent proccesses check is done by the rudder-agent cron job
 R: @@Common@@log_repaired@@hasPolicyServer-root@@common-root@@0@@CRON Daemon@@cron@@2018-08-24 15:55:01+00:00##root@#Run action restart on service cron was repaired
@@ -79,30 +79,31 @@ R: @@Common@@log_info@@hasPolicyServer-root@@common-root@@0@@Make sure syslog se
 R: @@Common@@result_na@@hasPolicyServer-root@@common-root@@0@@Monitoring@@None@@2018-08-24 15:55:01+00:00##root@#No Rudder monitoring information to share with the server
 R: @@Common@@control@@rudder@@run@@0@@end@@20180824-130007-3ad37587@@2018-08-24 15:55:01+00:00##root@#End execution
 
-------A739A62D6A76EDB83F19E94CE77A31A4
+------F8538AB7A9923C1EC124DD9D5755FEAE
 Content-Type: application/x-pkcs7-signature; name="smime.p7s"
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="smime.p7s"
 
-MIIDdgYJKoZIhvcNAQcCoIIDZzCCA2MCAQExDzANBglghkgBZQMEAgEFADALBgkq
-hkiG9w0BBwExggM+MIIDOgIBATAsMBQxEjAQBgNVBAMMCWxvY2FsaG9zdAIUfRkc
-fDvwNOVZYyntH3x/nsmRxVcwDQYJYIZIAWUDBAIBBQCggeQwGAYJKoZIhvcNAQkD
-MQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTkwNTA4MTkwMDMzWjAvBgkq
-hkiG9w0BCQQxIgQgSy1txEsYiuDUWOjYWnQhhWcTvoxPxsMGRQv0lFKVqKgweQYJ
-KoZIhvcNAQkPMWwwajALBglghkgBZQMEASowCwYJYIZIAWUDBAEWMAsGCWCGSAFl
-AwQBAjAKBggqhkiG9w0DBzAOBggqhkiG9w0DAgICAIAwDQYIKoZIhvcNAwICAUAw
-BwYFKw4DAgcwDQYIKoZIhvcNAwICASgwDQYJKoZIhvcNAQEBBQAEggIAjVeqrk37
-M/EFogUZghqNU/SSqJ02m5ANLT7m8uib2zI/eOU8vlCA1ayaEJLCXuBYHAiL4kJ4
-U9rWlWhcDNPOTa10k+CrOt/1ZiYsAhodn2+phEwQ9XwDzBUV+UNypXpLTOwlLXaE
-jDrLf6smvJKlkxoVwtP0FwOzelC+O644rAw8NEj8/OpXkI03pPuQ4mH9cFVmv3io
-dumzyZyLQwDdMyXzIPANzuSSShiu1AkO8dZeZx/v0m2+H64JymJpQTVSQYqZvTmk
-MMCGVTs4x9cqCEEkUSVPf/dEq53zAcqfskE0Ue8uHi3BIJi03EXY1z1sPM4ENdAg
-VkRNfOVM7zSh+9myQPY8ZcnSFFa5ebu/0hW6a2ZEbGDlZnfANtSxl0hbeZPmsfGD
-qi5fhUOaWTJ5MerMt3kZ1Fj2zevF/YWT3EmX7JO1cKZ/rbK6VzQ5Y7TZ/reyupix
-FoZv0bHfm9YNF5qP4w0b6NgN9CsVBb6lT9LnOCGfLn8S7yxtwzZUvnFwoEmLz2PR
-MhrRLcloSuQKKKcoIV+qyjfAmiA9PZpBG7BwzdgiO7yEwMggv/mgqBcTejmQdP28
-23Az0LFmCkwplVTu+3+udnGiF/7eGIeKTBAqOv48MiqTyBdiqlK6gQ74t+388DkY
-1yoxqUVqC9KWAuFmKNzrxRD1kjxLh/lT43s=
+MIIDmAYJKoZIhvcNAQcCoIIDiTCCA4UCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwExggNgMIIDXAIBATBOMDYxNDAyBgoJkiaJk/IsZAEBDCRlNzQ1YTE0
+MC00MGJjLTRiODYtYjZkYy0wODQ0ODhmYzkwNmICFAcBdt1r/3bO08VPAKL7kMem
+Xe5AMA0GCWCGSAFlAwQCAQUAoIHkMBgGCSqGSIb3DQEJAzELBgkqhkiG9w0BBwEw
+HAYJKoZIhvcNAQkFMQ8XDTE5MDUxMTE3MDE1OVowLwYJKoZIhvcNAQkEMSIEIEst
+bcRLGIrg1Fjo2Fp0IYVnE76MT8bDBkUL9JRSlaioMHkGCSqGSIb3DQEJDzFsMGow
+CwYJYIZIAWUDBAEqMAsGCWCGSAFlAwQBFjALBglghkgBZQMEAQIwCgYIKoZIhvcN
+AwcwDgYIKoZIhvcNAwICAgCAMA0GCCqGSIb3DQMCAgFAMAcGBSsOAwIHMA0GCCqG
+SIb3DQMCAgEoMA0GCSqGSIb3DQEBAQUABIICAAlDbdiDVpmffl1EdrrNtNKQj4cS
+WXtJwRdOqgNwbJ91z9zUjnvYiTZXLSA8KP5QTtiXTn6WXgOUK5C2ijmYOiggItjV
+/WicUPeKQwjaRDFlIv7yljGYSdwm2pKlAmQYkqpR+ZFmcipjSOU0lza3c6tpOW+R
+jndnQr1tFkm+vNWp47hr8RmkAAPjF5R8qSv+hhjRx9LUw7xMpWjZC9JEtHznDk0c
+cruDjOQt9HinKGVSFcn1PJvwqtvbVDn7L05gKmlBd7bRUoHfK2OrR7t6exmewKYc
+BldJ7jycasHt9zaCSHR1R10b5gb54jVVuIO5rbRzLiwKkgf3mE/lAPgUGRS2s2Su
+cLOYyTYj3Ed5iTQaqWprbbfr4t0kdIOkGoubAK48HGck42eJxEcDTHf22DL3ZxMa
+taMLXGt3qtVCICGZVi990ERUyJ6gJa+vIyFylymy3tUIvvOBZCnEE4zJtvhsWJlJ
+sDprdvvWDJjJqsUA5nmfdz/U8H/13GJ81lJXVaTII3pQHtyusESaJisgnhfyzIb6
++qy7hjPS5irR0PUZnDX7JfHB8AiLOsF7DvKylHjAAs186GGWcQmFFhr12bCz9odz
+GSr/1u+lWsckVbCRJcPdGuktR0d+MXTcrR29IMiMzaCZL+bcPWowzzMgo7ygIag/
+8rUEhg5AmVmn6SXw
 
-------A739A62D6A76EDB83F19E94CE77A31A4--
+------F8538AB7A9923C1EC124DD9D5755FEAE--
 

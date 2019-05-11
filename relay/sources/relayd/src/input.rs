@@ -121,9 +121,11 @@ mod tests {
         let reference = read_to_string("tests/test_smime/normal.log").unwrap();
 
         let x509 = X509::from_pem(
-            read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
-                .unwrap()
-                .as_bytes(),
+            read_file_content(
+                &PathBuf::from_str("tests/keys/e745a140-40bc-4b86-b6dc-084488fc906b.cert").unwrap(),
+            )
+            .unwrap()
+            .as_bytes(),
         )
         .unwrap();
 
@@ -148,9 +150,11 @@ mod tests {
     #[test]
     fn it_detects_wrong_content() {
         let x509 = X509::from_pem(
-            read_file_content(&PathBuf::from_str("tests/keys/localhost.cert").unwrap())
-                .unwrap()
-                .as_bytes(),
+            read_file_content(
+                &PathBuf::from_str("tests/keys/e745a140-40bc-4b86-b6dc-084488fc906b.cert").unwrap(),
+            )
+            .unwrap()
+            .as_bytes(),
         )
         .unwrap();
         let mut certs = Stack::new().unwrap();
@@ -168,9 +172,12 @@ mod tests {
     #[test]
     fn it_detects_wrong_certificates() {
         let x509bis = X509::from_pem(
-            read_file_content(&PathBuf::from_str("tests/keys/localhost2.cert").unwrap())
-                .unwrap()
-                .as_bytes(),
+            read_file_content(
+                &PathBuf::from_str("tests/keys/e745a140-40bc-4b86-b6dc-084488fc906b-other.cert")
+                    .unwrap(),
+            )
+            .unwrap()
+            .as_bytes(),
         )
         .unwrap();
         let mut certs = Stack::new().unwrap();

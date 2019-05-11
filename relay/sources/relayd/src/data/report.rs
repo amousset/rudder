@@ -40,7 +40,7 @@ use std::fmt::{self, Display};
 struct LogEntry {
     event_type: AgentLogLevel,
     msg: String,
-    datetime: DateTime<FixedOffset>, 
+    datetime: DateTime<FixedOffset>,
 }
 
 type AgentLogLevel = &'static str;
@@ -131,7 +131,7 @@ named!(multilines<&str, String>,
 named!(log_entry<&str, LogEntry>,
     do_parse!(
         datetime: line_timestamp
-     >> event_type: agent_log_level 
+     >> event_type: agent_log_level
      >> tag!(" ")
      >> msg: multilines
      >> (
@@ -336,24 +336,29 @@ mod tests {
 
     #[test]
     fn test_parse_simpleline() {
-        assert_eq!(
-            simpleline("Thething\n").unwrap().1,
-            "Thething".to_string()
-        );
+        assert_eq!(simpleline("Thething\n").unwrap().1, "Thething".to_string());
         assert_eq!(
             simpleline("The thing\n").unwrap().1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("2019-05-09T13:36:46+00:00 The thing\n").unwrap().1,
+            simpleline("2019-05-09T13:36:46+00:00 The thing\n")
+                .unwrap()
+                .1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
+            simpleline(
+                "2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n"
+            )
+            .unwrap()
+            .1,
             "The thing".to_string()
         );
         assert_eq!(
-            simpleline("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 R: report").unwrap().1,
+            simpleline("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 R: report")
+                .unwrap()
+                .1,
             "The thing".to_string()
         );
         assert!(simpleline("2019-05-09T13:36:46+00:00 R: The thing\nreport").is_err());
@@ -362,20 +367,23 @@ mod tests {
 
     #[test]
     fn test_parse_multilines() {
-        assert_eq!(
-            multilines("Thething\n").unwrap().1,
-            "Thething".to_string()
-        );
+        assert_eq!(multilines("Thething\n").unwrap().1, "Thething".to_string());
         assert_eq!(
             multilines("The thing\n").unwrap().1,
             "The thing".to_string()
         );
         assert_eq!(
-            multilines("2019-05-09T13:36:46+00:00 The thing\n").unwrap().1,
+            multilines("2019-05-09T13:36:46+00:00 The thing\n")
+                .unwrap()
+                .1,
             "The thing".to_string()
         );
         assert_eq!(
-            multilines("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
+            multilines(
+                "2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n"
+            )
+            .unwrap()
+            .1,
             "The thing\nThe other thing".to_string()
         );
         assert_eq!(
@@ -383,7 +391,9 @@ mod tests {
             "The thing\n\nThe other thing".to_string()
         );
         assert_eq!(
-            multilines("Thething\n2019-05-09T13:36:46+00:00 Theotherthing\n").unwrap().1,
+            multilines("Thething\n2019-05-09T13:36:46+00:00 Theotherthing\n")
+                .unwrap()
+                .1,
             "Thething\nTheotherthing".to_string()
         );
     }
@@ -391,7 +401,9 @@ mod tests {
     #[test]
     fn test_parse_log_entry() {
         assert_eq!(
-            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n").unwrap().1,
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n")
+                .unwrap()
+                .1,
             LogEntry {
                 event_type: "log_warn",
                 msg: "toto".to_string(),
@@ -407,7 +419,9 @@ mod tests {
             }
         );
         assert_eq!(
-            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2019-05-09T13:36:46+00:00 truc\n").unwrap().1,
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2019-05-09T13:36:46+00:00 truc\n")
+                .unwrap()
+                .1,
             LogEntry {
                 event_type: "log_warn",
                 msg: "toto\ntruc".to_string(),
@@ -415,7 +429,9 @@ mod tests {
             }
         );
         assert_eq!(
-            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\ntruc\n").unwrap().1,
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\ntruc\n")
+                .unwrap()
+                .1,
             LogEntry {
                 event_type: "log_warn",
                 msg: "toto\ntruc".to_string(),

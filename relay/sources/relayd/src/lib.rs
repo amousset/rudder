@@ -77,6 +77,9 @@ use std::{
 use structopt::clap::crate_version;
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
 
+use tokio_trace::error as terror;
+use tokio_trace::Level as tLevel;
+
 pub fn init(cli_cfg: CliConfiguration) -> Result<(), Error> {
     // ---- Load configuration ----
 
@@ -86,6 +89,12 @@ pub fn init(cli_cfg: CliConfiguration) -> Result<(), Error> {
         println!("Syntax: OK");
         return Ok(());
     }
+
+    let subscriber = tokio_trace_fmt::FmtSubscriber::builder().full().finish();
+
+    tokio_trace::subscriber::with_default(subscriber, || {
+        terror!("Starting rudder-relayd {}", crate_version!());
+    });
 
     // ---- Setup loggers ----
 
