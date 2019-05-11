@@ -30,8 +30,8 @@
 
 use crate::{data::node, data::runinfo::parse_iso_date, output::database::schema::ruddersysevents};
 use chrono::prelude::*;
-use nom::character::complete::space0;
 use nom::*;
+//use nom::character::complete::space0;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -104,7 +104,7 @@ named!(line_timestamp<&str, DateTime<FixedOffset>>,
 named!(simpleline<&str, String>,
     do_parse!(
         opt!(
-            line_timestamp
+            complete!(line_timestamp)
         ) >>
         not!(
             alt!(rudder_report_begin | agent_log_level)
@@ -132,8 +132,8 @@ named!(log_entry<&str, LogEntry>,
     do_parse!(
         datetime: line_timestamp
      >> event_type: agent_log_level 
-     >> space0
-     >> msg: multilines 
+     >> tag!(" ")
+     >> msg: multilines
      >> (
             LogEntry {
                 event_type,
@@ -144,7 +144,7 @@ named!(log_entry<&str, LogEntry>,
     )
 );
 
-named!(log_entries<&str, Vec<LogEntry>>, many0!(log_entry));
+named!(log_entries<&str, Vec<LogEntry>>, many0!(complete!(log_entry)));
 
 fn parse_date(input: &str) -> Result<DateTime<FixedOffset>, chrono::format::ParseError> {
     DateTime::parse_from_str(input, "%Y-%m-%d %H:%M:%S%z")
@@ -155,8 +155,8 @@ fn parse_i32(input: &str) -> IResult<&str, i32> {
 }
 
 named!(pub report<&str, RawReport>, do_parse!(
-    // TODO NOT CORRECT
-    // no line break inside a filed (except message)
+    // FIXME
+    // no line break inside a field (except message)
     // handle partial reports without breaking following ones
     logs: log_entries >>
     execution_datetime: map_res!(take_until!(" "), parse_iso_date) >>
@@ -337,6 +337,10 @@ mod tests {
     #[test]
     fn test_parse_simpleline() {
         assert_eq!(
+            simpleline("Thething\n").unwrap().1,
+            "Thething".to_string()
+        );
+        assert_eq!(
             simpleline("The thing\n").unwrap().1,
             "The thing".to_string()
         );
@@ -359,9 +363,13 @@ mod tests {
     #[test]
     fn test_parse_multilines() {
         assert_eq!(
+            multilines("Thething\n").unwrap().1,
+            "Thething".to_string()
+        );
+        assert_eq!(
             multilines("The thing\n").unwrap().1,
             "The thing".to_string()
-        );        
+        );
         assert_eq!(
             multilines("2019-05-09T13:36:46+00:00 The thing\n").unwrap().1,
             "The thing".to_string()
@@ -369,6 +377,10 @@ mod tests {
         assert_eq!(
             multilines("2019-05-09T13:36:46+00:00 The thing\n2019-05-09T13:36:46+00:00 The other thing\n").unwrap().1,
             "The thing\nThe other thing".to_string()
+        );
+        assert_eq!(
+            multilines("Thething\n2019-05-09T13:36:46+00:00 Theotherthing\n").unwrap().1,
+            "Thething\nTheotherthing".to_string()
         );
     }
 
@@ -381,13 +393,37 @@ mod tests {
                 msg: "toto".to_string(),
                 datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
             }
-        )
+        );
+        assert_eq!(
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2019-05-09T13:36:46+00:00 CRITICAL: toto2\n").unwrap().1,
+            LogEntry {
+                event_type: "log_warn",
+                msg: "toto".to_string(),
+                datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
+            }
+        );
+        assert_eq!(
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2019-05-09T13:36:46+00:00 truc\n").unwrap().1,
+            LogEntry {
+                event_type: "log_warn",
+                msg: "toto\ntruc".to_string(),
+                datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
+            }
+        );
+        assert_eq!(
+            log_entry("2019-05-09T13:36:46+00:00 CRITICAL: toto\ntruc\n").unwrap().1,
+            LogEntry {
+                event_type: "log_warn",
+                msg: "toto\ntruc".to_string(),
+                datetime: DateTime::parse_from_str("2019-05-09T13:36:46+00:00", "%+").unwrap(),
+            }
+        );
     }
 
     #[test]
     fn test_parse_log_entries() {
         assert_eq!(
-            log_entries("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2018-05-09T13:36:46+00:00 suite\n2019-05-09T13:36:46+00:00 CRITICAL: tutu\n")
+            log_entries("2019-05-09T13:36:46+00:00 CRITICAL: toto\n2018-05-09T13:36:46+00:00 suite\n2017-05-09T13:36:46+00:00 CRITICAL: tutu\n")
                 .unwrap()
                 .1,
             vec![
@@ -399,7 +435,7 @@ mod tests {
                 LogEntry {
                     event_type: "log_warn",
                     msg: "tutu".to_string(),
-                    datetime: DateTime::parse_from_str("2018-05-09T13:36:46+00:00", "%+").unwrap(),
+                    datetime: DateTime::parse_from_str("2017-05-09T13:36:46+00:00", "%+").unwrap(),
                 }
             ]
         )
