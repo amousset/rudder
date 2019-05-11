@@ -68,6 +68,10 @@ impl List {
     pub fn is_subnode(&self, id: &str) -> bool {
         self.info.data.get(id).is_some()
     }
+
+    pub fn cert(&self, id: &str) -> Option<Cert> {
+        self.certs.data.get(id).map(|c| c.clone())
+    }
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
