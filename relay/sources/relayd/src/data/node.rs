@@ -29,6 +29,7 @@
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::error::Error;
+use openssl::{stack::Stack, x509::X509};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use slog::{slog_info, slog_trace, slog_warn};
@@ -37,10 +38,6 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
 use std::str::FromStr;
-use openssl::{
-    stack::Stack,
-    x509::X509,
-};
 
 pub type Id = String;
 pub type Host = String;
@@ -136,12 +133,11 @@ impl FromStr for Certificates {
             match Self::id_from_cert(&cert) {
                 Ok(id) => {
                     trace!("Read certificate for node {}", id);
-
                     match res.data.get_mut(&id) {
-                        Some(certs) => certs.push(cert).expect("insert cert in stack"),
+                        Some(certs) => certs.push(cert)?,
                         None => {
-                            let mut certs = Stack::new().expect("could not create x509 stack");
-                            certs.push(cert).expect("insert cert in stack");
+                            let mut certs = Stack::new()?;
+                            certs.push(cert)?;
                             res.data.insert(id, certs);
                         }
                     }
@@ -172,7 +168,19 @@ mod tests {
         let list = Certificates::new("tests/keys/nodescerts.pem").unwrap();
         let actual_nodes: Vec<&String> = list.data.keys().collect();
         assert_eq!(actual_nodes.len(), 2);
-        assert_eq!(list.data.get("37817c4d-fbf7-4850-a985-50021f4e8f41").unwrap().len(), 1);
-        assert_eq!(list.data.get("e745a140-40bc-4b86-b6dc-084488fc906b").unwrap().len(), 2);
+        assert_eq!(
+            list.data
+                .get("37817c4d-fbf7-4850-a985-50021f4e8f41")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            list.data
+                .get("e745a140-40bc-4b86-b6dc-084488fc906b")
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }
