@@ -18,7 +18,7 @@ pub fn db_connection() -> PgConnection {
 fn it_reads_and_inserts_a_runlog() {
     let db = db_connection();
     diesel::delete(ruddersysevents).execute(&db).unwrap();
-    let results = ruddersysevents
+    let mut results = ruddersysevents
         .limit(1)
         .load::<QueryableReport>(&db)
         .unwrap();
@@ -40,24 +40,38 @@ fn it_reads_and_inserts_a_runlog() {
     thread::spawn(move || {
         init(cli_cfg).unwrap();
     });
-    thread::sleep(time::Duration::from_millis(200));
 
-    let results = ruddersysevents
-        .filter(component.eq("start"))
-        .limit(3)
-        .load::<QueryableReport>(&db)
-        .unwrap();
+    let mut retry = 10;
+    while retry > 0 {
+        thread::sleep(time::Duration::from_millis(200));
+        retry -= 1;
+        results = ruddersysevents
+            .filter(component.eq("start"))
+            .limit(3)
+            .load::<QueryableReport>(&db)
+            .unwrap();
+        if ! results.is_empty() {
+            break;
+        }
+    }
     assert_eq!(results.len(), 1);
 
     copy("tests/runlogs/normal.log", file_new).unwrap();
     copy("tests/files/relayd.toml", file_broken).unwrap();
-    thread::sleep(time::Duration::from_millis(200));
 
-    let results = ruddersysevents
-        .filter(component.eq("start"))
-        .limit(3)
-        .load::<QueryableReport>(&db)
-        .unwrap();
+    let mut retry = 10;
+    while retry > 0 {
+        thread::sleep(time::Duration::from_millis(200));
+        retry -= 1;
+        results = ruddersysevents
+            .filter(component.eq("start"))
+            .limit(3)
+            .load::<QueryableReport>(&db)
+            .unwrap();
+        if ! results.is_empty() {
+            break;
+        }
+    }
     assert_eq!(results.len(), 2);
 
     // Test files have been removed
