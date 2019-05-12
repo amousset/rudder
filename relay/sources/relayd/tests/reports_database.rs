@@ -2,8 +2,10 @@ use diesel::{self, prelude::*, PgConnection};
 use filetime::{set_file_times, FileTime};
 use relayd::{
     configuration::CliConfiguration, data::report::QueryableReport, init,
-    output::database::schema::ruddersysevents::dsl::*,
+    output::database::schema::ruddersysevents::dsl::*, stats::Stats,
 };
+use reqwest;
+use serde_json;
 use std::{
     fs::{copy, create_dir_all, remove_dir_all},
     path::Path,
@@ -71,5 +73,19 @@ fn it_reads_and_inserts_a_runlog() {
     assert!(!Path::new(file_broken).exists());
     assert!(Path::new(file_failed).exists());
 
-    // TODO check stats api
+    let body = reqwest::get("http://localhost:3030/stats")
+        .unwrap()
+        .text()
+        .unwrap();
+    let answer = serde_json::from_str(&body).unwrap();
+    let reference = Stats {
+        report_received: 3,
+        report_refused: 1,
+        report_sent: 0,
+        report_inserted: 2,
+        inventory_received: 0,
+        inventory_refused: 0,
+        inventory_sent: 0,
+    };
+    assert_eq!(reference, answer);
 }
