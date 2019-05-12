@@ -29,7 +29,6 @@
 // along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::error::Error;
-use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use slog::{slog_info, slog_trace, slog_warn};
@@ -38,6 +37,10 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
 use std::str::FromStr;
+use openssl::{
+    stack::Stack,
+    x509::X509,
+};
 
 pub type Id = String;
 pub type Host = String;
@@ -69,8 +72,8 @@ impl List {
         self.info.data.get(id).is_some()
     }
 
-    pub fn cert(&self, id: &str) -> Option<Cert> {
-        self.certs.data.get(id).cloned()
+    pub fn certs(&self, id: &str) -> Option<&Stack<Cert>> {
+        self.certs.data.get(id)
     }
 }
 
@@ -100,8 +103,7 @@ impl FromStr for NodesInfo {
 // Certificates are stored independently as they are read from a different source
 #[derive(Default)]
 pub struct Certificates {
-    // Vec ?
-    pub data: HashMap<Id, Cert>,
+    pub data: HashMap<Id, Stack<Cert>>,
 }
 
 impl Certificates {
@@ -134,7 +136,15 @@ impl FromStr for Certificates {
             match Self::id_from_cert(&cert) {
                 Ok(id) => {
                     trace!("Read certificate for node {}", id);
-                    res.data.insert(id, cert);
+
+                    match res.data.get_mut(&id) {
+                        Some(certs) => certs.push(cert).expect("insert cert in stack"),
+                        None => {
+                            let mut certs = Stack::new().expect("could not create x509 stack");
+                            certs.push(cert).expect("insert cert in stack");
+                            res.data.insert(id, certs);
+                        }
+                    }
                 }
                 Err(e) => {
                     // warn and skip on certificate error
@@ -160,12 +170,9 @@ mod tests {
     #[test]
     fn test_parse_certs() {
         let list = Certificates::new("tests/keys/nodescerts.pem").unwrap();
-        let nodes = vec![
-            "37817c4d-fbf7-4850-a985-50021f4e8f41",
-            "e745a140-40bc-4b86-b6dc-084488fc906b",
-        ];
-        let mut actual_nodes: Vec<&String> = list.data.keys().collect();
-        actual_nodes.sort_unstable();
-        assert_eq!(actual_nodes, nodes);
+        let actual_nodes: Vec<&String> = list.data.keys().collect();
+        assert_eq!(actual_nodes.len(), 2);
+        assert_eq!(list.data.get("37817c4d-fbf7-4850-a985-50021f4e8f41").unwrap().len(), 1);
+        assert_eq!(list.data.get("e745a140-40bc-4b86-b6dc-084488fc906b").unwrap().len(), 2);
     }
 }

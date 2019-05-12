@@ -64,7 +64,6 @@ pub fn read_file_content(path: &ReceivedFile) -> Result<String, Error> {
     })
 }
 
-// FIXME check certs are individually compared
 pub fn signature(input: &[u8], certs: &Stack<X509>) -> Result<String, Error> {
     let (signature, content) = Pkcs7::from_smime(input)?;
 
@@ -72,12 +71,12 @@ pub fn signature(input: &[u8], certs: &Stack<X509>) -> Result<String, Error> {
 
     let mut flags = Pkcs7Flags::empty();
     // Ignore certificates contained in the message, we only rely on the one we know
-    // Out messages should not contain certs
+    // Our messages should not contain certs anyway
     flags.set(Pkcs7Flags::NOINTERN, true);
     // Do not verify chain (as we have no meaningful chaining)
     // Only verify that the provided cert has signed the message
     flags.set(Pkcs7Flags::NOVERIFY, true);
-    // No chaining so no need for ca store
+    // No chaining so no need for a CA store
     let store = X509StoreBuilder::new().unwrap().build();
 
     signature.verify(
