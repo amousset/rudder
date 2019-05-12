@@ -54,14 +54,19 @@ pub struct Info {
 
 pub struct List {
     pub info: NodesInfo,
-    pub certs: Certificates,
+    // No certs on simple relays
+    pub certs: Option<Certificates>,
 }
 
 impl List {
-    pub fn new<P: AsRef<Path>>(nodes: P, certificates: P) -> Result<Self, Error> {
+    pub fn new<P: AsRef<Path>>(nodes: P, certificates: Option<P>) -> Result<Self, Error> {
+        let certs = match certificates {
+            Some(path) => Some(Certificates::new(path)?),
+            None => None,
+        };
         Ok(List {
             info: NodesInfo::new(nodes)?,
-            certs: Certificates::new(certificates)?,
+            certs,
         })
     }
 
@@ -70,7 +75,12 @@ impl List {
     }
 
     pub fn certs(&self, id: &str) -> Option<&Stack<Cert>> {
-        self.certs.data.get(id)
+        match &self.certs {
+            Some(certs) => certs.data.get(id),
+            None => {
+                panic!("No certificates loaded");
+            }
+        }
     }
 }
 
@@ -166,21 +176,8 @@ mod tests {
     #[test]
     fn test_parse_certs() {
         let list = Certificates::new("tests/keys/nodescerts.pem").unwrap();
-        let actual_nodes: Vec<&String> = list.data.keys().collect();
-        assert_eq!(actual_nodes.len(), 2);
-        assert_eq!(
-            list.data
-                .get("37817c4d-fbf7-4850-a985-50021f4e8f41")
-                .unwrap()
-                .len(),
-            1
-        );
-        assert_eq!(
-            list.data
-                .get("e745a140-40bc-4b86-b6dc-084488fc906b")
-                .unwrap()
-                .len(),
-            2
-        );
+        assert_eq!(list.data.len(), 2);
+        assert_eq!(list.data["37817c4d-fbf7-4850-a985-50021f4e8f41"].len(), 1);
+        assert_eq!(list.data["e745a140-40bc-4b86-b6dc-084488fc906b"].len(), 2);
     }
 }
