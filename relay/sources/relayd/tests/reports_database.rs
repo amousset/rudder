@@ -10,19 +10,35 @@ use std::{
     thread, time,
 };
 
-pub fn db_connection() -> PgConnection {
+fn db_connection() -> PgConnection {
     PgConnection::establish("postgres://rudderreports:PASSWORD@127.0.0.1/rudder").unwrap()
+}
+
+// Checks number of start execution reports
+// (so number of runlogs if everything goes well)
+fn start_number(db: &PgConnection, expected: usize) -> Result<(), ()> {
+    let mut retry = 10;
+    while retry > 0 {
+        thread::sleep(time::Duration::from_millis(200));
+        retry -= 1;
+        let results = ruddersysevents
+            .filter(component.eq("start"))
+            .limit(10)
+            .load::<QueryableReport>(db)
+            .unwrap();
+        if results.len() == expected {
+            return Ok(());
+        }
+    }
+    Err(())
 }
 
 #[test]
 fn it_reads_and_inserts_a_runlog() {
     let db = db_connection();
     diesel::delete(ruddersysevents).execute(&db).unwrap();
-    let mut results = ruddersysevents
-        .limit(1)
-        .load::<QueryableReport>(&db)
-        .unwrap();
-    assert_eq!(results.len(), 0);
+
+    assert!(start_number(&db, 0).is_ok());
 
     let _ = remove_dir_all("target/tmp/test_simple");
     create_dir_all("target/tmp/test_simple/incoming").unwrap();
@@ -41,38 +57,12 @@ fn it_reads_and_inserts_a_runlog() {
         init(cli_cfg).unwrap();
     });
 
-    let mut retry = 10;
-    while retry > 0 {
-        thread::sleep(time::Duration::from_millis(200));
-        retry -= 1;
-        results = ruddersysevents
-            .filter(component.eq("start"))
-            .limit(3)
-            .load::<QueryableReport>(&db)
-            .unwrap();
-        if ! results.is_empty() {
-            break;
-        }
-    }
-    assert_eq!(results.len(), 1);
+    assert!(start_number(&db, 1).is_ok());
 
     copy("tests/runlogs/normal.log", file_new).unwrap();
     copy("tests/files/relayd.toml", file_broken).unwrap();
 
-    let mut retry = 10;
-    while retry > 0 {
-        thread::sleep(time::Duration::from_millis(200));
-        retry -= 1;
-        results = ruddersysevents
-            .filter(component.eq("start"))
-            .limit(3)
-            .load::<QueryableReport>(&db)
-            .unwrap();
-        if ! results.is_empty() {
-            break;
-        }
-    }
-    assert_eq!(results.len(), 2);
+    assert!(start_number(&db, 2).is_ok());
 
     // Test files have been removed
     assert!(!Path::new(file_old).exists());
