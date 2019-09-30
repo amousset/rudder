@@ -31,7 +31,7 @@
 use crate::{
     error::Error,
     remote_run::{RemoteRun, RemoteRunTarget},
-    shared_files::{self, metadata_parser, SharedFilesHeadParams, SharedFilesPutParams},
+    shared_files::{self, SharedFilesHeadParams, SharedFilesPutParams},
     shared_folder::{self, SharedFolderParams},
     stats::Stats,
     status::Status,
@@ -51,7 +51,7 @@ use warp::{
     http::StatusCode,
     path, query,
     reject::custom,
-    reply, Buf, Filter,
+    reply, Filter,
 };
 
 pub fn api(
@@ -94,18 +94,22 @@ pub fn api(
         post()
             .and(path("nodes"))
             .and(path::end().and(body::form()).and_then(
-                move |simple_map: HashMap<String, String>| match simple_map.get("nodes") {
-                    Some(x) => match RemoteRun::new(
-                        RemoteRunTarget::Nodes(
-                            x.split(',').map(|s| s.to_string()).collect::<Vec<String>>(),
-                        ),
-                        &simple_map,
-                    ) {
-                        Ok(x) => x.run(job_config3.clone()),
-                        Err(x) => Err(custom(Error::InvalidCondition(x.to_string()))),
-                    },
-
-                    None => Err(custom(Error::MissingTargetNodes)),
+                move |simple_map: HashMap<String, String>| {
+                    match simple_map.get("nodes") {
+                        Some(nodes) => match RemoteRun::new(
+                            RemoteRunTarget::Nodes(
+                                nodes
+                                    .split(',')
+                                    .map(|s| s.to_string())
+                                    .collect::<Vec<String>>(),
+                            ),
+                            &simple_map,
+                        ) {
+                            Ok(handle) => handle.run(job_config3.clone()),
+                            Err(e) => Err(custom(Error::InvalidCondition(e.to_string()))),
+                        },
+                        None => Err(custom(Error::MissingTargetNodes)),
+                    }
                 },
             ));
 
@@ -128,18 +132,10 @@ pub fn api(
         .and(query::<SharedFilesPutParams>())
         .and(body::concat())
         .map(
-            move |target_id,
-                  source_id,
-                  file_id,
-                  params: SharedFilesPutParams,
-                  mut buf: FullBody| {
+            move |target_id, source_id, file_id, params: SharedFilesPutParams, buf: FullBody| {
                 reply::with_status(
                     "".to_string(),
                     match shared_files::put(
-                        // FIXME avoid parsing metadata twice!
-                        // Warning, this reads inside of file content too for
-                        // metadata k/v
-                        format!("{}", metadata_parser(buf.by_ref()).unwrap()),
                         target_id,
                         source_id,
                         file_id,
