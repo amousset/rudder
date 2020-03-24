@@ -33,3 +33,5 @@ include::examples/ntp.rl[]
 // TODO: comparison with CFEngine, Puppet (mgmt ?)
 
 include::concepts.adoc[leveloffset=+1]
+
+include::compiler.adoc[leveloffset=+1]
