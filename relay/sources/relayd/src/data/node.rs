@@ -3,10 +3,14 @@
 
 use crate::{error::Error, hashing::Hash};
 use openssl::{stack::Stack, x509::X509};
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{Deserializer, Error as SerdeError, Visitor},
+    Deserialize, Serialize,
+};
 use serde_json;
 use std::{
     collections::{HashMap, HashSet},
+    fmt,
     fs::{read, read_to_string},
     path::Path,
     str::FromStr,
@@ -17,6 +21,72 @@ pub type NodeId = String;
 pub type NodeIdRef = str;
 pub type Host = String;
 
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum AgentFeature {
+    CfengineRemoteRun,
+}
+
+// Not parsed for now
+pub type AgentVersion = String;
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub enum AgentName {
+    // Nova is not supposed to exist anymore
+    CfengineCommunity,
+    Dsc,
+    Unknown(String),
+}
+
+impl AgentName {
+    fn deserialize<'de, D>(d: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct V;
+
+        impl<'de2> Visitor<'de2> for V {
+            type Value = AgentName;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string representing the agent name")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<AgentName, E>
+            where
+                E: SerdeError,
+            {
+                Ok(match v {
+                    "cfengine-community" => AgentName::CfengineCommunity,
+                    "dsc" => AgentName::Dsc,
+                    _ => AgentName::Unknown(v.to_string()),
+                })
+            }
+        }
+
+        d.deserialize_str(V)
+    }
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub struct AgentInfo {
+    #[serde(deserialize_with = "AgentName::deserialize")]
+    name: AgentName,
+    version: AgentVersion,
+}
+
+impl AgentInfo {
+    pub fn has_feature(&self, feature: AgentFeature) -> bool {
+        match feature {
+            AgentFeature::CfengineRemoteRun => match self.name {
+                // Remote-run on Windows would requires changes in relayd
+                // so we know it is not possible at this point
+                AgentName::Dsc => false,
+                _ => true,
+            },
+        }
+    }
+}
+
 #[derive(Deserialize, Default)]
 struct Info {
     hostname: Host,
@@ -24,6 +94,7 @@ struct Info {
     policy_server: NodeId,
     #[serde(rename = "key-hash")]
     key_hash: Hash,
+    agents: Option<Vec<AgentInfo>>,
     #[serde(skip)]
     // Can be empty when not on a root server or no known certificates for
     // a node
@@ -41,6 +112,16 @@ impl Info {
             }
         }
         Ok(())
+    }
+
+    // Node has feature = One the the agents has the feature
+    pub fn has_feature(&self, feature: AgentFeature) -> bool {
+        self.agents
+            .as_ref()
+            .map(|agents| agents.iter().any(|a| a.has_feature(feature)))
+            // No agent info -> pre 6.1 server
+            // Not supported except remote run
+            .unwrap_or_else(|| feature == AgentFeature::CfengineRemoteRun)
     }
 }
 
@@ -302,6 +383,19 @@ mod tests {
             Some("benches/files/allnodescerts.pem")
         )
         .is_ok())
+    }
+
+    #[test]
+    fn it_parses_agent_info() {
+        let nodeslist =
+            NodesList::new("root".to_string(), "tests/files/nodeslist.json", None).unwrap();
+        assert_eq!(
+            nodeslist.list.data["c745a140-40bc-4b86-b6dc-084488fc906b"].agents,
+            Some(vec![AgentInfo {
+                name: AgentName::CfengineCommunity,
+                version: "6.0.3".to_string()
+            }])
+        )
     }
 
     #[test]
