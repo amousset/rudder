@@ -142,24 +142,12 @@ class SystemVariableSpecServiceImpl extends SystemVariableSpecService {
                         )
       // end
       //
-      // The following variables contains information about all the nodes managed by
+      // The following variable contains information about all the nodes managed by
       // by a policy server AND all of its grand children (i.e also information about
       // node managed by relays connected to that policy server)
       //
     , SystemVariableSpec(
-                          "SUB_NODES_NAME" , "Hostname of nodes managed by the policy server AND relays under it"
-                                           , constraint = Constraint(mayBeEmpty=true)
-                        )
-    , SystemVariableSpec(
-                            "SUB_NODES_ID" , "UUID of nodes managed by the policy server AND relays under if"
-                                           , constraint = Constraint(mayBeEmpty=true)
-                        )
-    , SystemVariableSpec(
-                       "SUB_NODES_KEYHASH" , "Crypto key hash (standard one, not CFEngine format) of node private key"
-                                           , constraint = Constraint(mayBeEmpty=true)
-                        )
-    , SystemVariableSpec(
-                        "SUB_NODES_SERVER" , "Policy server to which the node is connected"
+                          "SUB_NODES_LIST" , "JSON string with information about sub nodes"
                                            , constraint = Constraint(mayBeEmpty=true)
                         )
       // end

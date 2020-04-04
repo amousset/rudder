@@ -16,3 +16,6 @@ target
 **/git-ignored/*
 webapp/sources/rudder/rudder-web/src/main/webapp/javascript/rudder/elm/*.js
 *.pyc
+.vscode
+.metals
+.bloop

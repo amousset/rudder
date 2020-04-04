@@ -415,6 +415,12 @@ class SystemVariableServiceImpl(
       // Each node may have several agent type, so we need to "unfold" agents per children
       val subNodesList = allChildren.map(node => (node.agentsName.map(agent => agent -> node))).flatten
 
+      // TODO build JSON
+
+
+      val varSubNodesList    = systemVariableSpecService.get("SUB_NODES_LIST"   ).toVariable(subNodesList.map(_._2.hostname))
+
+
       val varSubNodesName    = systemVariableSpecService.get("SUB_NODES_NAME"   ).toVariable(subNodesList.map(_._2.hostname))
       val varSubNodesId      = systemVariableSpecService.get("SUB_NODES_ID"     ).toVariable(subNodesList.map(_._2.id.value))
       val varSubNodesServer  = systemVariableSpecService.get("SUB_NODES_SERVER" ).toVariable(subNodesList.map(_._2.policyServerId.value))

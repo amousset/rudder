@@ -785,6 +785,19 @@ class PolicyWriterServiceImpl(
     }
   }
 
+  // nodeslist is a json string
+  private[this] def writeNodesListJson(paths: NodePoliciesPaths, nodeslist: Variable): IOResult[List[AgentSpecificFile]] =  {
+    val path = File(paths.newFolder, "nodeslist.json")
+    for {
+      _ <- path.createParentsAndWrite(nodeslist + "\n").chainError(
+        s"Can not write json parameter file at path '${path.pathAsString}'"
+      )
+    } yield {
+      AgentSpecificFile(path.pathAsString) :: Nil
+    }
+  }
+
+
   private[this] def writeSystemVarJson(paths: NodePoliciesPaths, variables: Map[String, Variable]): IOResult[List[AgentSpecificFile]] =  {
     val path = File(paths.newFolder, "rudder.json")
     for {
@@ -802,11 +815,7 @@ class PolicyWriterServiceImpl(
 
     //remove these system vars (perhaps they should not even be there, in fact)
     val filterOut = Set(
-        "SUB_NODES_ID"
-      , "SUB_NODES_KEYHASH"
-      , "SUB_NODES_NAME"
-      , "SUB_NODES_SERVER"
-      , "MANAGED_NODES_CERT_UUID"
+        "MANAGED_NODES_CERT_UUID"
       , "MANAGED_NODES_CERT_CN"
       , "MANAGED_NODES_CERT_DN"
       , "MANAGED_NODES_CERT_PEM"
