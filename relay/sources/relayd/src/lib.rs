@@ -28,11 +28,7 @@ use crate::{
     processing::{inventory, reporting},
     stats::Stats,
 };
-use futures::{
-    future::{lazy, Future},
-    stream::Stream,
-    sync::mpsc,
-};
+use futures::{future::lazy, sync::mpsc, Future};
 use reqwest::r#async::Client;
 use std::{
     fs::create_dir_all,
@@ -42,7 +38,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 use structopt::clap::crate_version;
-use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGTERM};
+use tokio_02::signal::unix::{signal, SignalKind};
 use tracing::{debug, error, info};
 use tracing_log::LogTracer;
 use tracing_subscriber::{
@@ -130,47 +126,53 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
     let stats = Arc::new(RwLock::new(Stats::default()));
     let job_config = JobConfig::new(cli_cfg, cfg, reload_handle)?;
 
-    // ---- Setup signal handlers ----
-
-    debug!("Setup signal handlers");
-
-    // SIGINT or SIGTERM: immediate shutdown
-    // TODO: graceful shutdown
-    let shutdown = Signal::new(SIGINT)
-        .flatten_stream()
-        .select(Signal::new(SIGTERM).flatten_stream())
-        .into_future()
-        .map(|_sig| {
-            info!("Signal received: shutdown requested");
-            exit(ExitStatus::Shutdown.code());
-        })
-        .map_err(|e| error!("signal error {}", e.0));
-
-    // SIGHUP: reload logging configuration + nodes list
-    let job_config_reload = job_config.clone();
-
-    let reload = Signal::new(SIGHUP)
-        .flatten_stream()
-        .map_err(|e| e.into())
-        .for_each(move |_signal| job_config_reload.reload())
-        .map_err(|e| error!("signal error {}", e));
-
     // ---- Start server ----
 
-    let mut builder = tokio::runtime::Builder::new();
+    let mut builder = tokio_compat::runtime::Builder::new();
     if let Some(threads) = job_config.cfg.general.core_threads {
         builder.core_threads(threads);
     }
-    let mut runtime = builder
-        .blocking_threads(job_config.cfg.general.blocking_threads)
+    let runtime = builder
+        // FIXME add back
+        //.blocking_threads(job_config.cfg.general.blocking_threads)
         // TODO check why resume_unwind is not enough
-        .panic_handler(|_| exit(ExitStatus::Crash.code()))
+        //.panic_handler(|_| exit(ExitStatus::Crash.code()))
         .build()?;
 
+    let job_config_reload = job_config.clone();
+
+    // FIXME: recheck on tokio 0.2
     // don't use block_on_all as it panics on main future panic but not others
     runtime.spawn(lazy(move || {
-        tokio::spawn(reload);
-        tokio::spawn(shutdown);
+        // SIGHUP: reload logging configuration + nodes list
+        tokio_02::spawn(async move {
+            debug!("Setup configuration reload signal handler");
+
+            let mut hangup = signal(SignalKind::hangup()).expect("Error setting up interrupt signal");
+            loop {
+                hangup.recv().await;
+                let _ = job_config_reload.reload()
+                    .map_err(|e| error!("reload error {}", e));
+            }
+        });
+
+        // SIGINT or SIGTERM: immediate shutdown
+        // TODO: graceful shutdown
+        tokio_02::spawn(async  {
+            debug!("Setup shutdown signal handler");
+
+            let mut terminate = signal(SignalKind::terminate()).expect("Error setting up interrupt signal");
+            let mut interrupt = signal(SignalKind::interrupt()).expect("Error setting up interrupt signal");
+            tokio_02::select! {
+                _ = terminate.recv() => {
+                    info!("SIGINT received: shutdown requested");
+                },
+                _ = interrupt.recv() => {
+                    info!("SIGTERM received: shutdown requested");
+                }
+            }
+            exit(ExitStatus::Shutdown.code());
+        });
 
         let (tx_stats, rx_stats) = mpsc::channel(1_024);
 

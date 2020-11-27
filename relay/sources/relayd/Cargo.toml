@@ -23,6 +23,7 @@ chrono = { version = "0.4", features = ["serde"] }
 diesel = { version = "1", default-features = false, features = ["postgres", "chrono", "r2d2"] }
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
 futures = "0.1"
+futures_03 = { package = "futures", version = "0.3", features = ["compat"] }
 hex = "0.4"
 hyper = { version = "0.12", default-features = false }
 inotify = "0.7"
@@ -37,7 +38,9 @@ serde_json = "1"
 sha2 = "0.9"
 structopt = { version = "0.3", default-features = false }
 thiserror = "1"
+tokio-compat = { version = "0.1", features = ["rt-full"] }
 tokio = { version = "0.1", default-features = false, features = ["experimental-tracing"] }
+tokio-02 = { package = "tokio", version = "0.2", features = ["full"] }
 tokio-io = "0.1"
 tokio-process = "0.2"
 tokio-signal = "0.2"
