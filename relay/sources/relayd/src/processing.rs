@@ -2,11 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{error::Error, stats::Event};
-use futures::{future::Future, sync::mpsc};
 use std::path::PathBuf;
 use tokio::{
     fs::{remove_file, rename},
-    prelude::*,
+    sync::mpsc,
 };
 use tracing::{debug, error};
 
@@ -33,52 +32,49 @@ impl From<Error> for OutputError {
     }
 }
 
-fn success(
+async fn success(
     file: ReceivedFile,
     event: Event,
-    stats: mpsc::Sender<Event>,
-) -> Box<dyn Future<Item = (), Error = ()> + Send> {
-    Box::new(
-        stats
-            .send(event)
-            .map_err(|e| error!("send error: {}", e))
-            .then(|_| {
-                remove_file(file.clone())
-                    .map(move |_| debug!("deleted: {:#?}", file))
-                    .map_err(|e| error!("error: {}", e))
-            }),
-    )
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
+    stats
+        .send(event)
+        .await
+        .map_err(|e| error!("send error: {}", e))?;
+
+    remove_file(file.clone())
+        .await
+        .map(move |_| debug!("deleted: {:#?}", file))
+        .map_err(|e| error!("error: {}", e));
+    Ok(())
 }
 
-fn failure(
+async fn failure(
     file: ReceivedFile,
     directory: RootDirectory,
     event: Event,
-    stats: mpsc::Sender<Event>,
-) -> Box<dyn Future<Item = (), Error = ()> + Send> {
-    Box::new(
-        stats
-            .send(event)
-            .map_err(|e| error!("send error: {}", e))
-            .then(move |_| {
-                rename(
-                    file.clone(),
-                    directory
-                        .join("failed")
-                        .join(file.file_name().expect("not a file")),
-                )
-                .map(move |_| {
-                    debug!(
-                        "moved: {:#?} to {:#?}",
-                        file,
-                        directory
-                            .join("failed")
-                            .join(file.file_name().expect("not a file"))
-                    )
-                })
-                .map_err(|e| error!("error: {}", e))
-            })
-            // Hack for easier chaining
-            .and_then(|_| Box::new(futures::future::err::<(), ()>(()))),
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
+    stats
+        .send(event)
+        .await
+        .map_err(|e| error!("send error: {}", e));
+
+    rename(
+        file.clone(),
+        directory
+            .join("failed")
+            .join(file.file_name().expect("not a file")),
     )
+    .await
+    .map_err(|e| error!("error: {}", e))?;
+
+    debug!(
+        "moved: {:#?} to {:#?}",
+        file,
+        directory
+            .join("failed")
+            .join(file.file_name().expect("not a file"))
+    );
+    Ok(())
 }

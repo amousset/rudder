@@ -108,8 +108,8 @@ pub struct GeneralConfig {
     pub listen: String,
     /// None means using the number of available CPUs
     pub core_threads: Option<usize>,
-    #[serde(default = "GeneralConfig::default_blocking_threads")]
-    pub blocking_threads: usize,
+    #[serde(default = "GeneralConfig::default_max_threads")]
+    pub max_threads: usize,
 }
 
 impl GeneralConfig {
@@ -125,8 +125,10 @@ impl GeneralConfig {
         "127.0.0.1:3030".to_string()
     }
 
-    fn default_blocking_threads() -> usize {
-        100
+    fn default_max_threads() -> usize {
+        // Default in tokio
+        // https://docs.rs/tokio/0.2.23/tokio/runtime/struct.Builder.html#method.max_threads
+        512
     }
 }
 
@@ -484,7 +486,7 @@ mod tests {
                 node_id: "root".to_string(),
                 listen: "127.0.0.1:3030".parse().unwrap(),
                 core_threads: None,
-                blocking_threads: 100,
+                max_threads: 512,
             },
             processing: ProcessingConfig {
                 inventory: InventoryConfig {
@@ -571,7 +573,7 @@ mod tests {
                 node_id: "root".to_string(),
                 listen: "127.0.0.1:3030".parse().unwrap(),
                 core_threads: None,
-                blocking_threads: 100,
+                max_threads: 512,
             },
             processing: ProcessingConfig {
                 inventory: InventoryConfig {

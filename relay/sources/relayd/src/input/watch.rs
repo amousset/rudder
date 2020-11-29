@@ -6,65 +6,55 @@ use crate::{
     processing::ReceivedFile,
     JobConfig,
 };
-use futures::{
-    future::{poll_fn, Future},
-    sync::mpsc,
-    Stream,
-};
+use futures::{future, StreamExt};
 use inotify::{Inotify, WatchMask};
 use std::{
     path::Path,
     sync::Arc,
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, SystemTime},
 };
 use tokio::{
     fs::{read_dir, remove_file},
-    prelude::*,
-    timer::Interval,
+    sync::mpsc,
+    time::interval,
 };
 use tracing::{debug, info, span, warn, Level};
 
-pub fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> impl Future<Item = (), Error = ()> {
-    Interval::new(Instant::now(), cfg.frequency)
-        .map_err(|e| warn!("interval error: {}", e))
-        .for_each(move |_instant| {
-            debug!("cleaning {:?}", path);
+pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), ()> {
+    let mut timer = interval(cfg.frequency);
 
-            let sys_time = SystemTime::now();
+    loop {
+        timer.tick().await;
 
-            read_dir(path.clone())
-                .flatten_stream()
-                .map_err(|e| warn!("list error: {}", e))
-                .filter(move |entry| {
-                    poll_fn(move || entry.poll_metadata())
-                        // If metadata can't be fetched, skip it for now
-                        .map(|metadata| metadata.modified().unwrap_or(sys_time))
-                        // An error indicates a file in the future, let's approximate it to now
-                        .map(|modified| {
-                            sys_time
-                                .duration_since(modified)
-                                .unwrap_or_else(|_| Duration::new(0, 0))
-                        })
-                        .map(|duration| duration > cfg.retention)
-                        .map_err(|e| warn!("filter error: {}", e))
-                        // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
-                        .wait()
-                        .unwrap_or(false)
-                })
-                .for_each(move |entry| {
-                    let path = entry.path();
-                    debug!("removing old file: {:?}", path);
-                    remove_file(path)
-                        .map_err(|e| warn!("remove error: {}", e))
-                        .map(|_| ())
-                })
-        })
+        debug!("cleaning {:?}", path);
+        let sys_time = SystemTime::now();
+        let mut files = read_dir(path.clone())
+            .await
+            .map_err(|e| warn!("list error: {}", e))?;
+
+        while let entry = files.next().await.unwrap().unwrap() {
+            let metadata = entry.metadata().await.unwrap();
+            let since = sys_time
+                .duration_since(metadata.modified().unwrap_or(sys_time))
+                // An error indicates a file in the future, let's approximate it to now
+                .unwrap_or_else(|_| Duration::new(0, 0));
+
+            if since > cfg.retention {
+                let path = entry.path();
+                debug!("removing old file: {:?}", path);
+                remove_file(path)
+                    .await
+                    .map_err(|e| warn!("remove error: {}", e))
+                    .map(|_| ());
+            }
+        }
+    }
 }
 
 pub fn watch(
     path: &WatchedDirectory,
     job_config: &Arc<JobConfig>,
-    tx: &mpsc::Sender<ReceivedFile>,
+    tx: &mut mpsc::Sender<ReceivedFile>,
 ) {
     info!("Starting file watcher on {:#?}", &path);
     let report_span = span!(Level::TRACE, "watcher");
@@ -72,53 +62,47 @@ pub fn watch(
     tokio::spawn(list_files(
         path.clone(),
         job_config.cfg.processing.reporting.catchup,
-        tx.clone(),
+        &mut tx.clone(),
     ));
-    tokio::spawn(watch_files(path.clone(), tx.clone()));
+    tokio::spawn(watch_files(path.clone(), &mut tx.clone()));
 }
 
-fn list_files(
+async fn list_files(
     path: WatchedDirectory,
     cfg: CatchupConfig,
-    tx: mpsc::Sender<ReceivedFile>,
-) -> impl Future<Item = (), Error = ()> {
-    Interval::new(Instant::now(), cfg.frequency)
-        .map_err(|e| warn!("interval error: {}", e))
-        .for_each(move |_instant| {
-            debug!("listing {:?}", path);
+    tx: &mut mpsc::Sender<ReceivedFile>,
+) -> Result<(), ()> {
+    let mut timer = interval(cfg.frequency);
 
-            let tx = tx.clone();
-            let sys_time = SystemTime::now();
+    loop {
+        timer.tick().await;
+        debug!("listing {:?}", path);
 
-            read_dir(path.clone())
-                .flatten_stream()
-                .take(cfg.limit)
-                .map_err(|e| warn!("list error: {}", e))
-                .filter(move |entry| {
-                    poll_fn(move || entry.poll_metadata())
-                        // If metadata can't be fetched, skip it for now
-                        .map(|metadata| metadata.modified().unwrap_or(sys_time))
-                        // An error indicates a file in the future, let's approximate it to now
-                        .map(|modified| {
-                            sys_time
-                                .duration_since(modified)
-                                .unwrap_or_else(|_| Duration::new(0, 0))
-                        })
-                        .map(|duration| duration > Duration::from_secs(30))
-                        .map_err(|e| warn!("list filter error: {}", e))
-                        // TODO async filter (https://github.com/rust-lang-nursery/futures-rs/pull/728)
-                        .wait()
-                        .unwrap_or(false)
-                })
-                .for_each(move |entry| {
-                    let path = entry.path();
-                    debug!("list: {:?}", path);
-                    tx.clone()
-                        .send(path)
-                        .map_err(|e| warn!("list error: {}", e))
-                        .map(|_| ())
-                })
-        })
+        let tx = tx.clone();
+        let sys_time = SystemTime::now();
+
+        let mut files = read_dir(path.clone())
+            .await
+            .map_err(|e| warn!("list error: {}", e))?;
+
+        while let entry = files.next().await.unwrap().unwrap() {
+            let metadata = entry.metadata().await.unwrap();
+            let since = sys_time
+                .duration_since(metadata.modified().unwrap_or(sys_time))
+                // An error indicates a file in the future, let's approximate it to now
+                .unwrap_or_else(|_| Duration::new(0, 0));
+
+            if since > Duration::from_secs(30) {
+                let path = entry.path();
+                debug!("list: {:?}", path);
+                tx.clone()
+                    .send(path)
+                    .await
+                    .map_err(|e| warn!("list error: {}", e))
+                    .map(|_| ());
+            }
+        }
+    }
 }
 
 fn watch_stream<P: AsRef<Path>>(path: P) -> inotify::EventStream<Vec<u8>> {
@@ -135,36 +119,40 @@ fn watch_stream<P: AsRef<Path>>(path: P) -> inotify::EventStream<Vec<u8>> {
     inotify
         .add_watch(path.as_ref(), WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
         .expect("Could not watch with inotify");
-    inotify.event_stream(Vec::from(&[0; 2048][..]))
+    inotify
+        .event_stream(Vec::from(&[0; 2048][..]))
+        .expect("Could no create inotify event stream")
 }
 
-fn watch_files<P: AsRef<Path>>(
+async fn watch_files<P: AsRef<Path>>(
     path: P,
-    tx: mpsc::Sender<ReceivedFile>,
-) -> impl Future<Item = (), Error = ()> {
+    tx: &mut mpsc::Sender<ReceivedFile>,
+) -> Result<(), ()> {
     let path_prefix = path.as_ref().to_path_buf();
-    watch_stream(&path)
-        .map_err(|e| {
-            warn!("watch error: {}", e);
-        })
-        .map(|entry| entry.name)
-        // If it is None, it means it is not an event on a file in the directory, skipping
-        .filter(Option::is_some)
-        .map(|entry| entry.expect("inotify entry has no name"))
-        // inotify gives the filename, add the entire path
-        .map(move |p| {
-            let full_path = path_prefix.join(p);
-            debug!("inotify: {:?}", path.as_ref());
-            full_path
-        })
-        .for_each(move |entry| {
-            tx.clone()
-                .send(entry)
-                .map_err(|e| warn!("watch send error: {}", e))
-                .map(|_| ())
-        })
-}
 
+    let mut files = watch_stream(&path)
+        .map(|entry| entry.unwrap().name)
+        // If it is None, it means it is not an event on a file in the directory, skipping
+        .filter(|e| future::ready(e.is_some()))
+        .map(|entry| entry.expect("inotify entry has no name"));
+
+    while let new_file = files.next().await {
+        if let Some(file) = new_file {
+            // inotify gives the filename, add the entire path
+            if let full_path = path_prefix.join(file) {
+                debug!("inotify: {:?}", full_path);
+
+                tx.clone()
+                    .send(full_path)
+                    .await
+                    .map_err(|e| warn!("watch send error: {}", e))
+                    .map(|_| ());
+            }
+        }
+    }
+    Ok(())
+}
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,22 +160,21 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn it_watches_files() {
-        let dir = tempdir().unwrap();
+    fn it_watches_files() -> impl std::future::Future<Output = ()>{
 
-        let watch = watch_stream(dir.path());
-        File::create(dir.path().join("2019-01-24T15:55:01+00:00@root.log")).unwrap();
-        let events = watch.take(1).wait().collect::<Vec<_>>();
+        async {
+            let dir = tempdir().unwrap();
 
-        assert_eq!(events.len(), 1);
-
-        for event in events {
-            if let Ok(event) = event {
-                assert_eq!(
-                    event.name.map(PathBuf::from).unwrap(),
-                    PathBuf::from_str("2019-01-24T15:55:01+00:00@root.log").unwrap()
-                );
-            }
+            let mut watch = watch_stream(dir.path());
+            File::create(dir.path().join("2019-01-24T15:55:01+00:00@root.log")).unwrap();
+            let event = watch.next().await.unwrap().unwrap();
+            assert_eq!(
+                event.name.map(PathBuf::from).unwrap(),
+                PathBuf::from_str("2019-01-24T15:55:01+00:00@root.log").unwrap()
+            );
         }
+
+
     }
 }
+*/

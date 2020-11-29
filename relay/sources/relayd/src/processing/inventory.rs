@@ -9,10 +9,14 @@ use crate::{
     stats::Event,
     JobConfig,
 };
-use futures::{future::Future, lazy, sync::mpsc, Stream};
+use futures::{
+    future::{lazy, Future},
+    StreamExt,
+};
 use md5::{Digest, Md5};
-use std::{os::unix::ffi::OsStrExt, sync::Arc};
-use tokio::prelude::*;
+use std::os::unix::ffi::OsStrExt;
+use std::sync::Arc;
+use tokio::{prelude::*, sync::mpsc};
 use tracing::{debug, error, info, span, Level};
 
 static INVENTORY_EXTENSIONS: &[&str] = &["gz", "xml", "sign"];
@@ -23,7 +27,7 @@ pub enum InventoryType {
     Update,
 }
 
-pub fn start(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "inventory");
     let _enter = span.enter();
 
@@ -37,15 +41,15 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
         .join("incoming");
     tokio::spawn(serve(
         job_config.clone(),
-        receiver,
+        &mut receiver,
         InventoryType::New,
-        stats.clone(),
+        &mut stats.clone(),
     ));
     tokio::spawn(cleanup(
         incoming_path.clone(),
         job_config.cfg.processing.inventory.cleanup,
     ));
-    watch(&incoming_path, &job_config, &sender);
+    watch(&incoming_path, &job_config, &mut sender);
 
     let updates_path = job_config
         .cfg
@@ -56,24 +60,24 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
     let (sender, receiver) = mpsc::channel(1_024);
     tokio::spawn(serve(
         job_config.clone(),
-        receiver,
+        &mut receiver,
         InventoryType::Update,
-        stats.clone(),
+        &mut stats.clone(),
     ));
     tokio::spawn(cleanup(
         updates_path.clone(),
         job_config.cfg.processing.inventory.cleanup,
     ));
-    watch(&updates_path, &job_config, &sender);
+    watch(&updates_path, &job_config, &mut sender);
 }
 
-fn serve(
+async fn serve(
     job_config: Arc<JobConfig>,
-    rx: mpsc::Receiver<ReceivedFile>,
+    rx: &mut mpsc::Receiver<ReceivedFile>,
     inventory_type: InventoryType,
-    stats: mpsc::Sender<Event>,
-) -> impl Future<Item = (), Error = ()> {
-    rx.for_each(move |file| {
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
+    while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
         if !file
             .extension()
@@ -102,61 +106,63 @@ fn serve(
         );
         let _enter = span.enter();
 
-        let stat_event = stats
+        stats
             .clone()
             .send(Event::InventoryReceived)
+            .await
             .map_err(|e| error!("receive error: {}", e))
             .map(|_| ());
-        // FIXME: no need for a spawn
-        tokio::spawn(lazy(|| stat_event));
 
         debug!("received: {:?}", file);
 
-        let treat_file: Box<dyn Future<Item = (), Error = ()> + Send> = match job_config
-            .cfg
-            .processing
-            .inventory
-            .output
-        {
+        match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => {
-                output_inventory_upstream(file, inventory_type, job_config.clone(), stats.clone())
+                output_inventory_upstream(
+                    file,
+                    inventory_type,
+                    job_config.clone(),
+                    &mut stats.clone(),
+                )
+                .await
             }
             // The job should not be started in this case
             InventoryOutputSelect::Disabled => unreachable!("Inventory server should be disabled"),
         };
-
-        tokio::spawn(lazy(|| treat_file));
-        Ok(())
-    })
+    }
+    Ok(())
 }
 
-fn output_inventory_upstream(
+async fn output_inventory_upstream(
     path: ReceivedFile,
     inventory_type: InventoryType,
     job_config: Arc<JobConfig>,
-    stats: mpsc::Sender<Event>,
-) -> Box<dyn Future<Item = (), Error = ()> + Send> {
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
-    let stats_clone = stats.clone();
-    Box::new(
-        send_inventory(job_config, path.clone(), inventory_type)
-            .map_err(|e| {
-                error!("output error: {}", e);
-                OutputError::from(e)
-            })
-            .or_else(move |e| match e {
-                OutputError::Permanent => failure(
-                    path_clone2.clone(),
-                    job_config_clone.cfg.processing.inventory.directory.clone(),
-                    Event::InventoryRefused,
-                    stats,
-                ),
+    let mut stats_clone = stats.clone();
+
+    let result = send_inventory(job_config, path.clone(), inventory_type).await;
+
+    match result {
+        Ok(_) => success(path.clone(), Event::InventorySent, &mut stats_clone).await,
+        Err(e) => {
+            error!("output error: {}", e);
+            match OutputError::from(e) {
+                OutputError::Permanent => {
+                    failure(
+                        path_clone2.clone(),
+                        job_config_clone.cfg.processing.inventory.directory.clone(),
+                        Event::InventoryRefused,
+                        stats,
+                    )
+                    .await
+                }
                 OutputError::Transient => {
                     info!("transient error, skipping");
-                    Box::new(futures::future::err::<(), ()>(()))
+                    Ok(())
                 }
-            })
-            .and_then(move |_| success(path.clone(), Event::InventorySent, stats_clone)),
-    )
+            }
+        }
+    }
 }

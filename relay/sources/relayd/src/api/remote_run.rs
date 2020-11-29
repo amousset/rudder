@@ -14,53 +14,8 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
-use tokio_process::{Child, CommandExt};
+use tokio::process::{Child, CommandExt};
 use tracing::{debug, error, span, trace, Level};
-
-// From futures_stream_select_all crate (https://github.com/swizard0/futures-stream-select-all)
-// Will be in future versions of futures
-fn select_all<I, T, E>(streams: I) -> Box<dyn Stream<Item = T, Error = E> + Send>
-where
-    I: IntoIterator + Send,
-    I::Item: Stream<Item = T, Error = E> + 'static + Send,
-    T: 'static + Send,
-    E: 'static + Send,
-{
-    struct Level<T, E> {
-        power: usize,
-        stream: Box<dyn Stream<Item = T, Error = E> + Send>,
-    }
-
-    let mut stack: Vec<Level<T, E>> = Vec::new();
-    for stream in streams {
-        let mut lev_a = Level {
-            power: 0,
-            stream: Box::new(stream),
-        };
-        while stack
-            .last()
-            .map(|l| lev_a.power == l.power)
-            .unwrap_or(false)
-        {
-            let lev_b = stack.pop().unwrap();
-            lev_a = Level {
-                power: lev_b.power + 1,
-                stream: Box::new(lev_b.stream.select(lev_a.stream)),
-            }
-        }
-        stack.push(lev_a);
-    }
-
-    if let Some(tree_lev) = stack.pop() {
-        let mut tree = tree_lev.stream;
-        while let Some(node) = stack.pop() {
-            tree = Box::new(tree.select(node.stream))
-        }
-        tree
-    } else {
-        Box::new(futures::stream::empty())
-    }
-}
 
 #[derive(Debug)]
 pub struct RemoteRun {
@@ -84,9 +39,7 @@ impl RemoteRun {
         })
     }
 
-    fn consume(
-        stream: impl Stream<Item = Chunk, Error = Error> + Send + 'static,
-    ) -> impl Future<Item = (), Error = ()> {
+    async fn consume(stream: impl Stream<Item = Result<Chunk, Error>>) -> Result<(), ()> {
         stream
             .for_each(|l| {
                 trace!("Read {:#?}", l);
@@ -179,13 +132,13 @@ impl RemoteRun {
         }
     }
 
-    fn forward_call(
+    async fn forward_call(
         &self,
         job_config: Arc<JobConfig>,
         node: Host,
         // Target for the sub relay
         target: RemoteRunTarget,
-    ) -> impl Stream<Item = Chunk, Error = Error> + Send + 'static {
+    ) -> impl Stream<Item = Result<Chunk, Error>> {
         let report_span = span!(Level::TRACE, "upstream");
         let _report_enter = report_span.enter();
 
@@ -368,12 +321,12 @@ impl RunParameters {
         cmd
     }
 
-    fn remote_run(
+    async fn remote_run(
         &self,
         cfg: &RemoteRunCfg,
         nodes: Vec<String>,
         asynchronous: bool,
-    ) -> Box<dyn Stream<Item = Chunk, Error = Error> + Send + 'static> {
+    ) -> impl Stream<Item = Result<Chunk, Error>> {
         trace!("Starting local remote run on {:#?} with {:#?}", nodes, cfg);
 
         if nodes.is_empty() {
@@ -406,9 +359,7 @@ impl RunParameters {
         }
     }
 
-    fn lines_stream(
-        child: &mut Child,
-    ) -> impl Stream<Item = Chunk, Error = Error> + Send + 'static {
+    async fn lines_stream(child: &mut Child) -> impl Stream<Item = Result<Chunk, Error>> {
         let stdout = child
             .stdout()
             .take()

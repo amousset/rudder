@@ -28,8 +28,8 @@ use crate::{
     processing::{inventory, reporting},
     stats::Stats,
 };
-use futures::{future::lazy, sync::mpsc, Future};
-use reqwest::r#async::Client;
+use futures::{future::lazy, Future};
+use reqwest::Client;
 use std::{
     fs::create_dir_all,
     path::Path,
@@ -38,7 +38,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 use structopt::clap::crate_version;
-use tokio_02::signal::unix::{signal, SignalKind};
+use tokio::{
+    signal::unix::{signal, SignalKind},
+    sync::mpsc,
+};
 use tracing::{debug, error, info};
 use tracing_log::LogTracer;
 use tracing_subscriber::{
@@ -128,13 +131,15 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
 
     // ---- Start server ----
 
-    let mut builder = tokio_compat::runtime::Builder::new();
+    // Optimize for big servers: use multi-threaded scheduler
+
+    let mut builder = tokio::runtime::Builder::new();
     if let Some(threads) = job_config.cfg.general.core_threads {
         builder.core_threads(threads);
     }
     let runtime = builder
-        // FIXME add back
-        //.blocking_threads(job_config.cfg.general.blocking_threads)
+        // FIXME check if rt-threaded feature is enabled
+        .max_threads(job_config.cfg.general.max_threads)
         // TODO check why resume_unwind is not enough
         //.panic_handler(|_| exit(ExitStatus::Crash.code()))
         .build()?;
@@ -143,27 +148,31 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
 
     // FIXME: recheck on tokio 0.2
     // don't use block_on_all as it panics on main future panic but not others
-    runtime.spawn(lazy(move || {
+    runtime.block_on(move || async {
         // SIGHUP: reload logging configuration + nodes list
-        tokio_02::spawn(async move {
+        tokio::spawn(async move {
             debug!("Setup configuration reload signal handler");
 
-            let mut hangup = signal(SignalKind::hangup()).expect("Error setting up interrupt signal");
+            let mut hangup =
+                signal(SignalKind::hangup()).expect("Error setting up interrupt signal");
             loop {
                 hangup.recv().await;
-                let _ = job_config_reload.reload()
+                let _ = job_config_reload
+                    .reload()
                     .map_err(|e| error!("reload error {}", e));
             }
         });
 
         // SIGINT or SIGTERM: immediate shutdown
         // TODO: graceful shutdown
-        tokio_02::spawn(async  {
+        tokio::spawn(async {
             debug!("Setup shutdown signal handler");
 
-            let mut terminate = signal(SignalKind::terminate()).expect("Error setting up interrupt signal");
-            let mut interrupt = signal(SignalKind::interrupt()).expect("Error setting up interrupt signal");
-            tokio_02::select! {
+            let mut terminate =
+                signal(SignalKind::terminate()).expect("Error setting up interrupt signal");
+            let mut interrupt =
+                signal(SignalKind::interrupt()).expect("Error setting up interrupt signal");
+            tokio::select! {
                 _ = terminate.recv() => {
                     info!("SIGINT received: shutdown requested");
                 },
@@ -174,9 +183,9 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
             exit(ExitStatus::Shutdown.code());
         });
 
-        let (tx_stats, rx_stats) = mpsc::channel(1_024);
+        let (mut tx_stats, mut rx_stats) = mpsc::channel(1_024);
 
-        tokio::spawn(Stats::receiver(stats.clone(), rx_stats));
+        tokio::spawn(Stats::receiver(stats.clone(), &mut rx_stats));
         tokio::spawn(api::run(
             &job_config.cfg.general.listen,
             job_config.clone(),
@@ -184,23 +193,23 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
         ));
 
         if job_config.cfg.processing.reporting.output.is_enabled() {
-            reporting::start(&job_config, &tx_stats);
+            reporting::start(&job_config, &mut tx_stats);
         } else {
             info!("Skipping reporting as it is disabled");
         }
 
         if job_config.cfg.processing.inventory.output.is_enabled() {
-            inventory::start(&job_config, &tx_stats);
+            inventory::start(&job_config, &mut tx_stats);
         } else {
             info!("Skipping inventory as it is disabled");
         }
 
         info!("Server started");
         Ok(())
-    }));
+    });
 
     // waits for completion of all futures
-    runtime.shutdown_on_idle().wait().expect("shutdown failed");
+    //runtime.shutdown_on_idle().wait().expect("shutdown failed");
     panic!("Server halted unexpectedly");
 }
 
@@ -219,7 +228,7 @@ impl JobConfig {
         cfg: Configuration,
         handle: LogHandle,
     ) -> Result<Arc<Self>, Error> {
-        // Create dirs
+        // Create needed directories
         if cfg.processing.inventory.output != InventoryOutputSelect::Disabled {
             create_dir_all(cfg.processing.inventory.directory.join("incoming"))?;
             create_dir_all(

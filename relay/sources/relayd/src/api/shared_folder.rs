@@ -30,12 +30,12 @@ impl SharedFolderParams {
     }
 }
 
-pub fn head(
+pub async fn head(
     params: SharedFolderParams,
     // Relative path
     file: PathBuf,
     job_config: Arc<JobConfig>,
-) -> impl Future<Item = StatusCode, Error = Error> + Send {
+) -> Result<StatusCode, Error> {
     let span = span!(
         Level::INFO,
         "shared_folder_head",
@@ -51,31 +51,29 @@ pub fn head(
         params
     );
 
-    future::result(params.hash()).and_then(move |hash| {
-        // TODO do not read entire file into memory
-        read(file_path).then(move |res| match res {
-            Ok(data) => match hash {
-                None => {
-                    debug!("{} exists and no hash was provided", file.display());
-                    future::ok(StatusCode::OK)
-                }
-                Some(h) => {
-                    let actual_hash = h.hash_type.hash(&data);
-                    trace!("{} has hash '{}'", file.display(), actual_hash);
-                    if h == actual_hash {
-                        debug!("{} exists and has same hash", file.display());
-                        future::ok(StatusCode::NOT_MODIFIED)
-                    } else {
-                        debug!("{} exists but its hash is different", file.display());
-                        future::ok(StatusCode::OK)
-                    }
-                }
-            },
-            Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-                debug!("{} does not exist on the server", file.display());
-                future::ok(StatusCode::NOT_FOUND)
+    // TODO do not read entire file into memory
+    match read(file_path).await {
+        Ok(data) => match params.hash()? {
+            None => {
+                debug!("{} exists and no hash was provided", file.display());
+                Ok(StatusCode::OK)
             }
-            Err(e) => future::err(e.into()),
-        })
-    })
+            Some(h) => {
+                let actual_hash = h.hash_type.hash(&data);
+                trace!("{} has hash '{}'", file.display(), actual_hash);
+                if h == actual_hash {
+                    debug!("{} exists and has same hash", file.display());
+                    Ok(StatusCode::NOT_MODIFIED)
+                } else {
+                    debug!("{} exists but its hash is different", file.display());
+                    Ok(StatusCode::OK)
+                }
+            }
+        },
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+            debug!("{} does not exist on the server", file.display());
+            Ok(StatusCode::NOT_FOUND)
+        }
+        Err(e) => Err(e.into()),
+    }
 }

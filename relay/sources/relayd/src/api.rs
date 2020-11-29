@@ -17,6 +17,7 @@ use crate::{
     stats::Stats,
     JobConfig,
 };
+use bytes::Bytes;
 use futures::{future, Future};
 use serde::Serialize;
 use std::{
@@ -28,8 +29,8 @@ use std::{
 };
 use tracing::{error, info, span, Level};
 use warp::{
-    body::{self, FullBody},
-    filters::{method::v2::*, path::Peek},
+    body,
+    filters::{method::*, path::Peek},
     fs,
     http::StatusCode,
     path, query,
@@ -93,11 +94,11 @@ impl<T: Serialize> ApiResponse<T> {
     }
 }
 
-pub fn run(
+pub async fn run(
     listen: &str,
     job_config: Arc<JobConfig>,
     stats: Arc<RwLock<Stats>>,
-) -> impl Future<Item = (), Error = ()> {
+) -> Result<(), ()> {
     let span = span!(Level::TRACE, "api");
     let _enter = span.enter();
 
@@ -189,9 +190,9 @@ pub fn run(
         .and(path::param::<String>())
         .and(path::param::<String>())
         .and(query::<SharedFilesPutParams>())
-        .and(body::concat())
+        .and(body::bytes())
         .map(
-            move |target_id, source_id, file_id, params: SharedFilesPutParams, buf: FullBody| {
+            move |target_id, source_id, file_id, params: SharedFilesPutParams, buf: Bytes| async {
                 reply::with_status(
                     "".to_string(),
                     match shared_files::put(
@@ -201,7 +202,9 @@ pub fn run(
                         params,
                         job_config5.clone(),
                         buf,
-                    ) {
+                    )
+                    .await
+                    {
                         Ok(x) => x,
                         Err(e) => {
                             error!("error while processing request: {}", e);
@@ -218,10 +221,11 @@ pub fn run(
         .and(path::param::<String>())
         .and(path::param::<String>())
         .and(query::<SharedFilesHeadParams>())
-        .map(move |target_id, source_id, file_id, params| {
+        .map(move |target_id, source_id, file_id, params| async {
             reply::with_status(
                 "".to_string(),
                 match shared_files::head(target_id, source_id, file_id, params, job_config6.clone())
+                    .await
                 {
                     Ok(x) => x,
                     Err(e) => {
@@ -236,8 +240,9 @@ pub fn run(
     let shared_folder_head = head()
         .and(path::peek())
         .and(query::<SharedFolderParams>())
-        .and_then(move |file: Peek, params| {
+        .and_then(move |file: Peek, params| async {
             shared_folder::head(params, PathBuf::from(&file.as_str()), job_config7.clone())
+                .await
                 .map(|c| reply::with_status("".to_string(), c))
                 .map_err(|e| {
                     error!("{}", e);
@@ -263,17 +268,16 @@ pub fn run(
 
     info!("Starting API on {}", listen);
     // TODO graceful shutdown
-    future::result(
-        listen
-            .to_socket_addrs()
-            .map_err(|e| {
-                // Log resolution error
-                error!("{}", e);
-            })
-            // Use first resolved address for now
-            .and_then(|mut a| a.next().ok_or(())),
-    )
-    .and_then(|s: SocketAddr| warp::serve(routes_1).bind(s))
+    let socket = listen
+        .to_socket_addrs()
+        .map_err(|e| {
+            // Log resolution error
+            error!("{}", e);
+        })
+        // Use first resolved address for now
+        .and_then(|mut a| a.next().ok_or(()))
+        .await;
+    warp::serve(routes_1).bind(socket)
 }
 
 fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {

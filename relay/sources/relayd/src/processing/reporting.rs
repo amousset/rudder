@@ -14,21 +14,17 @@ use crate::{
     stats::Event,
     JobConfig,
 };
-use futures::{
-    future::{poll_fn, Future},
-    lazy,
-    sync::mpsc,
-    Stream,
-};
+use futures::StreamExt;
+use tokio::{prelude::*, sync::mpsc, task::spawn_blocking};
+
 use md5::{Digest, Md5};
-use std::{convert::TryFrom, os::unix::ffi::OsStrExt, sync::Arc};
-use tokio::prelude::*;
-use tokio_threadpool::blocking;
+use std::os::unix::ffi::OsStrExt;
+use std::{convert::TryFrom, sync::Arc};
 use tracing::{debug, error, info, span, warn, Level};
 
 static REPORT_EXTENSIONS: &[&str] = &["gz", "zip", "log"];
 
-pub fn start(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "reporting");
     let _enter = span.enter();
 
@@ -39,21 +35,21 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mpsc::Sender<Event>) {
         .directory
         .join("incoming");
 
-    let (sender, receiver) = mpsc::channel(1_024);
-    tokio::spawn(serve(job_config.clone(), receiver, stats.clone()));
+    let (mut sender, mut receiver) = mpsc::channel(1_024);
+    tokio::spawn(serve(job_config.clone(), &mut receiver, &mut stats.clone()));
     tokio::spawn(cleanup(
         path.clone(),
         job_config.cfg.processing.reporting.cleanup,
     ));
-    watch(&path, &job_config, &sender);
+    watch(&path, &job_config, &mut sender);
 }
 
-fn serve(
+async fn serve(
     job_config: Arc<JobConfig>,
-    rx: mpsc::Receiver<ReceivedFile>,
-    stats: mpsc::Sender<Event>,
-) -> impl Future<Item = (), Error = ()> {
-    rx.for_each(move |file| {
+    rx: &mut mpsc::Receiver<ReceivedFile>,
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
+    while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
         if !file
             .extension()
@@ -85,10 +81,9 @@ fn serve(
         let stat_event = stats
             .clone()
             .send(Event::ReportReceived)
+            .await
             .map_err(|e| error!("receive error: {}", e))
             .map(|_| ());
-        // FIXME: no need for a spawn
-        tokio::spawn(lazy(|| stat_event));
 
         // Check run info
         let info = RunInfo::try_from(file.as_ref()).map_err(|e| warn!("received: {}", e))?;
@@ -100,6 +95,8 @@ fn serve(
         );
         let _node_enter = node_span.enter();
 
+        let mut n_stats = stats.clone();
+
         if !job_config
             .nodes
             .read()
@@ -110,11 +107,10 @@ fn serve(
                 file,
                 job_config.cfg.processing.reporting.directory.clone(),
                 Event::ReportRefused,
-                stats.clone(),
-            );
+                &mut n_stats,
+            )
+            .await;
 
-            // FIXME: no need for a spawn
-            tokio::spawn(lazy(|| fail));
             error!("refused: report from {:?}, unknown id", &info.node_id);
             // this is actually expected behavior
             return Ok(());
@@ -122,99 +118,94 @@ fn serve(
 
         debug!("received: {:?}", file);
 
-        let treat_file: Box<dyn Future<Item = (), Error = ()> + Send> =
-            match job_config.cfg.processing.reporting.output {
-                ReportingOutputSelect::Database => {
-                    output_report_database(file, info, job_config.clone(), stats.clone())
-                }
-                ReportingOutputSelect::Upstream => {
-                    output_report_upstream(file, job_config.clone(), stats.clone())
-                }
-                // The job should not be started in this case
-                ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
-            };
-
-        tokio::spawn(lazy(|| treat_file));
-        Ok(())
-    })
+        let treat_file = match job_config.cfg.processing.reporting.output {
+            ReportingOutputSelect::Database => {
+                output_report_database(file, info, job_config.clone(), &mut stats.clone()).await
+            }
+            ReportingOutputSelect::Upstream => {
+                output_report_upstream(file, job_config.clone(), &mut stats.clone()).await
+            }
+            // The job should not be started in this case
+            ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
+        };
+    }
+    Ok(())
 }
 
-fn output_report_database(
+async fn output_report_database(
     path: ReceivedFile,
     run_info: RunInfo,
     job_config: Arc<JobConfig>,
-    stats: mpsc::Sender<Event>,
-) -> Box<dyn Future<Item = (), Error = ()> + Send> {
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
     // Everything here is blocking: reading on disk or inserting into database
     // We could use tokio::fs but it works the same and only makes things
-    // more complicated.
-    // We can switch to it once we also have stream (i.e. not on disk) input.
+    // more complicated, as diesel in sync.
     let job_config_clone = job_config.clone();
     let path_clone = path.clone();
     let path_clone2 = path.clone();
-    let stats_clone = stats.clone();
-    Box::new(
-        poll_fn(move || {
-            blocking(|| {
-                output_report_database_inner(&path_clone.clone(), &run_info, &job_config).map_err(
-                    |e| {
-                        error!("output error: {}", e);
-                        OutputError::from(e)
-                    },
-                )
-            })
-            .map_err(|_| {
-                panic!("the thread pool shut down");
-                // Temp hack to fix typing
-                #[allow(unreachable_code)]
-                OutputError::Transient
-            })
-        })
-        .flatten()
-        .or_else(move |e| match e {
-            OutputError::Permanent => failure(
-                path_clone2.clone(),
-                job_config_clone.cfg.processing.reporting.directory.clone(),
-                Event::ReportRefused,
-                stats,
-            ),
-            OutputError::Transient => {
-                info!("transient error, skipping");
-                Box::new(futures::future::err::<(), ()>(()))
-            }
-        })
-        .and_then(move |_| success(path.clone(), Event::ReportInserted, stats_clone)),
-    )
-}
+    let mut stats_clone = stats.clone();
+    let result = spawn_blocking(move || {
+        output_report_database_inner(&path_clone.clone(), &run_info, &job_config)
+    })
+    .await
+    .unwrap();
 
-fn output_report_upstream(
-    path: ReceivedFile,
-    job_config: Arc<JobConfig>,
-    stats: mpsc::Sender<Event>,
-) -> Box<dyn Future<Item = (), Error = ()> + Send> {
-    let job_config_clone = job_config.clone();
-    let path_clone2 = path.clone();
-    let stats_clone = stats.clone();
-    Box::new(
-        send_report(job_config, path.clone())
-            .map_err(|e| {
-                error!("output error: {}", e);
-                OutputError::from(e)
-            })
-            .or_else(move |e| match e {
-                OutputError::Permanent => failure(
-                    path_clone2.clone(),
-                    job_config_clone.cfg.processing.reporting.directory.clone(),
-                    Event::ReportRefused,
-                    stats,
-                ),
+    match result {
+        Ok(_) => success(path.clone(), Event::ReportInserted, &mut stats_clone).await,
+        Err(e) => {
+            error!("output error: {}", e);
+            match OutputError::from(e) {
+                OutputError::Permanent => {
+                    failure(
+                        path_clone2.clone(),
+                        job_config_clone.cfg.processing.reporting.directory.clone(),
+                        Event::ReportRefused,
+                        &mut stats.clone(),
+                    )
+                    .await
+                }
                 OutputError::Transient => {
                     info!("transient error, skipping");
-                    Box::new(futures::future::err::<(), ()>(()))
+                    Ok(())
                 }
-            })
-            .and_then(move |_| success(path.clone(), Event::ReportSent, stats_clone)),
-    )
+            }
+        }
+    }
+}
+
+async fn output_report_upstream(
+    path: ReceivedFile,
+    job_config: Arc<JobConfig>,
+    stats: &mut mpsc::Sender<Event>,
+) -> Result<(), ()> {
+    let job_config_clone = job_config.clone();
+    let path_clone2 = path.clone();
+    let mut stats_clone = stats.clone();
+
+    let result = send_report(job_config, path.clone()).await;
+
+    match result {
+        Ok(_) => success(path.clone(), Event::ReportSent, &mut stats_clone).await,
+        Err(e) => {
+            error!("output error: {}", e);
+            match OutputError::from(e) {
+                OutputError::Permanent => {
+                    failure(
+                        path_clone2.clone(),
+                        job_config_clone.cfg.processing.reporting.directory.clone(),
+                        Event::ReportRefused,
+                        &mut stats,
+                    )
+                    .await
+                }
+                OutputError::Transient => {
+                    info!("transient error, skipping");
+                    Ok(())
+                }
+            }
+        }
+    }
 }
 
 fn output_report_database_inner(
