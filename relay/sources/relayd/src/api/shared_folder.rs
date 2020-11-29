@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{error::Error, hashing::Hash, JobConfig};
-use futures::{future, Future};
 use serde::Deserialize;
 use std::{io, path::PathBuf, sync::Arc};
 use tokio::fs::read;

@@ -4,17 +4,15 @@
 use crate::{
     configuration::main::RemoteRun as RemoteRunCfg, data::node::Host, error::Error, JobConfig,
 };
-use futures::{Future, Stream};
-use hyper::{Body, Chunk};
-use regex::Regex;
-use std::{
-    collections::HashMap,
-    io::BufReader,
-    process::{Command, Stdio},
-    str::FromStr,
-    sync::Arc,
+use bytes::Bytes;
+use futures::{
+    stream::{select, select_all},
+    Stream, StreamExt,
 };
-use tokio::process::{Child, CommandExt};
+use hyper::Body;
+use regex::Regex;
+use std::{collections::HashMap, io::BufReader, process::Stdio, str::FromStr, sync::Arc};
+use tokio::process::{Child, Command};
 use tracing::{debug, error, span, trace, Level};
 
 #[derive(Debug)]
@@ -39,16 +37,17 @@ impl RemoteRun {
         })
     }
 
-    async fn consume(stream: impl Stream<Item = Result<Chunk, Error>>) -> Result<(), ()> {
-        stream
-            .for_each(|l| {
-                trace!("Read {:#?}", l);
-                Ok(())
-            })
-            .map_err(|e| error!("Stream error: {}", e))
+    async fn consume(stream: impl Stream<Item = Result<Bytes, Error>>) -> Result<(), ()> {
+        while let Some(l) = stream.next().await {
+            match l {
+                Ok(l) => trace!("Read {:#?}", l),
+                Err(e) => error!("Stream error: {}", e),
+            }
+        }
+        Ok(())
     }
 
-    pub fn run(
+    pub async fn run(
         &self,
         job_config: Arc<JobConfig>,
     ) -> Result<impl warp::reply::Reply, warp::reject::Rejection> {
@@ -61,22 +60,18 @@ impl RemoteRun {
             self.run_parameters.keep_output,
         ) {
             // Async and output -> spawn in background and stream output
-            (true, true) => Ok(warp::reply::html(Body::wrap_stream(
-                self.run_parameters
-                    .remote_run(
-                        &job_config.cfg.remote_run,
-                        self.target.neighbors(job_config.clone()),
-                        self.run_parameters.asynchronous,
-                    )
-                    .select(select_all(
-                        self.target
-                            .next_hops(job_config.clone())
-                            .iter()
-                            .map(|(relay, target)| {
-                                self.forward_call(job_config.clone(), relay.clone(), target.clone())
-                            }),
-                    )),
-            ))),
+            (true, true) => Ok(warp::reply::html(Body::wrap_stream(select(
+                self.run_parameters.remote_run(
+                    &job_config.cfg.remote_run,
+                    self.target.neighbors(job_config.clone()),
+                    self.run_parameters.asynchronous,
+                ),
+                select_all(self.target.next_hops(job_config.clone()).iter().map(
+                    |(relay, target)| {
+                        self.forward_call(job_config.clone(), relay.clone(), target.clone())
+                    },
+                )),
+            )))),
             // Async and no output -> spawn in background and return early
             (true, false) => {
                 for (relay, target) in self.target.next_hops(job_config.clone()) {
@@ -138,7 +133,7 @@ impl RemoteRun {
         node: Host,
         // Target for the sub relay
         target: RemoteRunTarget,
-    ) -> impl Stream<Item = Result<Chunk, Error>> {
+    ) -> impl Stream<Item = Result<Bytes, Error>> {
         let report_span = span!(Level::TRACE, "upstream");
         let _report_enter = report_span.enter();
 
@@ -326,7 +321,7 @@ impl RunParameters {
         cfg: &RemoteRunCfg,
         nodes: Vec<String>,
         asynchronous: bool,
-    ) -> impl Stream<Item = Result<Chunk, Error>> {
+    ) -> impl Stream<Item = Result<Bytes, Error>> {
         trace!("Starting local remote run on {:#?} with {:#?}", nodes, cfg);
 
         if nodes.is_empty() {
@@ -337,35 +332,38 @@ impl RunParameters {
         let mut cmd = self.command(cfg, nodes);
         cmd.stdout(Stdio::piped());
 
-        match (asynchronous, cmd.spawn_async()) {
-            (false, Ok(c)) => Box::new(
-                // send output at once
+        match (asynchronous, cmd.spawn()) {
+            (false, Ok(c)) =>
+            // send output at once
+            {
                 c.wait_with_output()
                     .map(|o| o.stdout)
-                    .map(Chunk::from)
+                    .map(Bytes::from)
                     .map_err(|e| e.into())
-                    .into_stream(),
-            ),
+                    .into_stream()
+            }
+
             (true, Ok(mut c)) => {
                 // stream lines
                 let lines = RunParameters::lines_stream(&mut c);
                 tokio::spawn(c.map(|_| ()).map_err(|_| ()));
-                Box::new(lines)
+                lines
             }
             (_, Err(e)) => {
                 error!("Remote run error while running '{:#?}': {}", cmd, e);
-                Box::new(futures::stream::once(Err(e.into())))
+                Err(e.into())
             }
         }
     }
 
-    async fn lines_stream(child: &mut Child) -> impl Stream<Item = Result<Chunk, Error>> {
+    async fn lines_stream(child: &mut Child) -> impl Stream<Item = Result<Body, Error>> {
         let stdout = child
             .stdout()
             .take()
             .expect("child did not have a handle to stdout");
 
-        tokio_io::io::lines(BufReader::new(stdout))
+        BufReader::new(stdout)
+            .lines()
             .map_err(Error::from)
             .inspect(|line| debug!("output: {}", line))
             .map(|mut l| {

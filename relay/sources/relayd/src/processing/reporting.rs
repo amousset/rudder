@@ -14,12 +14,9 @@ use crate::{
     stats::Event,
     JobConfig,
 };
-use futures::StreamExt;
-use tokio::{prelude::*, sync::mpsc, task::spawn_blocking};
-
 use md5::{Digest, Md5};
-use std::os::unix::ffi::OsStrExt;
-use std::{convert::TryFrom, sync::Arc};
+use std::{convert::TryFrom, os::unix::ffi::OsStrExt, sync::Arc};
+use tokio::{sync::mpsc, task::spawn_blocking};
 use tracing::{debug, error, info, span, warn, Level};
 
 static REPORT_EXTENSIONS: &[&str] = &["gz", "zip", "log"];
@@ -195,7 +192,7 @@ async fn output_report_upstream(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
                         Event::ReportRefused,
-                        &mut stats,
+                        &mut stats.clone(),
                     )
                     .await
                 }

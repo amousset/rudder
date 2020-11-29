@@ -28,7 +28,6 @@ use crate::{
     processing::{inventory, reporting},
     stats::Stats,
 };
-use futures::{future::lazy, Future};
 use reqwest::Client;
 use std::{
     fs::create_dir_all,
@@ -112,7 +111,6 @@ pub fn check_configuration(cfg_dir: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-#[allow(clippy::cognitive_complexity)]
 pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), Error> {
     // Start by setting log config
     let log_cfg = LogConfig::new(&cli_cfg.configuration_dir)?;
@@ -148,69 +146,76 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
 
     // FIXME: recheck on tokio 0.2
     // don't use block_on_all as it panics on main future panic but not others
-    runtime.block_on(move || async {
-        // SIGHUP: reload logging configuration + nodes list
-        tokio::spawn(async move {
-            debug!("Setup configuration reload signal handler");
+    runtime.block_on(async {
+        // Setup signal handlers first
+        signal_handlers(job_config_reload);
 
-            let mut hangup =
-                signal(SignalKind::hangup()).expect("Error setting up interrupt signal");
-            loop {
-                hangup.recv().await;
-                let _ = job_config_reload
-                    .reload()
-                    .map_err(|e| error!("reload error {}", e));
-            }
-        });
-
-        // SIGINT or SIGTERM: immediate shutdown
-        // TODO: graceful shutdown
-        tokio::spawn(async {
-            debug!("Setup shutdown signal handler");
-
-            let mut terminate =
-                signal(SignalKind::terminate()).expect("Error setting up interrupt signal");
-            let mut interrupt =
-                signal(SignalKind::interrupt()).expect("Error setting up interrupt signal");
-            tokio::select! {
-                _ = terminate.recv() => {
-                    info!("SIGINT received: shutdown requested");
-                },
-                _ = interrupt.recv() => {
-                    info!("SIGTERM received: shutdown requested");
-                }
-            }
-            exit(ExitStatus::Shutdown.code());
-        });
-
+        // Spawn stats system
         let (mut tx_stats, mut rx_stats) = mpsc::channel(1_024);
-
         tokio::spawn(Stats::receiver(stats.clone(), &mut rx_stats));
+
+        // Spawn API
         tokio::spawn(api::run(
             &job_config.cfg.general.listen,
             job_config.clone(),
             stats.clone(),
         ));
 
+        // Spawn report and inventory processing
         if job_config.cfg.processing.reporting.output.is_enabled() {
             reporting::start(&job_config, &mut tx_stats);
         } else {
             info!("Skipping reporting as it is disabled");
         }
-
         if job_config.cfg.processing.inventory.output.is_enabled() {
             inventory::start(&job_config, &mut tx_stats);
         } else {
             info!("Skipping inventory as it is disabled");
         }
 
+        // Ready to go!
         info!("Server started");
-        Ok(())
     });
 
     // waits for completion of all futures
+    // FIXME check if it works with block_on
     //runtime.shutdown_on_idle().wait().expect("shutdown failed");
     panic!("Server halted unexpectedly");
+}
+
+fn signal_handlers(job_config: Arc<JobConfig>) {
+    // SIGHUP: reload logging configuration + nodes list
+    tokio::spawn(async move {
+        debug!("Setup configuration reload signal handler");
+
+        let mut hangup = signal(SignalKind::hangup()).expect("Error setting up interrupt signal");
+        loop {
+            hangup.recv().await;
+            let _ = job_config
+                .reload()
+                .map_err(|e| error!("reload error {}", e));
+        }
+    });
+
+    // SIGINT or SIGTERM: immediate shutdown
+    // TODO: graceful shutdown
+    tokio::spawn(async {
+        debug!("Setup shutdown signal handler");
+
+        let mut terminate =
+            signal(SignalKind::terminate()).expect("Error setting up interrupt signal");
+        let mut interrupt =
+            signal(SignalKind::interrupt()).expect("Error setting up interrupt signal");
+        tokio::select! {
+            _ = terminate.recv() => {
+                info!("SIGINT received: shutdown requested");
+            },
+            _ = interrupt.recv() => {
+                info!("SIGTERM received: shutdown requested");
+            }
+        }
+        exit(ExitStatus::Shutdown.code());
+    });
 }
 
 pub struct JobConfig {

@@ -14,8 +14,7 @@ use futures::{
     StreamExt,
 };
 use md5::{Digest, Md5};
-use std::os::unix::ffi::OsStrExt;
-use std::sync::Arc;
+use std::{os::unix::ffi::OsStrExt, sync::Arc};
 use tokio::{prelude::*, sync::mpsc};
 use tracing::{debug, error, info, span, Level};
 
