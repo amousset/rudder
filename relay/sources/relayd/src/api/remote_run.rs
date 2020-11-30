@@ -5,13 +5,15 @@ use crate::{
     configuration::main::RemoteRun as RemoteRunCfg, data::node::Host, error::Error, JobConfig,
 };
 use bytes::Bytes;
+use futures::TryStreamExt;
 use futures::{
     stream::{select, select_all},
     Stream, StreamExt,
 };
 use hyper::Body;
 use regex::Regex;
-use std::{collections::HashMap, io::BufReader, process::Stdio, str::FromStr, sync::Arc};
+use std::{collections::HashMap, process::Stdio, str::FromStr, sync::Arc};
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tracing::{debug, error, span, trace, Level};
 
@@ -337,6 +339,7 @@ impl RunParameters {
             // send output at once
             {
                 c.wait_with_output()
+                    .await
                     .map(|o| o.stdout)
                     .map(Bytes::from)
                     .map_err(|e| e.into())
@@ -356,21 +359,23 @@ impl RunParameters {
         }
     }
 
+    /// Stream command output as a stream of lines
     async fn lines_stream(child: &mut Child) -> impl Stream<Item = Result<Body, Error>> {
         let stdout = child
-            .stdout()
+            .stdout
             .take()
             .expect("child did not have a handle to stdout");
 
         BufReader::new(stdout)
             .lines()
             .map_err(Error::from)
-            .inspect(|line| debug!("output: {}", line))
-            .map(|mut l| {
-                l.push('\n');
-                l
+            .inspect(|line| trace!("output: {:?}", line))
+            .map(|mut r| {
+                r.map(|mut l| {
+                    l.push('\n');
+                    Bytes::from(l)
+                })
             })
-            .map(Chunk::from)
     }
 }
 
