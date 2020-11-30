@@ -135,51 +135,45 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
     if let Some(threads) = job_config.cfg.general.core_threads {
         builder.core_threads(threads);
     }
-    let runtime = builder
+    let mut runtime = builder
         // FIXME check if rt-threaded feature is enabled
         .max_threads(job_config.cfg.general.max_threads)
         // TODO check why resume_unwind is not enough
         //.panic_handler(|_| exit(ExitStatus::Crash.code()))
+        // TODO make configurable?
+        .threaded_scheduler()
+        .enable_all()
         .build()?;
-
-    let job_config_reload = job_config.clone();
 
     // FIXME: recheck on tokio 0.2
     // don't use block_on_all as it panics on main future panic but not others
     runtime.block_on(async {
         // Setup signal handlers first
+        let job_config_reload = job_config.clone();
         signal_handlers(job_config_reload);
 
         // Spawn stats system
-        let (mut tx_stats, mut rx_stats) = mpsc::channel(1_024);
-        tokio::spawn(Stats::receiver(stats.clone(), &mut rx_stats));
-
-        // Spawn API
-        tokio::spawn(api::run(
-            &job_config.cfg.general.listen,
-            job_config.clone(),
-            stats.clone(),
-        ));
+        let (tx_stats, rx_stats) = mpsc::channel(1_024);
+        tokio::spawn(Stats::receiver(stats.clone(), rx_stats));
 
         // Spawn report and inventory processing
         if job_config.cfg.processing.reporting.output.is_enabled() {
-            reporting::start(&job_config, &mut tx_stats);
+            reporting::start(&job_config, tx_stats.clone());
         } else {
             info!("Skipping reporting as it is disabled");
         }
         if job_config.cfg.processing.inventory.output.is_enabled() {
-            inventory::start(&job_config, &mut tx_stats);
+            inventory::start(&job_config, tx_stats);
         } else {
             info!("Skipping inventory as it is disabled");
         }
 
-        // Ready to go!
-        info!("Server started");
+        // API should never return
+        api::run(job_config.clone(), stats.clone())
+            .await
+            .expect("could not start api");
     });
 
-    // waits for completion of all futures
-    // FIXME check if it works with block_on
-    //runtime.shutdown_on_idle().wait().expect("shutdown failed");
     panic!("Server halted unexpectedly");
 }
 

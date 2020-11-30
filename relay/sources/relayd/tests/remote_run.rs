@@ -22,7 +22,7 @@ mod tests {
         });
 
         assert!(common::start_api().is_ok());
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
 
         // Async & keep
 

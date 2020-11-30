@@ -21,7 +21,7 @@ use tracing::{debug, error, info, span, warn, Level};
 
 static REPORT_EXTENSIONS: &[&str] = &["gz", "zip", "log"];
 
-pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "reporting");
     let _enter = span.enter();
 
@@ -32,19 +32,21 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
         .directory
         .join("incoming");
 
+    let stats_2 = stats.clone();
+
     let (mut sender, mut receiver) = mpsc::channel(1_024);
-    tokio::spawn(serve(job_config.clone(), &mut receiver, &mut stats.clone()));
+    tokio::spawn(serve(job_config.clone(), receiver, stats));
     tokio::spawn(cleanup(
         path.clone(),
         job_config.cfg.processing.reporting.cleanup,
     ));
-    watch(&path, &job_config, &mut sender);
+    watch(&path, &job_config, sender);
 }
 
 async fn serve(
     job_config: Arc<JobConfig>,
-    rx: &mut mpsc::Receiver<ReceivedFile>,
-    stats: &mut mpsc::Sender<Event>,
+    mut rx: mpsc::Receiver<ReceivedFile>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
@@ -100,11 +102,11 @@ async fn serve(
             .expect("Cannot read nodes list")
             .is_subnode(&info.node_id)
         {
-            let fail = failure(
+            failure(
                 file,
                 job_config.cfg.processing.reporting.directory.clone(),
                 Event::ReportRefused,
-                &mut n_stats,
+                n_stats,
             )
             .await;
 
@@ -117,10 +119,10 @@ async fn serve(
 
         let treat_file = match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => {
-                output_report_database(file, info, job_config.clone(), &mut stats.clone()).await
+                output_report_database(file, info, job_config.clone(), stats.clone()).await
             }
             ReportingOutputSelect::Upstream => {
-                output_report_upstream(file, job_config.clone(), &mut stats.clone()).await
+                output_report_upstream(file, job_config.clone(), stats.clone()).await
             }
             // The job should not be started in this case
             ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
@@ -133,7 +135,7 @@ async fn output_report_database(
     path: ReceivedFile,
     run_info: RunInfo,
     job_config: Arc<JobConfig>,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     // Everything here is blocking: reading on disk or inserting into database
     // We could use tokio::fs but it works the same and only makes things
@@ -149,7 +151,7 @@ async fn output_report_database(
     .unwrap();
 
     match result {
-        Ok(_) => success(path.clone(), Event::ReportInserted, &mut stats_clone).await,
+        Ok(_) => success(path.clone(), Event::ReportInserted, stats_clone).await,
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
@@ -158,7 +160,7 @@ async fn output_report_database(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
                         Event::ReportRefused,
-                        &mut stats.clone(),
+                        stats.clone(),
                     )
                     .await
                 }
@@ -174,7 +176,7 @@ async fn output_report_database(
 async fn output_report_upstream(
     path: ReceivedFile,
     job_config: Arc<JobConfig>,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
@@ -183,7 +185,7 @@ async fn output_report_upstream(
     let result = send_report(job_config, path.clone()).await;
 
     match result {
-        Ok(_) => success(path.clone(), Event::ReportSent, &mut stats_clone).await,
+        Ok(_) => success(path.clone(), Event::ReportSent, stats_clone).await,
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
@@ -192,7 +194,7 @@ async fn output_report_upstream(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
                         Event::ReportRefused,
-                        &mut stats.clone(),
+                        stats.clone(),
                     )
                     .await
                 }

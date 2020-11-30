@@ -20,7 +20,7 @@ mod tests {
 
         assert!(common::start_api().is_ok());
 
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
 
         // curl --head http://127.0.0.1:3030/rudder/relay-api/shared-folder/c745a140-40bc-4b86-b6dc-084488fc906b/37817c4d-fbf7-4850-a985-50021f4e8f41/file?hash_type=sha256?hash=181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b
 

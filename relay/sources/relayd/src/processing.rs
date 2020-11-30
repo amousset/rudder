@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{error::Error, stats::Event};
+use crate::{stats::Event};
 use std::path::PathBuf;
 use tokio::{
     fs::{remove_file, rename},
     sync::mpsc,
 };
 use tracing::{debug, error};
+use anyhow::Error;
 
 pub mod inventory;
 pub mod reporting;
@@ -35,7 +36,7 @@ impl From<Error> for OutputError {
 async fn success(
     file: ReceivedFile,
     event: Event,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     stats
         .send(event)
@@ -45,7 +46,7 @@ async fn success(
     remove_file(file.clone())
         .await
         .map(move |_| debug!("deleted: {:#?}", file))
-        .map_err(|e| error!("error: {}", e));
+        .map_err(|e| error!("error: {}", e))?;
     Ok(())
 }
 
@@ -53,12 +54,12 @@ async fn failure(
     file: ReceivedFile,
     directory: RootDirectory,
     event: Event,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     stats
         .send(event)
         .await
-        .map_err(|e| error!("send error: {}", e));
+        .map_err(|e| error!("send error: {}", e))?;
 
     rename(
         file.clone(),

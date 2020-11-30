@@ -26,7 +26,7 @@ pub enum InventoryType {
     Update,
 }
 
-pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "inventory");
     let _enter = span.enter();
 
@@ -40,15 +40,15 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
         .join("incoming");
     tokio::spawn(serve(
         job_config.clone(),
-        &mut receiver,
+        receiver,
         InventoryType::New,
-        &mut stats.clone(),
+        stats.clone(),
     ));
     tokio::spawn(cleanup(
         incoming_path.clone(),
         job_config.cfg.processing.inventory.cleanup,
     ));
-    watch(&incoming_path, &job_config, &mut sender);
+    watch(&incoming_path, &job_config, sender);
 
     let updates_path = job_config
         .cfg
@@ -59,22 +59,22 @@ pub fn start(job_config: &Arc<JobConfig>, stats: &mut mpsc::Sender<Event>) {
     let (sender, receiver) = mpsc::channel(1_024);
     tokio::spawn(serve(
         job_config.clone(),
-        &mut receiver,
+        receiver,
         InventoryType::Update,
-        &mut stats.clone(),
+        stats.clone(),
     ));
     tokio::spawn(cleanup(
         updates_path.clone(),
         job_config.cfg.processing.inventory.cleanup,
     ));
-    watch(&updates_path, &job_config, &mut sender);
+    watch(&updates_path, &job_config, sender);
 }
 
 async fn serve(
     job_config: Arc<JobConfig>,
-    rx: &mut mpsc::Receiver<ReceivedFile>,
+    mut rx: mpsc::Receiver<ReceivedFile>,
     inventory_type: InventoryType,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
@@ -116,13 +116,8 @@ async fn serve(
 
         match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => {
-                output_inventory_upstream(
-                    file,
-                    inventory_type,
-                    job_config.clone(),
-                    &mut stats.clone(),
-                )
-                .await
+                output_inventory_upstream(file, inventory_type, job_config.clone(), stats.clone())
+                    .await
             }
             // The job should not be started in this case
             InventoryOutputSelect::Disabled => unreachable!("Inventory server should be disabled"),
@@ -135,7 +130,7 @@ async fn output_inventory_upstream(
     path: ReceivedFile,
     inventory_type: InventoryType,
     job_config: Arc<JobConfig>,
-    stats: &mut mpsc::Sender<Event>,
+    mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
@@ -144,7 +139,7 @@ async fn output_inventory_upstream(
     let result = send_inventory(job_config, path.clone(), inventory_type).await;
 
     match result {
-        Ok(_) => success(path.clone(), Event::InventorySent, &mut stats_clone).await,
+        Ok(_) => success(path.clone(), Event::InventorySent, stats_clone).await,
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {

@@ -34,7 +34,7 @@ fn it_cleans_old_reports() {
     set_file_times(file_very_old, FileTime::zero(), FileTime::zero()).unwrap();
 
     thread::spawn(move || {
-        tokio::run(cleanup(
+        tokio::spawn(cleanup(
             PathBuf::from("target/tmp/reporting_old/incoming"),
             CleanupConfig {
                 frequency: Duration::from_secs(1),

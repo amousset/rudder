@@ -51,26 +51,22 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), (
     }
 }
 
-pub fn watch(
-    path: &WatchedDirectory,
-    job_config: &Arc<JobConfig>,
-    tx: &mut mpsc::Sender<ReceivedFile>,
-) {
+pub fn watch(path: &WatchedDirectory, job_config: &Arc<JobConfig>, tx: mpsc::Sender<ReceivedFile>) {
     info!("Starting file watcher on {:#?}", &path);
     let report_span = span!(Level::TRACE, "watcher");
     let _report_enter = report_span.enter();
     tokio::spawn(list_files(
         path.clone(),
         job_config.cfg.processing.reporting.catchup,
-        &mut tx.clone(),
+        tx.clone(),
     ));
-    tokio::spawn(watch_files(path.clone(), &mut tx.clone()));
+    tokio::spawn(watch_files(path.clone(), tx.clone()));
 }
 
 async fn list_files(
     path: WatchedDirectory,
     cfg: CatchupConfig,
-    tx: &mut mpsc::Sender<ReceivedFile>,
+    tx: mpsc::Sender<ReceivedFile>,
 ) -> Result<(), ()> {
     let mut timer = interval(cfg.frequency);
 
@@ -124,10 +120,7 @@ fn watch_stream<P: AsRef<Path>>(path: P) -> inotify::EventStream<Vec<u8>> {
         .expect("Could no create inotify event stream")
 }
 
-async fn watch_files<P: AsRef<Path>>(
-    path: P,
-    tx: &mut mpsc::Sender<ReceivedFile>,
-) -> Result<(), ()> {
+async fn watch_files<P: AsRef<Path>>(path: P, tx: mpsc::Sender<ReceivedFile>) -> Result<(), ()> {
     let path_prefix = path.as_ref().to_path_buf();
 
     let mut files = watch_stream(&path)

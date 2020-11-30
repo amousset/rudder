@@ -5,16 +5,17 @@ use crate::{
     configuration::main::RemoteRun as RemoteRunCfg, data::node::Host, error::Error, JobConfig,
 };
 use bytes::Bytes;
-use futures::TryStreamExt;
 use futures::{
     stream::{select, select_all},
-    Stream, StreamExt,
+    Stream, StreamExt, TryStreamExt,
 };
 use hyper::Body;
 use regex::Regex;
-use std::{collections::HashMap, process::Stdio, str::FromStr, sync::Arc};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, Command};
+use std::{collections::HashMap, pin::Pin, process::Stdio, str::FromStr, sync::Arc};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::{Child, Command},
+};
 use tracing::{debug, error, span, trace, Level};
 
 #[derive(Debug)]
@@ -39,7 +40,9 @@ impl RemoteRun {
         })
     }
 
-    async fn consume(stream: impl Stream<Item = Result<Bytes, Error>>) -> Result<(), ()> {
+    async fn consume(
+        mut stream: Pin<&mut dyn Stream<Item = Result<Bytes, Error>>>,
+    ) -> Result<(), ()> {
         while let Some(l) = stream.next().await {
             match l {
                 Ok(l) => trace!("Read {:#?}", l),
@@ -135,7 +138,7 @@ impl RemoteRun {
         node: Host,
         // Target for the sub relay
         target: RemoteRunTarget,
-    ) -> impl Stream<Item = Result<Bytes, Error>> {
+    ) -> Box<dyn Stream<Item = Result<Bytes, Error>>> {
         let report_span = span!(Level::TRACE, "upstream");
         let _report_enter = report_span.enter();
 
@@ -159,29 +162,36 @@ impl RemoteRun {
             params.insert("nodes", nodes.join(","));
         }
 
-        job_config
-            .client
-            .clone()
-            .post(&format!(
-                "https://{}/rudder/relay-api/remote-run/{}",
-                node,
-                match target {
-                    RemoteRunTarget::All => "all",
-                    RemoteRunTarget::Nodes(_) => "nodes",
-                },
-            ))
-            .form(&params)
-            .send()
-            .map(|response| response.into_body())
-            .flatten_stream()
-            .map_err(|e| {
-                error!("{}", e);
-                e.into()
-            })
-            // Don't fail if a relay is not available,
-            // just log it
-            .or_else(|_: Error| futures::future::empty())
-            .map(|c| c.into())
+        Box::new(
+            job_config
+                .client
+                .clone()
+                .post(&format!(
+                    "https://{}/rudder/relay-api/remote-run/{}",
+                    node,
+                    match target {
+                        RemoteRunTarget::All => "all",
+                        RemoteRunTarget::Nodes(_) => "nodes",
+                    },
+                ))
+                .form(&params)
+                .send()
+                .await
+                // Fail if HTTP error
+                .and_then(|response| response.error_for_status())
+                // FIXME
+                // Result<Stream<Result<Bytes, E>>, E>
+                .and_then(|response| response.bytes_stream())
+                .or_else(|e: Error| {
+                    error!("{}", e);
+                    futures::stream::once(futures::future::ready(Err(e.into())))
+                })
+                .then(|r| r.unwrap()), //.map(|c| c.into()),
+        )
+        // Don't fail if a relay is not available,
+        // just log it
+        // FIXME check error behavior with tests
+        //.or_else(|_: Error| futures::future::empty())
     }
 }
 
@@ -323,7 +333,7 @@ impl RunParameters {
         cfg: &RemoteRunCfg,
         nodes: Vec<String>,
         asynchronous: bool,
-    ) -> impl Stream<Item = Result<Bytes, Error>> {
+    ) -> Box<dyn Stream<Item = Result<Bytes, Error>>> {
         trace!("Starting local remote run on {:#?} with {:#?}", nodes, cfg);
 
         if nodes.is_empty() {
@@ -338,44 +348,48 @@ impl RunParameters {
             (false, Ok(c)) =>
             // send output at once
             {
-                c.wait_with_output()
-                    .await
-                    .map(|o| o.stdout)
-                    .map(Bytes::from)
-                    .map_err(|e| e.into())
-                    .into_stream()
+                Box::new(futures::stream::once(futures::future::ready(
+                    c.wait_with_output()
+                        .await
+                        .map(|o| o.stdout)
+                        .map(Bytes::from)
+                        .map_err(|e| e.into()),
+                )))
             }
 
             (true, Ok(mut c)) => {
                 // stream lines
                 let lines = RunParameters::lines_stream(&mut c);
-                tokio::spawn(c.map(|_| ()).map_err(|_| ()));
-                lines
+                // FIXME check if it actually runs
+                //tokio::spawn(c);
+                Box::new(lines.await)
             }
             (_, Err(e)) => {
                 error!("Remote run error while running '{:#?}': {}", cmd, e);
-                Err(e.into())
+                Box::new(futures::stream::once(futures::future::ready(Err(e.into()))))
             }
         }
     }
 
     /// Stream command output as a stream of lines
-    async fn lines_stream(child: &mut Child) -> impl Stream<Item = Result<Body, Error>> {
+    async fn lines_stream(child: &mut Child) -> Box<impl Stream<Item = Result<Bytes, Error>>> {
         let stdout = child
             .stdout
             .take()
             .expect("child did not have a handle to stdout");
 
-        BufReader::new(stdout)
-            .lines()
-            .map_err(Error::from)
-            .inspect(|line| trace!("output: {:?}", line))
-            .map(|mut r| {
-                r.map(|mut l| {
-                    l.push('\n');
-                    Bytes::from(l)
-                })
-            })
+        Box::new(
+            BufReader::new(stdout)
+                .lines()
+                .map_err(Error::from)
+                .inspect(|line| trace!("output: {:?}", line))
+                .map(|r| {
+                    r.map(|mut l| {
+                        l.push('\n');
+                        Bytes::from(l)
+                    })
+                }),
+        )
     }
 }
 

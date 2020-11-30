@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-mod remote_run;
+//mod remote_run;
 mod shared_files;
 mod shared_folder;
 mod system;
 
 use crate::{
     api::{
-        remote_run::{RemoteRun, RemoteRunTarget},
+        //remote_run::{RemoteRun, RemoteRunTarget},
         shared_files::{SharedFilesHeadParams, SharedFilesPutParams},
         shared_folder::SharedFolderParams,
         system::{Info, Status},
@@ -18,7 +18,7 @@ use crate::{
     JobConfig,
 };
 use bytes::Bytes;
-use futures::{future, Future};
+use futures::Future;
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -33,10 +33,12 @@ use warp::{
     filters::{method::*, path::Peek},
     fs,
     http::StatusCode,
-    path, query,
-    reject::custom,
+    path, query, reject,
+    reject::Reject,
     reply, Filter, Rejection, Reply,
 };
+
+impl Reject for Error {}
 
 #[derive(Serialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -94,14 +96,10 @@ impl<T: Serialize> ApiResponse<T> {
     }
 }
 
-pub async fn run(
-    listen: &str,
+pub fn system(
     job_config: Arc<JobConfig>,
     stats: Arc<RwLock<Stats>>,
-) -> Result<(), ()> {
-    let span = span!(Level::TRACE, "api");
-    let _enter = span.enter();
-
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     // WARNING: Not stable, will be replaced soon
     // Kept for testing mainly
     let stats = get()
@@ -133,56 +131,65 @@ pub async fn run(
         .reply()
     });
 
+    path("system").and(stats.or(status).or(reload).or(info))
+}
+
+pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Result<(), ()> {
+    let span = span!(Level::TRACE, "api");
+    let _enter = span.enter();
+
     // Old compatible endpoints
+    /*
+        let job_config2 = job_config.clone();
+        let node_id =
+            post()
+                .and(path("nodes"))
+                .and(path::param::<String>().and(body::form()).and_then(
+                    move |node_id, simple_map: HashMap<String, String>| match RemoteRun::new(
+                        RemoteRunTarget::Nodes(vec![node_id]),
+                        &simple_map,
+                    ) {
+                        Ok(handle) => handle.run(job_config2.clone()).await,
+                        Err(e) => Err(reject::custom(e.to_string())),
+                    },
+                ));
 
-    let job_config2 = job_config.clone();
-    let node_id =
-        post()
-            .and(path("nodes"))
-            .and(path::param::<String>().and(body::form()).and_then(
-                move |node_id, simple_map: HashMap<String, String>| match RemoteRun::new(
-                    RemoteRunTarget::Nodes(vec![node_id]),
-                    &simple_map,
-                ) {
-                    Ok(handle) => handle.run(job_config2.clone()),
-                    Err(e) => Err(custom(e.to_string())),
-                },
-            ));
+        let job_config3 = job_config.clone();
+        let nodes =
+            post()
+                .and(path("nodes"))
+                .and(path::end().and(body::form()).and_then(
+                    move |simple_map: HashMap<String, String>| {
+                        match simple_map.get("nodes") {
+                            Some(nodes) => match RemoteRun::new(
+                                RemoteRunTarget::Nodes(
+                                    nodes
+                                        .split(',')
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<String>>(),
+                                ),
+                                &simple_map,
+                            ) {
+                                Ok(handle) => handle.run(job_config3.clone()),
+                                Err(e) => Err(reject::custom(e.to_string())),
+                            },
+                            None => Err(reject::custom(Error::MissingTargetNodes)),
+                        }
+                    },
+                ));
 
-    let job_config3 = job_config.clone();
-    let nodes =
-        post()
-            .and(path("nodes"))
-            .and(path::end().and(body::form()).and_then(
-                move |simple_map: HashMap<String, String>| {
-                    match simple_map.get("nodes") {
-                        Some(nodes) => match RemoteRun::new(
-                            RemoteRunTarget::Nodes(
-                                nodes
-                                    .split(',')
-                                    .map(|s| s.to_string())
-                                    .collect::<Vec<String>>(),
-                            ),
-                            &simple_map,
-                        ) {
-                            Ok(handle) => handle.run(job_config3.clone()),
-                            Err(e) => Err(custom(e.to_string())),
-                        },
-                        None => Err(custom(Error::MissingTargetNodes)),
-                    }
-                },
-            ));
+        let job_config4 = job_config.clone();
+        let all = post().and(path("all")).and(body::form()).and_then(
+            move |simple_map: HashMap<String, String>| match RemoteRun::new(
+                RemoteRunTarget::All,
+                &simple_map,
+            ) {
+                Ok(handle) => handle.run(job_config4.clone()),
+                Err(e) => Err(reject::custom(e.to_string())),
+            },
+        );
 
-    let job_config4 = job_config.clone();
-    let all = post().and(path("all")).and(body::form()).and_then(
-        move |simple_map: HashMap<String, String>| match RemoteRun::new(
-            RemoteRunTarget::All,
-            &simple_map,
-        ) {
-            Ok(handle) => handle.run(job_config4.clone()),
-            Err(e) => Err(custom(e.to_string())),
-        },
-    );
+
 
     let job_config5 = job_config.clone();
     let shared_files_put = put()
@@ -246,45 +253,61 @@ pub async fn run(
                 .map(|c| reply::with_status("".to_string(), c))
                 .map_err(|e| {
                     error!("{}", e);
-                    warp::reject::custom(e)
+                    reject::custom(e)
                 })
         });
     let shared_folder_get = fs::dir(job_config.cfg.shared_folder.path.clone());
 
+    */
+
     // Routing
     // // /api/ for public API, /relay-api/ for internal relay API
     let base = path("rudder").and(path("relay-api"));
-    let system = path("system").and(stats.or(status).or(reload).or(info));
-    let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
-    let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
-    let shared_folder = path("shared-folder").and(shared_folder_head.or(shared_folder_get));
+    //let system = system(job_config.clone(), stats.clone());
+    //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
+    //let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
+    //let shared_folder = path("shared-folder").and(shared_folder_head.or(shared_folder_get));
 
     // Global route for /1/
-    let routes_1 = base
-        .and(path("1"))
-        .and(system.or(remote_run).or(shared_files).or(shared_folder))
-        .recover(customize_error)
-        .with(warp::log("relayd::relay-api"));
+    //let routes_1 = base.and(path("1")).and(system);
+    //.and(system.or(remote_run).or(shared_files).or(shared_folder))
+    //.and(system.or(shared_files).or(shared_folder));
+    //.recover(customize_error);
+    //.with(warp::log("relayd::relay-api"));
+
+    let listen = &job_config.cfg.general.listen;
 
     info!("Starting API on {}", listen);
     // TODO graceful shutdown
-    let socket = listen
-        .to_socket_addrs()
-        .map_err(|e| {
-            // Log resolution error
-            error!("{}", e);
-        })
-        // Use first resolved address for now
-        .and_then(|mut a| a.next().ok_or(()))
-        .await;
-    warp::serve(routes_1).bind(socket)
+    let mut addresses = listen.to_socket_addrs().map_err(|e| {
+        // Log resolution error
+        error!("{}", e);
+    })?;
+
+    // Use first resolved address for now
+    let socket = addresses.next().unwrap();
+
+    warp::serve(status_filter()).bind(socket).await;
+    Ok(())
 }
 
-fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
+pub async fn status_handler() -> Result<impl warp::Reply, std::convert::Infallible> {
+    Ok(reply::json(&ApiResponse::new::<Error>(
+        "getSystemInfo",
+        Ok(Some(Info::new())),
+        None,
+    )))
+}
+
+pub fn status_filter() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    get().and(path("info")).and_then(status_handler)
+}
+
+async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
     // See https://github.com/seanmonstar/warp/issues/77
     // We generally prefer 404 to 405 when they are conflicting.
     // Maybe be improved in the future
-    if reject.is_not_found() || reject.status() == StatusCode::METHOD_NOT_ALLOWED {
+    if reject.is_not_found() || reject.find::<reject::MethodNotAllowed>().is_some() {
         Ok(reply::with_status("", StatusCode::NOT_FOUND))
     } else {
         Err(reject)

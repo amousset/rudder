@@ -41,7 +41,7 @@ impl Stats {
         }
     }
 
-    pub async fn receiver(stats: Arc<RwLock<Self>>, rx: &mut mpsc::Receiver<Event>) {
+    pub async fn receiver(stats: Arc<RwLock<Self>>, mut rx: mpsc::Receiver<Event>) {
         while let Some(event) = rx.recv().await {
             stats
                 .write()
