@@ -92,6 +92,7 @@ fn it_reads_and_inserts_a_runlog() {
     )
     .unwrap();
 
+    // Test that watcher works
     assert!(start_number(&db, 2).is_ok());
 
     // Test files have been removed

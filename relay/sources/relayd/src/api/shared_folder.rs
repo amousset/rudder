@@ -5,8 +5,32 @@ use crate::{error::Error, hashing::Hash, JobConfig};
 use serde::Deserialize;
 use std::{io, path::PathBuf, sync::Arc};
 use tokio::fs::read;
-use tracing::{debug, span, trace, Level};
+use tracing::{debug, error, span, trace, Level};
 use warp::http::StatusCode;
+
+pub mod handlers {
+    use std::sync::RwLock;
+
+    use super::*;
+    use crate::{api::ApiResponse, stats::Stats, Error, JobConfig};
+    use warp::{filters::path::Peek, reject, reply, Rejection, Reply};
+
+    pub async fn head(
+        file: Peek,
+        params: SharedFolderParams,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        let path = file.as_str().to_owned();
+        let path = PathBuf::from(path);
+        super::head(params, path, job_config.clone())
+            .await
+            .map(|c| reply::with_status("".to_string(), c))
+            .map_err(|e| {
+                error!("{}", e);
+                reject::custom(e)
+            })
+    }
+}
 
 #[derive(Deserialize, Debug)]
 pub struct SharedFolderParams {

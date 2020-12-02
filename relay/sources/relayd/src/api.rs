@@ -203,29 +203,7 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
                 },
             )
         });
-
-    let job_config7 = job_config.clone();
-    let shared_folder_head = head()
-        .and(path::peek())
-        .and(query::<SharedFolderParams>())
-        .and_then(move |file: Peek, params| async {
-            shared_folder::head(params, PathBuf::from(&file.as_str()), job_config7.clone())
-                .await
-                .map(|c| reply::with_status("".to_string(), c))
-                .map_err(|e| {
-                    error!("{}", e);
-                    reject::custom(e)
-                })
-        });
-    let shared_folder_get = fs::dir(job_config.cfg.shared_folder.path.clone());
-
     */
-
-    // Routing
-    // // /api/ for public API, /relay-api/ for internal relay API
-    //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
-    //let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
-    //let shared_folder = path("shared-folder").and(shared_folder_head.or(shared_folder_get));
 
     let listen = &job_config.cfg.general.listen;
 
@@ -239,7 +217,7 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     // Use first resolved address for now
     let socket = addresses.next().unwrap();
 
-    let routes = system_filter(job_config, stats)
+    let routes = routes_1(job_config, stats)
         .recover(customize_error)
         .with(warp::log("relayd::api"));
 
@@ -247,7 +225,7 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     Ok(())
 }
 
-pub fn system_filter(
+pub fn routes_1(
     job_config: Arc<JobConfig>,
     stats: Arc<RwLock<Stats>>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
@@ -261,9 +239,10 @@ pub fn system_filter(
         .map(move || job_config_reload.clone())
         .and_then(|j| system::handlers::reload(j));
 
+    let job_config_status = job_config.clone();
     let status = get()
         .and(path!("rudder" / "relay-api" / "1" / "system" / "status"))
-        .map(move || job_config.clone())
+        .map(move || job_config_status.clone())
         .and_then(|j| system::handlers::status(j));
 
     // WARNING: Not stable, will be replaced soon
@@ -273,7 +252,26 @@ pub fn system_filter(
         .map(move || stats.clone())
         .and_then(|s| system::handlers::stats(s));
 
-    info.or(reload).or(status).or(stats)
+    let job_config_shared_folder = job_config.clone();
+    let shared_folder_head = head()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
+        .map(move || job_config_shared_folder.clone())
+        .and(path::peek())
+        .and(query::<SharedFolderParams>())
+        .and_then(|j, p, q| shared_folder::handlers::head(p, q, j));
+
+    let shared_folder_get = head()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
+        .and(fs::dir(job_config.cfg.shared_folder.path.clone()));
+
+    //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
+    //let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
+
+    info.or(reload)
+        .or(status)
+        .or(stats)
+        .or(shared_folder_head)
+        .or(shared_folder_get)
 }
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {

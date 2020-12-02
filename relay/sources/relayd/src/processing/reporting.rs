@@ -49,6 +49,8 @@ async fn serve(
     mut stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
+        // FIXME must not early return!
+
         // allows skipping temporary .dav files
         if !file
             .extension()
@@ -112,7 +114,7 @@ async fn serve(
 
             error!("refused: report from {:?}, unknown id", &info.node_id);
             // this is actually expected behavior
-            return Ok(());
+            continue;
         }
 
         debug!("received: {:?}", file);
