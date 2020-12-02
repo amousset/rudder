@@ -18,8 +18,64 @@ use std::{
     time::Duration,
 };
 use tokio::fs;
-use tracing::{debug, span, warn, Level};
+use tracing::{debug, error, span, warn, Level};
 use warp::http::StatusCode;
+
+pub mod handlers {
+    use std::sync::RwLock;
+
+    use super::*;
+    use crate::{api::ApiResponse, stats::Stats, Error, JobConfig};
+    use warp::{filters::path::Peek, reject, reply, Rejection, Reply};
+
+    pub async fn put(
+        target_id: String,
+        source_id: String,
+        file_id: String,
+        params: SharedFilesPutParams,
+        buf: Bytes,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        Ok(reply::with_status(
+            "".to_string(),
+            match super::put(
+                target_id,
+                source_id,
+                file_id,
+                params,
+                job_config.clone(),
+                buf,
+            )
+            .await
+            {
+                Ok(x) => x,
+                Err(e) => {
+                    error!("error while processing request: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            },
+        ))
+    }
+
+    pub async fn head(
+        target_id: String,
+        source_id: String,
+        file_id: String,
+        params: SharedFilesHeadParams,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        Ok(reply::with_status(
+            "".to_string(),
+            match super::head(target_id, source_id, file_id, params, job_config.clone()).await {
+                Ok(x) => x,
+                Err(e) => {
+                    error!("error while processing request: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            },
+        ))
+    }
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SharedFilesPutParams {

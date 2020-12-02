@@ -150,59 +150,6 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
             },
         );
 
-
-
-    let job_config5 = job_config.clone();
-    let shared_files_put = put()
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(query::<SharedFilesPutParams>())
-        .and(body::bytes())
-        .map(
-            move |target_id, source_id, file_id, params: SharedFilesPutParams, buf: Bytes| async {
-                reply::with_status(
-                    "".to_string(),
-                    match shared_files::put(
-                        target_id,
-                        source_id,
-                        file_id,
-                        params,
-                        job_config5.clone(),
-                        buf,
-                    )
-                    .await
-                    {
-                        Ok(x) => x,
-                        Err(e) => {
-                            error!("error while processing request: {}", e);
-                            StatusCode::INTERNAL_SERVER_ERROR
-                        }
-                    },
-                )
-            },
-        );
-
-    let job_config6 = job_config.clone();
-    let shared_files_head = head()
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(query::<SharedFilesHeadParams>())
-        .map(move |target_id, source_id, file_id, params| async {
-            reply::with_status(
-                "".to_string(),
-                match shared_files::head(target_id, source_id, file_id, params, job_config6.clone())
-                    .await
-                {
-                    Ok(x) => x,
-                    Err(e) => {
-                        error!("error while processing request: {}", e);
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    }
-                },
-            )
-        });
     */
 
     let listen = &job_config.cfg.general.listen;
@@ -252,26 +199,55 @@ pub fn routes_1(
         .map(move || stats.clone())
         .and_then(|s| system::handlers::stats(s));
 
-    let job_config_shared_folder = job_config.clone();
+    let job_config_shared_folder_head = job_config.clone();
     let shared_folder_head = head()
         .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
-        .map(move || job_config_shared_folder.clone())
+        .map(move || job_config_shared_folder_head.clone())
         .and(path::peek())
         .and(query::<SharedFolderParams>())
         .and_then(|j, p, q| shared_folder::handlers::head(p, q, j));
 
+    let job_config_shared_folder_get = job_config.clone();
     let shared_folder_get = head()
         .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
-        .and(fs::dir(job_config.cfg.shared_folder.path.clone()));
+        .and(fs::dir(
+            job_config_shared_folder_get.cfg.shared_folder.path.clone(),
+        ));
+
+    let job_config_shared_files_head = job_config.clone();
+    let shared_files_head = head()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
+        .map(move || job_config_shared_files_head.clone())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(query::<SharedFilesHeadParams>())
+        .and_then(move |j, target_id, source_id, file_id, params| {
+            shared_files::handlers::head(target_id, source_id, file_id, params, j)
+        });
+
+    let job_config_shared_files_put = job_config.clone();
+    let shared_files_put = put()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
+        .map(move || job_config_shared_files_put.clone())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(query::<SharedFilesPutParams>())
+        .and(body::bytes())
+        .and_then(move |j, target_id, source_id, file_id, params, buf| {
+            shared_files::handlers::put(target_id, source_id, file_id, params, buf, j)
+        });
 
     //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
-    //let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
 
     info.or(reload)
         .or(status)
         .or(stats)
         .or(shared_folder_head)
         .or(shared_folder_get)
+        .or(shared_files_head)
+        .or(shared_files_put)
 }
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
