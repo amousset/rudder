@@ -1,14 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{api::ApiResult, check_configuration, output::database::ping, Error, JobConfig};
+use crate::{
+    api::ApiResponse, api::ApiResult, check_configuration, output::database::ping, Error, JobConfig,
+};
 use serde::Serialize;
 use std::sync::Arc;
 use structopt::clap::crate_version;
 
+pub mod handlers {
+    use std::sync::RwLock;
+
+    use super::*;
+    use crate::{api::ApiResponse, stats::Stats, Error, JobConfig};
+    use warp::{reply, Rejection, Reply};
+
+    pub async fn info() -> Result<impl Reply, std::convert::Infallible> {
+        Ok(ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply())
+    }
+
+    pub async fn status(
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, std::convert::Infallible> {
+        Ok(ApiResponse::new::<Error>(
+            "getStatus",
+            Ok(Some(Status::poll(job_config.clone()))),
+            None,
+        )
+        .reply())
+    }
+
+    pub async fn reload(job_config: Arc<JobConfig>) -> Result<impl Reply, Rejection> {
+        Ok(ApiResponse::<()>::new::<Error>(
+            "reloadConfiguration",
+            job_config.clone().reload().map(|_| None),
+            None,
+        )
+        .reply())
+    }
+
+    pub async fn stats(stats: Arc<RwLock<Stats>>) -> Result<impl Reply, std::convert::Infallible> {
+        Ok(reply::json(
+            &(*stats.clone().read().expect("open stats database")),
+        ))
+    }
+}
+
+// TODO could be in once_cell
 #[derive(Serialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-pub struct Info {
+struct Info {
     pub major_version: String,
     pub full_version: String,
 }
@@ -27,7 +68,7 @@ impl Info {
 }
 #[derive(Serialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub struct State {
+struct State {
     status: ApiResult,
     #[serde(skip_serializing_if = "Option::is_none")]
     details: Option<String>,
@@ -49,7 +90,7 @@ impl From<Result<(), Error>> for State {
 }
 
 #[derive(Serialize, Debug, PartialEq, Eq)]
-pub struct Status {
+struct Status {
     #[serde(skip_serializing_if = "Option::is_none")]
     database: Option<State>,
     configuration: State,

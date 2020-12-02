@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{stats::Event};
+use crate::{stats::Event, Error};
 use std::path::PathBuf;
 use tokio::{
     fs::{remove_file, rename},
     sync::mpsc,
 };
 use tracing::{debug, error};
-use anyhow::Error;
+//use anyhow::Error;
 
 pub mod inventory;
 pub mod reporting;

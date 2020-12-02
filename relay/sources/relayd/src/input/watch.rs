@@ -32,7 +32,14 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), (
             .await
             .map_err(|e| warn!("list error: {}", e))?;
 
-        while let entry = files.next().await.unwrap().unwrap() {
+        while let entry = files.next().await {
+            if entry.is_none() {
+                // nothing to do
+                return Ok(());
+            }
+
+            let entry = entry.unwrap().unwrap();
+
             let metadata = entry.metadata().await.unwrap();
             let since = sys_time
                 .duration_since(metadata.modified().unwrap_or(sys_time))
@@ -81,7 +88,13 @@ async fn list_files(
             .await
             .map_err(|e| warn!("list error: {}", e))?;
 
-        while let entry = files.next().await.unwrap().unwrap() {
+        while let entry = files.next().await {
+            if entry.is_none() {
+                return Ok(());
+            }
+
+            let entry = entry.unwrap().unwrap();
+
             let metadata = entry.metadata().await.unwrap();
             let since = sys_time
                 .duration_since(metadata.modified().unwrap_or(sys_time))

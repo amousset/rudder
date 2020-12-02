@@ -11,7 +11,6 @@ use crate::{
         //remote_run::{RemoteRun, RemoteRunTarget},
         shared_files::{SharedFilesHeadParams, SharedFilesPutParams},
         shared_folder::SharedFolderParams,
-        system::{Info, Status},
     },
     error::Error,
     stats::Stats,
@@ -40,14 +39,14 @@ use warp::{
 
 impl Reject for Error {}
 
-#[derive(Serialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiResult {
     Success,
     Error,
 }
 
-#[derive(Serialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 pub struct ApiResponse<T: Serialize> {
     #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<T>,
@@ -94,44 +93,6 @@ impl<T: Serialize> ApiResponse<T> {
     fn reply(&self) -> impl Reply {
         reply::with_status(reply::json(self), self.status_code)
     }
-}
-
-pub fn system(
-    job_config: Arc<JobConfig>,
-    stats: Arc<RwLock<Stats>>,
-) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    // WARNING: Not stable, will be replaced soon
-    // Kept for testing mainly
-    let stats = get()
-        .and(path("stats"))
-        .map(move || reply::json(&(*stats.clone().read().expect("open stats database"))));
-
-    // New endpoints, following Rudder's API format
-    let info = get().and(path("info")).map(move || {
-        ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply()
-    });
-
-    let job_config0 = job_config.clone();
-    let reload = post().and(path("reload")).map(move || {
-        ApiResponse::<()>::new::<Error>(
-            "reloadConfiguration",
-            job_config0.clone().reload().map(|_| None),
-            None,
-        )
-        .reply()
-    });
-
-    let job_config1 = job_config.clone();
-    let status = get().and(path("status")).map(move || {
-        ApiResponse::new::<Error>(
-            "getStatus",
-            Ok(Some(Status::poll(job_config1.clone()))),
-            None,
-        )
-        .reply()
-    });
-
-    path("system").and(stats.or(status).or(reload).or(info))
 }
 
 pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Result<(), ()> {
@@ -262,18 +223,9 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
 
     // Routing
     // // /api/ for public API, /relay-api/ for internal relay API
-    let base = path("rudder").and(path("relay-api"));
-    //let system = system(job_config.clone(), stats.clone());
     //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
     //let shared_files = path("shared-files").and((shared_files_put).or(shared_files_head));
     //let shared_folder = path("shared-folder").and(shared_folder_head.or(shared_folder_get));
-
-    // Global route for /1/
-    //let routes_1 = base.and(path("1")).and(system);
-    //.and(system.or(remote_run).or(shared_files).or(shared_folder))
-    //.and(system.or(shared_files).or(shared_folder));
-    //.recover(customize_error);
-    //.with(warp::log("relayd::relay-api"));
 
     let listen = &job_config.cfg.general.listen;
 
@@ -287,20 +239,41 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     // Use first resolved address for now
     let socket = addresses.next().unwrap();
 
-    warp::serve(status_filter()).bind(socket).await;
+    let routes = system_filter(job_config, stats)
+        .recover(customize_error)
+        .with(warp::log("relayd::api"));
+
+    warp::serve(routes).bind(socket).await;
     Ok(())
 }
 
-pub async fn status_handler() -> Result<impl warp::Reply, std::convert::Infallible> {
-    Ok(reply::json(&ApiResponse::new::<Error>(
-        "getSystemInfo",
-        Ok(Some(Info::new())),
-        None,
-    )))
-}
+pub fn system_filter(
+    job_config: Arc<JobConfig>,
+    stats: Arc<RwLock<Stats>>,
+) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let info = get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "info"))
+        .and_then(system::handlers::info);
 
-pub fn status_filter() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    get().and(path("info")).and_then(status_handler)
+    let job_config_reload = job_config.clone();
+    let reload = post()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "reload"))
+        .map(move || job_config_reload.clone())
+        .and_then(|j| system::handlers::reload(j));
+
+    let status = get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "status"))
+        .map(move || job_config.clone())
+        .and_then(|j| system::handlers::status(j));
+
+    // WARNING: Not stable, will be replaced soon
+    // Kept for testing mainly
+    let stats = get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "stats"))
+        .map(move || stats.clone())
+        .and_then(|s| system::handlers::stats(s));
+
+    info.or(reload).or(status).or(stats)
 }
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
