@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-//mod remote_run;
+mod remote_run;
 mod shared_files;
 mod shared_folder;
 mod system;
@@ -99,59 +99,6 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     let span = span!(Level::TRACE, "api");
     let _enter = span.enter();
 
-    // Old compatible endpoints
-    /*
-        let job_config2 = job_config.clone();
-        let node_id =
-            post()
-                .and(path("nodes"))
-                .and(path::param::<String>().and(body::form()).and_then(
-                    move |node_id, simple_map: HashMap<String, String>| match RemoteRun::new(
-                        RemoteRunTarget::Nodes(vec![node_id]),
-                        &simple_map,
-                    ) {
-                        Ok(handle) => handle.run(job_config2.clone()).await,
-                        Err(e) => Err(reject::custom(e.to_string())),
-                    },
-                ));
-
-        let job_config3 = job_config.clone();
-        let nodes =
-            post()
-                .and(path("nodes"))
-                .and(path::end().and(body::form()).and_then(
-                    move |simple_map: HashMap<String, String>| {
-                        match simple_map.get("nodes") {
-                            Some(nodes) => match RemoteRun::new(
-                                RemoteRunTarget::Nodes(
-                                    nodes
-                                        .split(',')
-                                        .map(|s| s.to_string())
-                                        .collect::<Vec<String>>(),
-                                ),
-                                &simple_map,
-                            ) {
-                                Ok(handle) => handle.run(job_config3.clone()),
-                                Err(e) => Err(reject::custom(e.to_string())),
-                            },
-                            None => Err(reject::custom(Error::MissingTargetNodes)),
-                        }
-                    },
-                ));
-
-        let job_config4 = job_config.clone();
-        let all = post().and(path("all")).and(body::form()).and_then(
-            move |simple_map: HashMap<String, String>| match RemoteRun::new(
-                RemoteRunTarget::All,
-                &simple_map,
-            ) {
-                Ok(handle) => handle.run(job_config4.clone()),
-                Err(e) => Err(reject::custom(e.to_string())),
-            },
-        );
-
-    */
-
     let listen = &job_config.cfg.general.listen;
 
     info!("Starting API on {}", listen);
@@ -239,7 +186,27 @@ pub fn routes_1(
             shared_files::handlers::put(target_id, source_id, file_id, params, buf, j)
         });
 
-    //let remote_run = path("remote-run").and(nodes.or(all).or(node_id));
+    let job_config_remote_run_node = job_config.clone();
+    let remote_run_node = post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .map(move || job_config_remote_run_node.clone())
+        .and(path::param::<String>())
+        .and(body::form())
+        .and_then(move |j, node_id, params| remote_run::handlers::node(node_id, params, j));
+
+    let job_config_remote_run_nodes = job_config.clone();
+    let remote_run_nodes = post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .map(move || job_config_remote_run_nodes.clone())
+        .and(body::form())
+        .and_then(move |j, params| remote_run::handlers::nodes(params, j));
+
+    let job_config_remote_run_all = job_config.clone();
+    let remote_run_all = post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "all"))
+        .map(move || job_config_remote_run_all.clone())
+        .and(body::form())
+        .and_then(move |j, params| remote_run::handlers::all(params, j));
 
     info.or(reload)
         .or(status)
@@ -248,6 +215,9 @@ pub fn routes_1(
         .or(shared_folder_get)
         .or(shared_files_head)
         .or(shared_files_put)
+        .or(remote_run_node)
+        .or(remote_run_nodes)
+        .or(remote_run_all)
 }
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {

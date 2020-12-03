@@ -18,6 +18,58 @@ use tokio::{
 };
 use tracing::{debug, error, span, trace, Level};
 
+pub mod handlers {
+    use super::*;
+    use crate::{Error, JobConfig};
+    use warp::{reject, reject::Reject, Rejection, Reply};
+
+    #[derive(Debug)]
+    struct Placeholder;
+    impl Reject for Placeholder {}
+
+    pub async fn node(
+        node_id: String,
+        params: HashMap<String, String>,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        match RemoteRun::new(RemoteRunTarget::Nodes(vec![node_id]), &params) {
+            Ok(handle) => handle.run(job_config.clone()).await,
+            Err(e) => Err(reject::custom(Placeholder)),
+        }
+    }
+
+    pub async fn nodes(
+        params: HashMap<String, String>,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        match params.get("nodes") {
+            Some(nodes) => match RemoteRun::new(
+                RemoteRunTarget::Nodes(
+                    nodes
+                        .split(',')
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>(),
+                ),
+                &params,
+            ) {
+                Ok(handle) => handle.run(job_config.clone()).await,
+                Err(e) => Err(reject::custom(Placeholder)),
+            },
+            None => Err(reject::custom(Error::MissingTargetNodes)),
+        }
+    }
+
+    pub async fn all(
+        params: HashMap<String, String>,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl Reply, Rejection> {
+        match RemoteRun::new(RemoteRunTarget::All, &params) {
+            Ok(handle) => handle.run(job_config.clone()).await,
+            Err(e) => Err(reject::custom(Placeholder)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct RemoteRun {
     target: RemoteRunTarget,
@@ -53,6 +105,31 @@ impl RemoteRun {
     }
 
     pub async fn run(
+        &self,
+        job_config: Arc<JobConfig>,
+    ) -> Result<impl warp::reply::Reply, warp::reject::Rejection> {
+        debug!(
+            "Starting remote run (asynchronous: {}, keep_output: {})",
+            self.run_parameters.asynchronous, self.run_parameters.keep_output
+        );
+        match (
+            self.run_parameters.asynchronous,
+            self.run_parameters.keep_output,
+        ) {
+            // Async and output -> spawn in background and stream output
+            (true, true) => Ok(warp::reply::html(Body::wrap_stream(
+                self.run_parameters.remote_run(
+                    &job_config.cfg.remote_run,
+                    self.target.neighbors(job_config.clone()),
+                    self.run_parameters.asynchronous,
+                ),
+            ))),
+            _ => todo!(),
+        }
+    }
+
+    /*
+    pub async fn runbak(
         &self,
         job_config: Arc<JobConfig>,
     ) -> Result<impl warp::reply::Reply, warp::reject::Rejection> {
@@ -102,7 +179,7 @@ impl RemoteRun {
                         self.target.neighbors(job_config.clone()),
                         self.run_parameters.asynchronous,
                     )
-                    .map(|_| Chunk::from(""))
+                    .map(|_| Body::from(""))
                     .select(select_all(
                         self.target
                             .next_hops(job_config.clone())
@@ -131,6 +208,7 @@ impl RemoteRun {
             ))),
         }
     }
+    */
 
     async fn forward_call(
         &self,
@@ -162,31 +240,29 @@ impl RemoteRun {
             params.insert("nodes", nodes.join(","));
         }
 
+        let response = job_config
+            .client
+            .clone()
+            .post(&format!(
+                "https://{}/rudder/relay-api/remote-run/{}",
+                node,
+                match target {
+                    RemoteRunTarget::All => "all",
+                    RemoteRunTarget::Nodes(_) => "nodes",
+                },
+            ))
+            .form(&params)
+            .send()
+            .await
+            // Fail if HTTP error
+            .and_then(|response| response.error_for_status())
+            // FIXME
+            .unwrap()
+            .bytes_stream()
+            .map(|c| c.map_err(|e| e.into()));
+
         Box::new(
-            job_config
-                .client
-                .clone()
-                .post(&format!(
-                    "https://{}/rudder/relay-api/remote-run/{}",
-                    node,
-                    match target {
-                        RemoteRunTarget::All => "all",
-                        RemoteRunTarget::Nodes(_) => "nodes",
-                    },
-                ))
-                .form(&params)
-                .send()
-                .await
-                // Fail if HTTP error
-                .and_then(|response| response.error_for_status())
-                // FIXME
-                // Result<Stream<Result<Bytes, E>>, E>
-                .and_then(|response| response.bytes_stream())
-                .or_else(|e: Error| {
-                    error!("{}", e);
-                    futures::stream::once(futures::future::ready(Err(e.into())))
-                })
-                .then(|r| r.unwrap()), //.map(|c| c.into()),
+            response, //.map(|c| c.into()),
         )
         // Don't fail if a relay is not available,
         // just log it
