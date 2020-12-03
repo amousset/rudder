@@ -6,29 +6,20 @@ mod shared_files;
 mod shared_folder;
 mod system;
 
-use crate::{error::Error, stats::Stats, JobConfig};
-use bytes::Bytes;
-use futures::Future;
+use crate::{stats::Stats, JobConfig};
 use serde::Serialize;
 use std::{
-    collections::HashMap,
     fmt::Display,
-    net::{SocketAddr, ToSocketAddrs},
-    path::PathBuf,
+    net::ToSocketAddrs,
     sync::{Arc, RwLock},
 };
 use tracing::{error, info, span, Level};
-use warp::{
-    body,
-    filters::{method::*, path::Peek},
-    fs,
-    http::StatusCode,
-    path, query, reject,
-    reject::Reject,
-    reply, Filter, Rejection, Reply,
-};
+use warp::{http::StatusCode, reject, reject::Reject, reply, Filter, Rejection, Reply};
 
-impl Reject for Error {}
+#[derive(Debug)]
+// FIXME
+struct Placeholder;
+impl Reject for Placeholder {}
 
 #[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
@@ -127,6 +118,7 @@ async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Error;
 
     #[test]
     fn it_serializes_api_response() {

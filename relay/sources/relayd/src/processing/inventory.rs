@@ -9,13 +9,9 @@ use crate::{
     stats::Event,
     JobConfig,
 };
-use futures::{
-    future::{lazy, Future},
-    StreamExt,
-};
 use md5::{Digest, Md5};
 use std::{os::unix::ffi::OsStrExt, sync::Arc};
-use tokio::{prelude::*, sync::mpsc};
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, span, Level};
 
 static INVENTORY_EXTENSIONS: &[&str] = &["gz", "xml", "sign"];
@@ -26,7 +22,7 @@ pub enum InventoryType {
     Update,
 }
 
-pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "inventory");
     let _enter = span.enter();
 
@@ -74,7 +70,7 @@ async fn serve(
     job_config: Arc<JobConfig>,
     mut rx: mpsc::Receiver<ReceivedFile>,
     inventory_type: InventoryType,
-    mut stats: mpsc::Sender<Event>,
+    stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
@@ -110,14 +106,14 @@ async fn serve(
             .send(Event::InventoryReceived)
             .await
             .map_err(|e| error!("receive error: {}", e))
-            .map(|_| ());
+            .map(|_| ())?;
 
         debug!("received: {:?}", file);
 
         match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => {
                 output_inventory_upstream(file, inventory_type, job_config.clone(), stats.clone())
-                    .await
+                    .await?
             }
             // The job should not be started in this case
             InventoryOutputSelect::Disabled => unreachable!("Inventory server should be disabled"),
@@ -130,11 +126,11 @@ async fn output_inventory_upstream(
     path: ReceivedFile,
     inventory_type: InventoryType,
     job_config: Arc<JobConfig>,
-    mut stats: mpsc::Sender<Event>,
+    stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
-    let mut stats_clone = stats.clone();
+    let stats_clone = stats.clone();
 
     let result = send_inventory(job_config, path.clone(), inventory_type).await;
 

@@ -21,7 +21,7 @@ use tracing::{debug, error, info, span, warn, Level};
 
 static REPORT_EXTENSIONS: &[&str] = &["gz", "zip", "log"];
 
-pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     let span = span!(Level::TRACE, "reporting");
     let _enter = span.enter();
 
@@ -32,9 +32,7 @@ pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
         .directory
         .join("incoming");
 
-    let stats_2 = stats.clone();
-
-    let (mut sender, mut receiver) = mpsc::channel(1_024);
+    let (sender, receiver) = mpsc::channel(1_024);
     tokio::spawn(serve(job_config.clone(), receiver, stats));
     tokio::spawn(cleanup(
         path.clone(),
@@ -46,7 +44,7 @@ pub fn start(job_config: &Arc<JobConfig>, mut stats: mpsc::Sender<Event>) {
 async fn serve(
     job_config: Arc<JobConfig>,
     mut rx: mpsc::Receiver<ReceivedFile>,
-    mut stats: mpsc::Sender<Event>,
+    stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
         // FIXME must not early return!
@@ -79,12 +77,12 @@ async fn serve(
         );
         let _enter = span.enter();
 
-        let stat_event = stats
+        stats
             .clone()
             .send(Event::ReportReceived)
             .await
             .map_err(|e| error!("receive error: {}", e))
-            .map(|_| ());
+            .map(|_| ())?;
 
         // Check run info
         let info = RunInfo::try_from(file.as_ref()).map_err(|e| warn!("received: {}", e))?;
@@ -96,7 +94,7 @@ async fn serve(
         );
         let _node_enter = node_span.enter();
 
-        let mut n_stats = stats.clone();
+        let n_stats = stats.clone();
 
         if !job_config
             .nodes
@@ -110,7 +108,7 @@ async fn serve(
                 Event::ReportRefused,
                 n_stats,
             )
-            .await;
+            .await?;
 
             error!("refused: report from {:?}, unknown id", &info.node_id);
             // this is actually expected behavior
@@ -119,12 +117,12 @@ async fn serve(
 
         debug!("received: {:?}", file);
 
-        let treat_file = match job_config.cfg.processing.reporting.output {
+        match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => {
-                output_report_database(file, info, job_config.clone(), stats.clone()).await
+                output_report_database(file, info, job_config.clone(), stats.clone()).await?
             }
             ReportingOutputSelect::Upstream => {
-                output_report_upstream(file, job_config.clone(), stats.clone()).await
+                output_report_upstream(file, job_config.clone(), stats.clone()).await?
             }
             // The job should not be started in this case
             ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
@@ -137,7 +135,7 @@ async fn output_report_database(
     path: ReceivedFile,
     run_info: RunInfo,
     job_config: Arc<JobConfig>,
-    mut stats: mpsc::Sender<Event>,
+    stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     // Everything here is blocking: reading on disk or inserting into database
     // We could use tokio::fs but it works the same and only makes things
@@ -145,7 +143,7 @@ async fn output_report_database(
     let job_config_clone = job_config.clone();
     let path_clone = path.clone();
     let path_clone2 = path.clone();
-    let mut stats_clone = stats.clone();
+    let stats_clone = stats.clone();
     let result = spawn_blocking(move || {
         output_report_database_inner(&path_clone.clone(), &run_info, &job_config)
     })
@@ -178,11 +176,11 @@ async fn output_report_database(
 async fn output_report_upstream(
     path: ReceivedFile,
     job_config: Arc<JobConfig>,
-    mut stats: mpsc::Sender<Event>,
+    stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
-    let mut stats_clone = stats.clone();
+    let stats_clone = stats.clone();
 
     let result = send_report(job_config, path.clone()).await;
 

@@ -9,7 +9,7 @@ use std::{
     fs::{copy, create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
     thread,
-    time::{self, Duration},
+    time::Duration,
 };
 
 #[test]
@@ -42,7 +42,8 @@ fn it_cleans_old_reports() {
                 frequency: Duration::from_secs(1),
                 retention: Duration::from_secs(60),
             },
-        ));
+        ))
+        .unwrap();
     });
 
     thread::sleep(Duration::from_millis(500));

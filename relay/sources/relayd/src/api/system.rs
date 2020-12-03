@@ -2,12 +2,14 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{
-    api::ApiResponse, api::ApiResult, check_configuration, output::database::ping, stats::Stats,
+    api::{ApiResponse, ApiResult},
+    check_configuration,
+    output::database::ping,
+    stats::Stats,
     Error, JobConfig,
 };
 use serde::Serialize;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use structopt::clap::crate_version;
 use warp::{filters::method, path, reply, Filter, Reply};
 

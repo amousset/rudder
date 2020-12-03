@@ -2,13 +2,11 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{
-    configuration::main::RemoteRun as RemoteRunCfg, data::node::Host, error::Error, JobConfig,
+    api::Placeholder, configuration::main::RemoteRun as RemoteRunCfg, data::node::Host,
+    error::Error, JobConfig,
 };
 use bytes::Bytes;
-use futures::{
-    stream::{select, select_all},
-    Stream, StreamExt, TryStreamExt,
-};
+use futures::{stream::select, Stream, StreamExt, TryStreamExt};
 use hyper::Body;
 use regex::Regex;
 use std::{collections::HashMap, process::Stdio, str::FromStr, sync::Arc};
@@ -17,15 +15,7 @@ use tokio::{
     process::{Child, Command},
 };
 use tracing::{debug, error, span, trace, Level};
-use warp::{
-    body,
-    filters::{method, path::Peek},
-    fs,
-    http::StatusCode,
-    path, query, reject,
-    reject::Reject,
-    reply, Filter, Rejection, Reply,
-};
+use warp::{body, filters::method, path, Filter, Reply};
 
 pub fn routes_1(
     job_config: Arc<JobConfig>,
@@ -57,12 +47,8 @@ pub fn routes_1(
 
 pub mod handlers {
     use super::*;
-    use crate::{Error, JobConfig};
+    use crate::JobConfig;
     use warp::{reject, reject::Reject, Rejection, Reply};
-
-    #[derive(Debug)]
-    struct Placeholder;
-    impl Reject for Placeholder {}
 
     pub async fn node(
         node_id: String,
@@ -93,7 +79,7 @@ pub mod handlers {
                 Ok(handle) => handle.run(job_config.clone()).await,
                 Err(e) => Err(reject::custom(Placeholder)),
             },
-            None => Err(reject::custom(Error::MissingTargetNodes)),
+            None => Err(reject::custom(Placeholder)),
         }
     }
 

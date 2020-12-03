@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{error::Error, hashing::Hash, JobConfig};
+use crate::{api::Placeholder, error::Error, hashing::Hash, JobConfig};
 use serde::Deserialize;
 use std::{io, path::PathBuf, sync::Arc};
 use tokio::fs::read;
 use tracing::{debug, error, span, trace, Level};
-use warp::{filters::method, fs, http::StatusCode, path, query, Filter, Rejection, Reply};
+use warp::{filters::method, fs, http::StatusCode, path, query, Filter, Reply};
 
 pub fn routes_1(
     job_config: Arc<JobConfig>,
@@ -44,7 +44,7 @@ pub mod handlers {
             .map(|c| reply::with_status("".to_string(), c))
             .map_err(|e| {
                 error!("{}", e);
-                reject::custom(e)
+                reject::custom(Placeholder)
             })
     }
 }
