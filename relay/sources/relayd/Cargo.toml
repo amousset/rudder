@@ -49,6 +49,7 @@ tracing-log = { version = "0.1", default-features = false, features = ["log-trac
 tracing-subscriber = { version = "0.1", default-features = false, features = ["env-filter", "fmt", "tracing-log"] }
 warp = { version = "0.2", default-features = false }
 zip = "0.5"
+pin-utils = "0.1"
 
 [dev-dependencies]
 criterion = "0.3"

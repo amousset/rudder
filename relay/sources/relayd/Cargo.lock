@@ -1565,6 +1565,7 @@ dependencies = [
  "md-5",
  "nom",
  "openssl",
+ "pin-utils",
  "proptest",
  "regex",
  "reqwest",

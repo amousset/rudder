@@ -117,37 +117,14 @@ impl RemoteRun {
             self.run_parameters.keep_output,
         ) {
             // Async and output -> spawn in background and stream output
-            (true, true) => Ok(warp::reply::html(Body::wrap_stream(
-                self.run_parameters.remote_run(
-                    &job_config.cfg.remote_run,
-                    self.target.neighbors(job_config.clone()),
-                    self.run_parameters.asynchronous,
-                ),
-            ))),
-            _ => todo!(),
-        }
-    }
-
-    /*
-    pub async fn runbak(
-        &self,
-        job_config: Arc<JobConfig>,
-    ) -> Result<impl warp::reply::Reply, warp::reject::Rejection> {
-        debug!(
-            "Starting remote run (asynchronous: {}, keep_output: {})",
-            self.run_parameters.asynchronous, self.run_parameters.keep_output
-        );
-        match (
-            self.run_parameters.asynchronous,
-            self.run_parameters.keep_output,
-        ) {
-            // Async and output -> spawn in background and stream output
             (true, true) => Ok(warp::reply::html(Body::wrap_stream(select(
-                self.run_parameters.remote_run(
-                    &job_config.cfg.remote_run,
-                    self.target.neighbors(job_config.clone()),
-                    self.run_parameters.asynchronous,
-                ),
+                self.run_parameters
+                    .remote_run(
+                        &job_config.cfg.remote_run,
+                        self.target.neighbors(job_config.clone()),
+                        self.run_parameters.asynchronous,
+                    )
+                    .await,
                 select_all(self.target.next_hops(job_config.clone()).iter().map(
                     |(relay, target)| {
                         self.forward_call(job_config.clone(), relay.clone(), target.clone())
@@ -157,11 +134,9 @@ impl RemoteRun {
             // Async and no output -> spawn in background and return early
             (true, false) => {
                 for (relay, target) in self.target.next_hops(job_config.clone()) {
-                    tokio::spawn(RemoteRun::consume(self.forward_call(
-                        job_config.clone(),
-                        relay,
-                        target,
-                    )));
+                    let stream = self.forward_call(job_config.clone(), relay, target).await;
+                    pin_utils::pin_mut!(stream);
+                    tokio::spawn(RemoteRun::consume(stream));
                 }
                 tokio::spawn(RemoteRun::consume(self.run_parameters.remote_run(
                     &job_config.cfg.remote_run,
@@ -208,7 +183,6 @@ impl RemoteRun {
             ))),
         }
     }
-    */
 
     async fn forward_call(
         &self,
@@ -216,7 +190,7 @@ impl RemoteRun {
         node: Host,
         // Target for the sub relay
         target: RemoteRunTarget,
-    ) -> Box<dyn Stream<Item = Result<Bytes, Error>>> {
+    ) -> Box<dyn Stream<Item = Result<Bytes, Error>> + Unpin + Send> {
         let report_span = span!(Level::TRACE, "upstream");
         let _report_enter = report_span.enter();
 
@@ -409,7 +383,7 @@ impl RunParameters {
         cfg: &RemoteRunCfg,
         nodes: Vec<String>,
         asynchronous: bool,
-    ) -> Box<dyn Stream<Item = Result<Bytes, Error>>> {
+    ) -> Box<dyn Stream<Item = Result<Bytes, Error>> + Unpin + Send> {
         trace!("Starting local remote run on {:#?} with {:#?}", nodes, cfg);
 
         if nodes.is_empty() {
