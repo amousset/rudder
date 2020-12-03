@@ -19,7 +19,45 @@ use std::{
 };
 use tokio::fs;
 use tracing::{debug, error, span, warn, Level};
-use warp::http::StatusCode;
+use warp::{
+    body,
+    filters::{method, path::Peek},
+    http::StatusCode,
+    path, query, reject,
+    reject::Reject,
+    reply, Filter, Rejection, Reply,
+};
+
+pub fn routes_1(
+    job_config: Arc<JobConfig>,
+) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let job_config_head = job_config.clone();
+    let head = method::head()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
+        .map(move || job_config_head.clone())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(query::<SharedFilesHeadParams>())
+        .and_then(move |j, target_id, source_id, file_id, params| {
+            handlers::head(target_id, source_id, file_id, params, j)
+        });
+
+    let job_config_put = job_config.clone();
+    let put = method::put()
+        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
+        .map(move || job_config_put.clone())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(path::param::<String>())
+        .and(query::<SharedFilesPutParams>())
+        .and(body::bytes())
+        .and_then(move |j, target_id, source_id, file_id, params, buf| {
+            handlers::put(target_id, source_id, file_id, params, buf, j)
+        });
+
+    head.or(put)
+}
 
 pub mod handlers {
     use std::sync::RwLock;

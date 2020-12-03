@@ -2,48 +2,60 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{
-    api::ApiResponse, api::ApiResult, check_configuration, output::database::ping, Error, JobConfig,
+    api::ApiResponse, api::ApiResult, check_configuration, output::database::ping, stats::Stats,
+    Error, JobConfig,
 };
 use serde::Serialize;
 use std::sync::Arc;
+use std::sync::RwLock;
 use structopt::clap::crate_version;
+use warp::{filters::method, path, reply, Filter, Reply};
 
-pub mod handlers {
-    use std::sync::RwLock;
+pub fn routes_1(
+    job_config: Arc<JobConfig>,
+    stats: Arc<RwLock<Stats>>,
+) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let info = method::get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "info"))
+        .map(|| {
+            Ok(ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply())
+        });
 
-    use super::*;
-    use crate::{api::ApiResponse, stats::Stats, Error, JobConfig};
-    use warp::{reply, Rejection, Reply};
+    let job_config_reload = job_config.clone();
+    let reload = method::post()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "reload"))
+        .map(move || {
+            Ok(ApiResponse::<()>::new::<Error>(
+                "reloadConfiguration",
+                job_config_reload.clone().reload().map(|_| None),
+                None,
+            )
+            .reply())
+        });
 
-    pub async fn info() -> Result<impl Reply, std::convert::Infallible> {
-        Ok(ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply())
-    }
+    let job_config_status = job_config.clone();
+    let status = method::get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "status"))
+        .map(move || {
+            Ok(ApiResponse::new::<Error>(
+                "getStatus",
+                Ok(Some(Status::poll(job_config_status.clone()))),
+                None,
+            )
+            .reply())
+        });
 
-    pub async fn status(
-        job_config: Arc<JobConfig>,
-    ) -> Result<impl Reply, std::convert::Infallible> {
-        Ok(ApiResponse::new::<Error>(
-            "getStatus",
-            Ok(Some(Status::poll(job_config.clone()))),
-            None,
-        )
-        .reply())
-    }
+    // WARNING: Not stable, will be replaced soon
+    // Kept for testing mainly
+    let stats = method::get()
+        .and(path!("rudder" / "relay-api" / "1" / "system" / "stats"))
+        .map(move || {
+            Ok(reply::json(
+                &(*stats.clone().read().expect("open stats database")),
+            ))
+        });
 
-    pub async fn reload(job_config: Arc<JobConfig>) -> Result<impl Reply, Rejection> {
-        Ok(ApiResponse::<()>::new::<Error>(
-            "reloadConfiguration",
-            job_config.clone().reload().map(|_| None),
-            None,
-        )
-        .reply())
-    }
-
-    pub async fn stats(stats: Arc<RwLock<Stats>>) -> Result<impl Reply, std::convert::Infallible> {
-        Ok(reply::json(
-            &(*stats.clone().read().expect("open stats database")),
-        ))
-    }
+    info.or(reload).or(status).or(stats)
 }
 
 // TODO could be in once_cell

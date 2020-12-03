@@ -11,12 +11,49 @@ use futures::{
 };
 use hyper::Body;
 use regex::Regex;
-use std::{collections::HashMap, pin::Pin, process::Stdio, str::FromStr, sync::Arc};
+use std::{collections::HashMap, process::Stdio, str::FromStr, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::{Child, Command},
 };
 use tracing::{debug, error, span, trace, Level};
+use warp::{
+    body,
+    filters::{method, path::Peek},
+    fs,
+    http::StatusCode,
+    path, query, reject,
+    reject::Reject,
+    reply, Filter, Rejection, Reply,
+};
+
+pub fn routes_1(
+    job_config: Arc<JobConfig>,
+) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let job_config_node = job_config.clone();
+    let node = method::post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .map(move || job_config_node.clone())
+        .and(path::param::<String>())
+        .and(body::form())
+        .and_then(move |j, node_id, params| handlers::node(node_id, params, j));
+
+    let job_config_nodes = job_config.clone();
+    let nodes = method::post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .map(move || job_config_nodes.clone())
+        .and(body::form())
+        .and_then(move |j, params| handlers::nodes(params, j));
+
+    let job_config_all = job_config.clone();
+    let all = method::post()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "all"))
+        .map(move || job_config_all.clone())
+        .and(body::form())
+        .and_then(move |j, params| handlers::all(params, j));
+
+    node.or(nodes).or(all)
+}
 
 pub mod handlers {
     use super::*;
@@ -32,6 +69,7 @@ pub mod handlers {
         params: HashMap<String, String>,
         job_config: Arc<JobConfig>,
     ) -> Result<impl Reply, Rejection> {
+        println!("TOTO");
         match RemoteRun::new(RemoteRunTarget::Nodes(vec![node_id]), &params) {
             Ok(handle) => handle.run(job_config.clone()).await,
             Err(e) => Err(reject::custom(Placeholder)),
@@ -93,7 +131,7 @@ impl RemoteRun {
     }
 
     async fn consume(
-        mut stream: Pin<&mut dyn Stream<Item = Result<Bytes, Error>>>,
+        mut stream: impl Stream<Item = Result<Bytes, Error>> + Unpin,
     ) -> Result<(), ()> {
         while let Some(l) = stream.next().await {
             match l {
@@ -117,70 +155,86 @@ impl RemoteRun {
             self.run_parameters.keep_output,
         ) {
             // Async and output -> spawn in background and stream output
-            (true, true) => Ok(warp::reply::html(Body::wrap_stream(select(
-                self.run_parameters
-                    .remote_run(
-                        &job_config.cfg.remote_run,
-                        self.target.neighbors(job_config.clone()),
-                        self.run_parameters.asynchronous,
-                    )
-                    .await,
-                select_all(self.target.next_hops(job_config.clone()).iter().map(
-                    |(relay, target)| {
-                        self.forward_call(job_config.clone(), relay.clone(), target.clone())
-                    },
-                )),
-            )))),
+            (true, true) => {
+                let mut streams = futures::stream::SelectAll::new();
+                for (relay, target) in self.target.next_hops(job_config.clone()) {
+                    let stream = self
+                        .forward_call(job_config.clone(), relay.clone(), target.clone())
+                        .await;
+                    streams.push(stream);
+                }
+
+                Ok(warp::reply::html(Body::wrap_stream(select(
+                    self.run_parameters
+                        .remote_run(
+                            &job_config.cfg.remote_run,
+                            self.target.neighbors(job_config.clone()),
+                            self.run_parameters.asynchronous,
+                        )
+                        .await,
+                    streams,
+                ))))
+            }
             // Async and no output -> spawn in background and return early
             (true, false) => {
                 for (relay, target) in self.target.next_hops(job_config.clone()) {
                     let stream = self.forward_call(job_config.clone(), relay, target).await;
-                    pin_utils::pin_mut!(stream);
                     tokio::spawn(RemoteRun::consume(stream));
                 }
-                tokio::spawn(RemoteRun::consume(self.run_parameters.remote_run(
-                    &job_config.cfg.remote_run,
-                    self.target.neighbors(job_config.clone()),
-                    self.run_parameters.asynchronous,
-                )));
-
+                tokio::spawn(RemoteRun::consume(
+                    self.run_parameters
+                        .remote_run(
+                            &job_config.cfg.remote_run,
+                            self.target.neighbors(job_config.clone()),
+                            self.run_parameters.asynchronous,
+                        )
+                        .await,
+                ));
                 Ok(warp::reply::html(Body::empty()))
             }
             // Sync and no output -> wait until the send and return empty output
-            (false, false) => Ok(warp::reply::html(Body::wrap_stream(
-                self.run_parameters
-                    .remote_run(
-                        &job_config.cfg.remote_run,
-                        self.target.neighbors(job_config.clone()),
-                        self.run_parameters.asynchronous,
-                    )
-                    .map(|_| Body::from(""))
-                    .select(select_all(
-                        self.target
-                            .next_hops(job_config.clone())
-                            .iter()
-                            .map(|(relay, target)| {
-                                self.forward_call(job_config.clone(), relay.clone(), target.clone())
-                            }),
-                    )),
-            ))),
+            (false, false) => {
+                let mut streams = futures::stream::SelectAll::new();
+                for (relay, target) in self.target.next_hops(job_config.clone()) {
+                    let stream = self
+                        .forward_call(job_config.clone(), relay.clone(), target.clone())
+                        .await;
+                    streams.push(stream);
+                }
+
+                Ok(warp::reply::html(Body::wrap_stream(select(
+                    self.run_parameters
+                        .remote_run(
+                            &job_config.cfg.remote_run,
+                            self.target.neighbors(job_config.clone()),
+                            self.run_parameters.asynchronous,
+                        )
+                        .await
+                        .map(|_| Ok(Bytes::from(""))),
+                    streams,
+                ))))
+            }
             // Sync and output -> wait until the end and return output
-            (false, true) => Ok(warp::reply::html(Body::wrap_stream(
-                self.run_parameters
-                    .remote_run(
-                        &job_config.cfg.remote_run,
-                        self.target.neighbors(job_config.clone()),
-                        self.run_parameters.asynchronous,
-                    )
-                    .select(select_all(
-                        self.target
-                            .next_hops(job_config.clone())
-                            .iter()
-                            .map(|(relay, target)| {
-                                self.forward_call(job_config.clone(), relay.clone(), target.clone())
-                            }),
-                    )),
-            ))),
+            (false, true) => {
+                let mut streams = futures::stream::SelectAll::new();
+                for (relay, target) in self.target.next_hops(job_config.clone()) {
+                    let stream = self
+                        .forward_call(job_config.clone(), relay.clone(), target.clone())
+                        .await;
+                    streams.push(stream);
+                }
+
+                Ok(warp::reply::html(Body::wrap_stream(select(
+                    self.run_parameters
+                        .remote_run(
+                            &job_config.cfg.remote_run,
+                            self.target.neighbors(job_config.clone()),
+                            self.run_parameters.asynchronous,
+                        )
+                        .await,
+                    streams,
+                ))))
+            }
         }
     }
 
