@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::error::Error;
+use crate::error::RudderError;
+use anyhow::Error;
 use serde::Deserialize;
 use std::{fmt, fs::read_to_string, path::Path, str::FromStr};
 use tracing::debug;

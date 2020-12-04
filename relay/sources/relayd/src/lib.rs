@@ -23,11 +23,12 @@ use crate::{
         main::{Configuration, InventoryOutputSelect, OutputSelect, ReportingOutputSelect},
     },
     data::node::NodesList,
-    error::Error,
+    error::RudderError,
     output::database::{pg_pool, PgPool},
     processing::{inventory, reporting},
     stats::Stats,
 };
+use anyhow::Error;
 use reqwest::Client;
 use std::{
     fs::create_dir_all,
@@ -79,8 +80,12 @@ impl ExitStatus {
         match self {
             ExitStatus::Shutdown => 0,
             ExitStatus::Crash => 1,
-            ExitStatus::StartError(Error::ConfigurationParsing(_)) => 2,
-            ExitStatus::StartError(_) => 3,
+            ExitStatus::StartError(e) => match e.downcast_ref::<toml::de::Error>() {
+                // Configuration file error
+                Some(e) => 2,
+                // Other error
+                None => 3,
+            },
         }
     }
 }

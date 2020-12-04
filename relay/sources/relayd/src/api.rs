@@ -7,6 +7,7 @@ mod shared_folder;
 mod system;
 
 use crate::{stats::Stats, JobConfig};
+use anyhow::Error;
 use serde::Serialize;
 use std::{
     fmt::Display,
@@ -118,7 +119,7 @@ async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Error;
+    use crate::RudderError;
 
     #[test]
     fn it_serializes_api_response() {
@@ -143,7 +144,7 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ApiResponse::<()>::new::<Error>(
                 "actionName3",
-                Err(Error::InconsistentRunlog),
+                Err(RudderError::InconsistentRunlog.into()),
                 None
             ))
             .unwrap(),

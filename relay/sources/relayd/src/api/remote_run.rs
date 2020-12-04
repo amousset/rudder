@@ -3,8 +3,9 @@
 
 use crate::{
     api::Placeholder, configuration::main::RemoteRun as RemoteRunCfg, data::node::Host,
-    error::Error, JobConfig,
+    error::RudderError, JobConfig,
 };
+use anyhow::Error;
 use bytes::Bytes;
 use futures::{stream::select, Stream, StreamExt, TryStreamExt};
 use hyper::Body;
@@ -20,6 +21,20 @@ use warp::{body, filters::method, path, Filter, Reply};
 pub fn routes_1(
     job_config: Arc<JobConfig>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let job_config_node = job_config.clone();
+
+    let info = method::get()
+        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .map(move || job_config_node.clone())
+        .and(path::param::<String>())
+        //.and(body::form())
+        .map(|_a, _t| {
+            Ok(
+                crate::api::ApiResponse::new::<Error>("getSystemInfo", Ok(Some("plop")), None)
+                    .reply(),
+            )
+        });
+
     let job_config_node = job_config.clone();
     let node = method::post()
         .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
@@ -42,7 +57,7 @@ pub fn routes_1(
         .and(body::form())
         .and_then(move |j, params| handlers::all(params, j));
 
-    node.or(nodes).or(all)
+    info.or(nodes).or(all)
 }
 
 pub mod handlers {
@@ -56,6 +71,7 @@ pub mod handlers {
         job_config: Arc<JobConfig>,
     ) -> Result<impl Reply, Rejection> {
         println!("TOTO");
+
         match RemoteRun::new(RemoteRunTarget::Nodes(vec![node_id]), &params) {
             Ok(handle) => handle.run(job_config.clone()).await,
             Err(e) => Err(reject::custom(Placeholder)),
@@ -66,6 +82,8 @@ pub mod handlers {
         params: HashMap<String, String>,
         job_config: Arc<JobConfig>,
     ) -> Result<impl Reply, Rejection> {
+        println!("TOTO");
+
         match params.get("nodes") {
             Some(nodes) => match RemoteRun::new(
                 RemoteRunTarget::Nodes(
@@ -334,16 +352,18 @@ impl FromStr for Condition {
         let re = Regex::new(condition_regex).unwrap();
         let max_length = 1024;
         if s.len() > max_length {
-            return Err(Error::MaxLengthCondition {
+            return Err(RudderError::MaxLengthCondition {
                 condition: s.to_string(),
                 max_length,
-            });
+            }
+            .into());
         }
         if !re.is_match(s) {
-            Err(Error::InvalidCondition {
+            Err(RudderError::InvalidCondition {
                 condition: s.to_string(),
                 condition_regex,
-            })
+            }
+            .into())
         } else {
             Ok(Condition {
                 data: s.to_string(),

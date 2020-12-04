@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{stats::Event, Error};
+use crate::{stats::Event, RudderError};
+use anyhow::Error;
 use std::path::PathBuf;
 use tokio::{
     fs::{remove_file, rename},
     sync::mpsc,
 };
 use tracing::{debug, error};
-//use anyhow::Error;
 
 pub mod inventory;
 pub mod reporting;
@@ -24,12 +24,17 @@ enum OutputError {
 
 impl From<Error> for OutputError {
     fn from(err: Error) -> Self {
-        match err {
-            Error::Database(_) | Error::DatabaseConnection(_) | Error::HttpClient(_) => {
-                OutputError::Transient
-            }
-            _ => OutputError::Permanent,
+        if let Some(_e) = err.downcast_ref::<diesel::result::Error>() {
+            return OutputError::Transient;
         }
+        if let Some(_e) = err.downcast_ref::<diesel::r2d2::PoolError>() {
+            return OutputError::Transient;
+        }
+        if let Some(_e) = err.downcast_ref::<reqwest::Error>() {
+            return OutputError::Transient;
+        }
+
+        OutputError::Permanent
     }
 }
 

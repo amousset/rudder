@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{api::Placeholder, error::Error, hashing::Hash, JobConfig};
+use crate::{api::Placeholder, error::RudderError, hashing::Hash, JobConfig};
+use anyhow::Error;
 use serde::Deserialize;
 use std::{io, path::PathBuf, sync::Arc};
 use tokio::fs::read;

@@ -3,9 +3,10 @@
 
 use crate::{
     data::shared_file::{Metadata, SharedFile},
-    error::Error,
+    error::RudderError,
     JobConfig,
 };
+use anyhow::Error;
 use bytes::{buf::BufExt, Bytes};
 use chrono::Utc;
 use humantime::parse_duration;
@@ -165,7 +166,7 @@ pub async fn put(
     {
         put_local(file, params, job_config, body).await
     } else if job_config.cfg.general.node_id == "root" {
-        Err(Error::UnknownNode(file.target_id))
+        Err(RudderError::UnknownNode(file.target_id).into())
     } else {
         put_forward(file, params, job_config, body).await
     }
@@ -234,7 +235,7 @@ pub async fn put_local(
         .read()
         .expect("Cannot read nodes list")
         .key_hash(&file.source_id)
-        .ok_or_else(|| Error::UnknownNode(file.source_id.to_string()))?;
+        .ok_or_else(|| RudderError::UnknownNode(file.source_id.to_string()))?;
     let key_hash = known_key_hash.hash_type.hash(&pubkey.public_key_to_der()?);
     if key_hash != known_key_hash {
         warn!(
@@ -320,7 +321,7 @@ pub async fn head(
     {
         head_local(file, params, job_config).await
     } else if job_config.cfg.general.node_id == "root" {
-        Err(Error::UnknownNode(file.target_id))
+        Err(RudderError::UnknownNode(file.target_id).into())
     } else {
         head_forward(file, params, job_config).await
     }

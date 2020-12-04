@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{data::node::NodeId, error::Error};
+use crate::{data::node::NodeId, error::RudderError};
+use anyhow::Error;
 use chrono::prelude::*;
 use nom::{
     bytes::complete::{tag, take_until},
@@ -61,10 +62,10 @@ impl FromStr for RunInfo {
                 debug!("Parsed run info {:#?}", raw_runinfo.1);
                 Ok(raw_runinfo.1)
             }
-            Err(e) => Err(Error::InvalidRunInfo(format!(
+            Err(e) => Err(RudderError::InvalidRunInfo(format!(
                 "invalid runinfo '{}' with {:?}",
                 s, e
-            ))),
+            )))?,
         }
     }
 }
@@ -74,8 +75,9 @@ impl TryFrom<&Path> for RunInfo {
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
         path.file_name()
-            .ok_or_else(|| Error::InvalidFile(path.to_path_buf()))
-            .and_then(|file| file.to_str().ok_or(Error::InvalidFileName))
+            .ok_or_else(|| RudderError::InvalidFile(path.to_path_buf()))
+            .and_then(|file| file.to_str().ok_or(RudderError::InvalidFileName))
+            .map_err(|e| e.into())
             .and_then(|file| file.parse::<RunInfo>())
     }
 }

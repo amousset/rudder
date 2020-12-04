@@ -4,7 +4,7 @@
 use crate::{
     configuration::main::ReportingOutputSelect,
     data::{RunInfo, RunLog},
-    error::Error,
+    error::RudderError,
     input::{read_compressed_file, signature, watch::*},
     output::{
         database::{insert_runlog, InsertionBehavior},
@@ -14,6 +14,7 @@ use crate::{
     stats::Event,
     JobConfig,
 };
+use anyhow::Error;
 use md5::{Digest, Md5};
 use std::{convert::TryFrom, os::unix::ffi::OsStrExt, sync::Arc};
 use tokio::{sync::mpsc, task::spawn_blocking};
@@ -222,12 +223,12 @@ fn output_report_database_inner(
             .read()
             .expect("read nodes")
             .certs(&run_info.node_id)
-            .ok_or_else(|| Error::MissingCertificateForNode(run_info.node_id.clone()))?,
+            .ok_or_else(|| RudderError::MissingCertificateForNode(run_info.node_id.clone()))?,
     )?;
 
-    let parsed_runlog = RunLog::try_from((run_info.clone(), signed_runlog.as_ref()))?;
+    let parsed_runlog: RunLog = RunLog::try_from((run_info.clone(), signed_runlog.as_ref()))?;
 
-    let filtered_runlog = if !job_config
+    let filtered_runlog: RunLog = if !job_config
         .cfg
         .processing
         .reporting
