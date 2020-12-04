@@ -273,19 +273,16 @@ impl RemoteRun {
             .send()
             .await
             // Fail if HTTP error
-            .and_then(|response| response.error_for_status())
-            // FIXME
-            .unwrap()
-            .bytes_stream()
-            .map(|c| c.map_err(|e| e.into()));
+            .and_then(|response| response.error_for_status());
 
-        Box::new(
-            response, //.map(|c| c.into()),
-        )
-        // Don't fail if a relay is not available,
-        // just log it
-        // FIXME check error behavior with tests
-        //.or_else(|_: Error| futures::future::empty())
+        match response {
+            Ok(r) => Box::new(r.bytes_stream().map(|c| c.map_err(|e| e.into()))),
+            Err(e) => {
+                error!("forward error: {}", e);
+                // TODO find a better way to chain errors
+                return Box::new(futures::stream::empty());
+            }
+        }
     }
 }
 
