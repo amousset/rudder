@@ -22,20 +22,6 @@ pub fn routes_1(
     job_config: Arc<JobConfig>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     let job_config_node = job_config.clone();
-
-    let info = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
-        .map(move || job_config_node.clone())
-        .and(path::param::<String>())
-        //.and(body::form())
-        .map(|_a, _t| {
-            Ok(
-                crate::api::ApiResponse::new::<Error>("getSystemInfo", Ok(Some("plop")), None)
-                    .reply(),
-            )
-        });
-
-    let job_config_node = job_config.clone();
     let node = method::post()
         .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
         .map(move || job_config_node.clone())
@@ -57,7 +43,7 @@ pub fn routes_1(
         .and(body::form())
         .and_then(move |j, params| handlers::all(params, j));
 
-    info.or(nodes).or(all)
+    node.or(nodes).or(all)
 }
 
 pub mod handlers {

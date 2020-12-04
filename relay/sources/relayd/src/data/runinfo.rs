@@ -41,7 +41,10 @@ fn parse_runinfo(i: &str) -> IResult<&str, RunInfo> {
     let (i, _) = opt(tag(".gz"))(i)?;
 
     if node_id.is_empty() {
-        Err(nom::Err::Error(("", nom::error::ErrorKind::Many1)))
+        Err(nom::Err::Failure(nom::error::Error::new(
+            i,
+            nom::error::ErrorKind::Many1,
+        )))
     } else {
         Ok((
             i,
