@@ -20,9 +20,10 @@ name = "benches"
 [dependencies]
 anyhow = "1"
 bytes = "0.5"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 diesel = { version = "1", default-features = false, features = ["postgres", "chrono", "r2d2"] }
-flate2 = { version = "1", default-features = false, features = ["zlib"] }
+# Uses rust implementation by default
+flate2 = "1"
 futures = "0.3"
 hex = "0.4"
 humantime = "2"
@@ -35,20 +36,21 @@ md-5 = "0.9"
 nom = "6"
 openssl = "0.10"
 regex = "1"
-reqwest = { version = "0.10", features = ["stream", "blocking"] }
+# Use openssl for TLS to be consistent
+reqwest = { version = "0.10", default-features = false, features = ["stream", "blocking", "native-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.9"
 structopt = { version = "0.3", default-features = false }
 thiserror = "1"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", default-features = false, features = ["rt-threaded", "io-driver", "io-std", "process", "macros", "stream", "signal", "fs", "blocking"] }
 toml = "0.5"
 # Compile dev and release with trace logs enabled
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_trace"] }
-tracing-log = { version = "0.1", default-features = false, features = ["log-tracer"] }
-tracing-subscriber = { version = "0.1", default-features = false, features = ["env-filter", "fmt", "tracing-log"] }
+tracing-subscriber = { version = "0.2", default-features = false, features = ["env-filter", "smallvec", "fmt", "tracing-log"] }
 warp = { version = "0.2", default-features = false }
-zip = "0.5"
+# Use rust implementation
+zip = { version = "0.5", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 criterion = "0.3"

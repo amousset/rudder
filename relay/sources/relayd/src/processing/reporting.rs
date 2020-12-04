@@ -146,10 +146,9 @@ async fn output_report_database(
     let path_clone = path.clone();
     let path_clone2 = path.clone();
     let stats_clone = stats.clone();
-    let result = spawn_blocking(move || {
-        output_report_database_inner(&path_clone.clone(), &run_info, &job_config)
-    })
-    .await?;
+    let result =
+        spawn_blocking(move || output_report_database_inner(&path_clone, &run_info, &job_config))
+            .await?;
 
     match result {
         Ok(_) => success(path.clone(), Event::ReportInserted, stats_clone).await,

@@ -122,7 +122,7 @@ impl TryFrom<(RunInfo, &str)> for RunLog {
             }
             Err(e) => {
                 warn!("{:?}: could not parse '{}'", e, raw_reports.0);
-                Err(RudderError::InvalidRunLog(format!("{:?}", e)))?
+                Err(RudderError::InvalidRunLog(format!("{:?}", e)).into())
             }
         }
     }
@@ -159,7 +159,8 @@ impl TryFrom<(RunInfo, Vec<RawReport>)> for RunLog {
                     "Wrong node id in report {:#?}, got {} but should be {}",
                     report, report.node_id, info.node_id
                 );
-                Err(RudderError::InconsistentRunlog)?;
+                let e: Error = RudderError::InconsistentRunlog.into();
+                return Err(e);
             }
             if timestamp != report.start_datetime {
                 warn!(

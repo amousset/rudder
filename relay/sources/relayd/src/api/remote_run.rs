@@ -39,7 +39,7 @@ pub fn routes_1(
         .and(body::form())
         .and_then(move |j, params| handlers::nodes(params, j));
 
-    let job_config_all = job_config.clone();
+    let job_config_all = job_config;
     let all = method::post()
         .and(base)
         .and(path!("all"))

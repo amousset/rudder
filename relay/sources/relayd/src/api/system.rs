@@ -33,7 +33,7 @@ pub fn routes_1(
         .reply())
     });
 
-    let job_config_status = job_config.clone();
+    let job_config_status = job_config;
     let status = method::get().and(base).and(path!("status")).map(move || {
         Ok(ApiResponse::new::<Error>(
             "getStatus",

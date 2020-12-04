@@ -22,7 +22,7 @@ pub fn routes_1(
         .and(query::<SharedFolderParams>())
         .and_then(|j, p, q| handlers::head(p, q, j));
 
-    let job_config_get = job_config.clone();
+    let job_config_get = job_config;
     let get = base
         // build-in method to serve static file in dir
         .and(fs::dir(job_config_get.cfg.shared_folder.path.clone()));

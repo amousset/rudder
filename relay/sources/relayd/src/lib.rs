@@ -42,11 +42,10 @@ use tokio::{
     sync::mpsc,
 };
 use tracing::{debug, error, info};
-use tracing_log::LogTracer;
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{
-        format::{Format, Full, NewRecorder},
+        format::{DefaultFields, Format, Full},
         Formatter, Subscriber,
     },
     reload::Handle,
@@ -90,7 +89,7 @@ impl ExitStatus {
 }
 
 type LogHandle =
-    Handle<EnvFilter, Formatter<NewRecorder, Format<Full, ()>, fn() -> std::io::Stdout>>;
+    Handle<EnvFilter, Formatter<DefaultFields, Format<Full, ()>, fn() -> std::io::Stdout>>;
 
 pub fn init_logger() -> Result<LogHandle, Error> {
     let builder = Subscriber::builder()
@@ -99,12 +98,7 @@ pub fn init_logger() -> Result<LogHandle, Error> {
         .with_env_filter("error")
         .with_filter_reloading();
     let reload_handle = builder.reload_handle();
-    let subscriber = builder.finish();
-    // Set logger for global context
-    tracing::subscriber::set_global_default(subscriber)?;
-
-    // Set logger for dependencies using log
-    LogTracer::init()?;
+    builder.init();
 
     Ok(reload_handle)
 }

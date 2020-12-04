@@ -68,7 +68,8 @@ impl FromStr for RunInfo {
             Err(e) => Err(RudderError::InvalidRunInfo(format!(
                 "invalid runinfo '{}' with {:?}",
                 s, e
-            )))?,
+            ))
+            .into()),
         }
     }
 }

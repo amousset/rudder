@@ -36,7 +36,7 @@ pub fn routes_1(
             handlers::head(target_id, source_id, file_id, params, j)
         });
 
-    let job_config_put = job_config.clone();
+    let job_config_put = job_config;
     let put = method::put()
         .map(move || job_config_put.clone())
         .and(base)

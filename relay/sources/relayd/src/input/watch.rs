@@ -78,7 +78,7 @@ pub fn watch(path: &WatchedDirectory, job_config: &Arc<JobConfig>, tx: mpsc::Sen
         job_config.cfg.processing.reporting.catchup,
         tx.clone(),
     ));
-    tokio::spawn(watch_files(path.clone(), tx.clone()));
+    tokio::spawn(watch_files(path.clone(), tx));
 }
 
 async fn list_files(

@@ -59,22 +59,23 @@ impl SharedFile {
         // More than enough for node ids too but we don't have a precise spec
         let check = Regex::new(r"^[(?-u:\w)\-.]+$").unwrap();
         if !check.is_match(&source_id) {
-            Err(RudderError::InvalidSharedFile(format!(
+            return Err(RudderError::InvalidSharedFile(format!(
                 "invalid source_id: {}",
                 source_id
-            )))?;
+            ))
+            .into());
         }
         if !check.is_match(&target_id) {
-            Err(RudderError::InvalidSharedFile(format!(
+            return Err(RudderError::InvalidSharedFile(format!(
                 "invalid target_id: {}",
                 target_id
-            )))?;
+            ))
+            .into());
         }
         if !check.is_match(&file_id) {
-            Err(RudderError::InvalidSharedFile(format!(
-                "invalid file_id: {}",
-                source_id
-            )))?;
+            return Err(
+                RudderError::InvalidSharedFile(format!("invalid file_id: {}", source_id)).into(),
+            );
         }
         Ok(SharedFile {
             source_id,
@@ -142,7 +143,8 @@ impl FromStr for Metadata {
         for line in s.lines() {
             let kv: Vec<&str> = line.splitn(2, '=').collect();
             if kv.len() == 2 && parsed.insert(kv[0], kv[1]).is_some() {
-                Err(RudderError::DuplicateHeader(line.to_string()))?;
+                let e: Error = RudderError::DuplicateHeader(line.to_string()).into();
+                return Err(e);
             }
         }
 

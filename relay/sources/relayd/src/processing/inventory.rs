@@ -58,7 +58,7 @@ pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
         job_config.clone(),
         receiver,
         InventoryType::Update,
-        stats.clone(),
+        stats,
     ));
     tokio::spawn(cleanup(
         updates_path.clone(),
