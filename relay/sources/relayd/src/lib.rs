@@ -143,6 +143,9 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
             warn!("max_threads was provided, ignoring blocking_threads");
         } else {
             warn!("using blocking_threads value as max_threads");
+            // max_threads ~= core_threads + blocking_threads
+            // and core_threads (=num cores) << blocking_threads so it is should
+            // be good enough to approximate
             builder.max_threads(threads);
         }
     }
