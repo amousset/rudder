@@ -41,7 +41,7 @@ use tokio::{
     signal::unix::{signal, SignalKind},
     sync::mpsc,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{
@@ -133,17 +133,22 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
     if let Some(threads) = job_config.cfg.general.core_threads {
         builder.core_threads(threads);
     }
-    let mut runtime = builder
-        // FIXME check if rt-threaded feature is enabled
-        .max_threads(job_config.cfg.general.max_threads)
-        // TODO check why resume_unwind is not enough
-        //.panic_handler(|_| exit(ExitStatus::Crash.code()))
-        // TODO make configurable?
-        .threaded_scheduler()
-        .enable_all()
-        .build()?;
+    if let Some(threads) = job_config.cfg.general.max_threads {
+        builder.max_threads(threads);
+    }
+    if let Some(threads) = job_config.cfg.general.blocking_threads {
+        warn!("blocking_threads is deprecated, replaced by max_threads");
 
-    // FIXME: recheck on tokio 0.2
+        if job_config.cfg.general.max_threads.is_some() {
+            warn!("max_threads was provided, ignoring blocking_threads");
+        } else {
+            warn!("using blocking_threads value as max_threads");
+            builder.max_threads(threads);
+        }
+    }
+    let mut runtime = builder.threaded_scheduler().enable_all().build()?;
+
+    // TODO: recheck panic/error behavior on tokio 0.2
     // don't use block_on_all as it panics on main future panic but not others
     runtime.block_on(async {
         // Setup signal handlers first
