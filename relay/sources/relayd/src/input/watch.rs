@@ -38,8 +38,13 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), E
             }
         };
         while let Some(entry) = files.next().await {
-            let entry = entry?;
-
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    error!("entry error: {}", e);
+                    continue;
+                }
+            };
             let metadata = match entry.metadata().await {
                 Ok(m) => m,
                 Err(e) => {
@@ -47,6 +52,7 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), E
                     continue;
                 }
             };
+
             let since = sys_time
                 .duration_since(metadata.modified().unwrap_or(sys_time))
                 // An error indicates a file in the future, let's approximate it to now

@@ -17,9 +17,19 @@ use tracing::{error, info, span, Level};
 use warp::{http::StatusCode, reject, reject::Reject, reply, Filter, Rejection, Reply};
 
 #[derive(Debug)]
-// FIXME
-struct Placeholder;
-impl Reject for Placeholder {}
+struct RudderReject {
+    reason: String,
+}
+
+impl RudderReject {
+    pub fn new<T: Display>(reason: T) -> Self {
+        Self {
+            reason: reason.to_string(),
+        }
+    }
+}
+
+impl Reject for RudderReject {}
 
 #[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]

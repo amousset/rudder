@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
 use crate::{
-    api::Placeholder, configuration::main::RemoteRun as RemoteRunCfg, data::node::Host,
+    api::RudderReject, configuration::main::RemoteRun as RemoteRunCfg, data::node::Host,
     error::RudderError, JobConfig,
 };
 use anyhow::Error;
@@ -70,11 +70,9 @@ pub mod handlers {
         params: HashMap<String, String>,
         job_config: Arc<JobConfig>,
     ) -> Result<impl Reply, Rejection> {
-        println!("TOTO");
-
         match RemoteRun::new(RemoteRunTarget::Nodes(vec![node_id]), &params) {
             Ok(handle) => handle.run(job_config.clone()).await,
-            Err(e) => Err(reject::custom(Placeholder)),
+            Err(e) => Err(reject::custom(RudderReject::new(e))),
         }
     }
 
@@ -82,8 +80,6 @@ pub mod handlers {
         params: HashMap<String, String>,
         job_config: Arc<JobConfig>,
     ) -> Result<impl Reply, Rejection> {
-        println!("TOTO");
-
         match params.get("nodes") {
             Some(nodes) => match RemoteRun::new(
                 RemoteRunTarget::Nodes(
@@ -95,9 +91,9 @@ pub mod handlers {
                 &params,
             ) {
                 Ok(handle) => handle.run(job_config.clone()).await,
-                Err(e) => Err(reject::custom(Placeholder)),
+                Err(e) => Err(reject::custom(RudderReject::new(e))),
             },
-            None => Err(reject::custom(Placeholder)),
+            None => Err(reject::custom(RudderReject::new("Missing nodes"))),
         }
     }
 
@@ -107,7 +103,7 @@ pub mod handlers {
     ) -> Result<impl Reply, Rejection> {
         match RemoteRun::new(RemoteRunTarget::All, &params) {
             Ok(handle) => handle.run(job_config.clone()).await,
-            Err(e) => Err(reject::custom(Placeholder)),
+            Err(e) => Err(reject::custom(RudderReject::new(e))),
         }
     }
 }
