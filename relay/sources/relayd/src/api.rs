@@ -98,10 +98,6 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     let span = span!(Level::TRACE, "api");
     let _enter = span.enter();
 
-    let listen = &job_config.cfg.general.listen;
-
-    info!("Starting API on {}", listen);
-
     let routes_1 = path!("rudder" / "relay-api" / "1" / ..).and(
         system::routes_1(job_config.clone(), stats.clone())
             .or(shared_folder::routes_1(job_config.clone()))
@@ -112,6 +108,9 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
     let routes = routes_1
         .recover(customize_error)
         .with(warp::log("relayd::api"));
+
+    let listen = &job_config.cfg.general.listen;
+    info!("Starting API on {}", listen);
 
     let mut addresses = listen.to_socket_addrs().map_err(|e| {
         // Log resolution error
@@ -125,8 +124,7 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
     // See https://github.com/seanmonstar/warp/issues/77
-    // Currently MethodNotAllowed has priority, which we don't want
-    println!("PLOUF {:?}", reject);
+    // We override the priority to avoid MethodNotAllowed everywhere
     if reject.is_not_found() {
         Ok(reply::with_status(
             "NOT FOUND".to_string(),
@@ -138,9 +136,10 @@ async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
             StatusCode::BAD_REQUEST,
         ))
     } else if let Some(_e) = reject.find::<reject::MethodNotAllowed>() {
+        // TODO find why we only have MethodNotAllowed when file in found in fs::dir
         Ok(reply::with_status(
-            "BAD REQUEST".to_string(),
-            StatusCode::BAD_REQUEST,
+            "NOT FOUND".to_string(),
+            StatusCode::NOT_FOUND,
         ))
     } else {
         Ok(reply::with_status(

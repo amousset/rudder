@@ -25,12 +25,12 @@ use warp::{body, filters::method, http::StatusCode, path, query, Filter, Reply};
 pub fn routes_1(
     job_config: Arc<JobConfig>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let base = path!("shared-files" / String / String / String);
+
     let job_config_head = job_config.clone();
     let head = method::head()
         .map(move || job_config_head.clone())
-        .and(path!(
-            "rudder" / "relay-api" / "1" / "shared-files" / String / String / String
-        ))
+        .and(base)
         .and(query::<SharedFilesHeadParams>())
         .and_then(move |j, target_id, source_id, file_id, params| {
             handlers::head(target_id, source_id, file_id, params, j)
@@ -39,9 +39,7 @@ pub fn routes_1(
     let job_config_put = job_config.clone();
     let put = method::put()
         .map(move || job_config_put.clone())
-        .and(path!(
-            "rudder" / "relay-api" / "1" / "shared-files" / String / String / String
-        ))
+        .and(base)
         .and(query::<SharedFilesPutParams>())
         .and(body::bytes())
         .and_then(move |j, target_id, source_id, file_id, params, buf| {

@@ -80,6 +80,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(404, get_fails.status());
-        assert_eq!(get_fails.text().unwrap(), "");
+        assert_eq!(get_fails.text().unwrap(), "NOT FOUND");
     }
 }

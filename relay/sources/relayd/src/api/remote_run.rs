@@ -21,25 +21,28 @@ use warp::{body, filters::method, path, Filter, Reply};
 pub fn routes_1(
     job_config: Arc<JobConfig>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let base = path!("remote-run" / ..);
+
     let job_config_node = job_config.clone();
     let node = method::post()
         .map(move || job_config_node.clone())
-        .and(path!(
-            "rudder" / "relay-api" / "1" / "remote-run" / "nodes" / String
-        ))
+        .and(base)
+        .and(path!("nodes" / String))
         .and(body::form())
         .and_then(move |j, node_id, params| handlers::node(node_id, params, j));
 
     let job_config_nodes = job_config.clone();
     let nodes = method::post()
-        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
+        .and(base)
+        .and(path!("nodes"))
         .map(move || job_config_nodes.clone())
         .and(body::form())
         .and_then(move |j, params| handlers::nodes(params, j));
 
     let job_config_all = job_config.clone();
     let all = method::post()
-        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "all"))
+        .and(base)
+        .and(path!("all"))
         .map(move || job_config_all.clone())
         .and(body::form())
         .and_then(move |j, params| handlers::all(params, j));

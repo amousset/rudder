@@ -17,45 +17,39 @@ pub fn routes_1(
     job_config: Arc<JobConfig>,
     stats: Arc<RwLock<Stats>>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
-    let info = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "system" / "info"))
-        .map(|| {
-            Ok(ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply())
-        });
+    let base = path!("system" / ..);
+
+    let info = method::get().and(base).and(path!("info")).map(|| {
+        Ok(ApiResponse::new::<Error>("getSystemInfo", Ok(Some(Info::new())), None).reply())
+    });
 
     let job_config_reload = job_config.clone();
-    let reload = method::post()
-        .and(path!("rudder" / "relay-api" / "1" / "system" / "reload"))
-        .map(move || {
-            Ok(ApiResponse::<()>::new::<Error>(
-                "reloadConfiguration",
-                job_config_reload.clone().reload().map(|_| None),
-                None,
-            )
-            .reply())
-        });
+    let reload = method::post().and(base).and(path!("reload")).map(move || {
+        Ok(ApiResponse::<()>::new::<Error>(
+            "reloadConfiguration",
+            job_config_reload.clone().reload().map(|_| None),
+            None,
+        )
+        .reply())
+    });
 
     let job_config_status = job_config.clone();
-    let status = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "system" / "status"))
-        .map(move || {
-            Ok(ApiResponse::new::<Error>(
-                "getStatus",
-                Ok(Some(Status::poll(job_config_status.clone()))),
-                None,
-            )
-            .reply())
-        });
+    let status = method::get().and(base).and(path!("status")).map(move || {
+        Ok(ApiResponse::new::<Error>(
+            "getStatus",
+            Ok(Some(Status::poll(job_config_status.clone()))),
+            None,
+        )
+        .reply())
+    });
 
     // WARNING: Not stable, will be replaced soon
     // Kept for testing mainly
-    let stats = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "system" / "stats"))
-        .map(move || {
-            Ok(reply::json(
-                &(*stats.clone().read().expect("open stats database")),
-            ))
-        });
+    let stats = method::get().and(base).and(path!("stats")).map(move || {
+        Ok(reply::json(
+            &(*stats.clone().read().expect("open stats database")),
+        ))
+    });
 
     info.or(reload).or(status).or(stats)
 }

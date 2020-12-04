@@ -12,17 +12,19 @@ use warp::{filters::method, fs, http::StatusCode, path, query, Filter, Reply};
 pub fn routes_1(
     job_config: Arc<JobConfig>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    let base = path!("shared-folder" / ..);
+
     let job_config_head = job_config.clone();
     let head = method::head()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-folder" / ..))
+        .and(base)
         .map(move || job_config_head.clone())
         .and(path::peek())
         .and(query::<SharedFolderParams>())
         .and_then(|j, p, q| handlers::head(p, q, j));
 
     let job_config_get = job_config.clone();
-    let get = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-folder" / ..))
+    let get = base
+        // build-in method to serve static file in dir
         .and(fs::dir(job_config_get.cfg.shared_folder.path.clone()));
 
     head.or(get)
