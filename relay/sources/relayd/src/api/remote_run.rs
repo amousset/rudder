@@ -23,9 +23,10 @@ pub fn routes_1(
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     let job_config_node = job_config.clone();
     let node = method::post()
-        .and(path!("rudder" / "relay-api" / "1" / "remote-run" / "nodes"))
         .map(move || job_config_node.clone())
-        .and(path::param::<String>())
+        .and(path!(
+            "rudder" / "relay-api" / "1" / "remote-run" / "nodes" / String
+        ))
         .and(body::form())
         .and_then(move |j, node_id, params| handlers::node(node_id, params, j));
 

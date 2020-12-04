@@ -14,7 +14,7 @@ pub fn routes_1(
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     let job_config_head = job_config.clone();
     let head = method::head()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
+        .and(path!("rudder" / "relay-api" / "1" / "shared-folder" / ..))
         .map(move || job_config_head.clone())
         .and(path::peek())
         .and(query::<SharedFolderParams>())
@@ -22,7 +22,7 @@ pub fn routes_1(
 
     let job_config_get = job_config.clone();
     let get = method::get()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-folder"))
+        .and(path!("rudder" / "relay-api" / "1" / "shared-folder" / ..))
         .and(fs::dir(job_config_get.cfg.shared_folder.path.clone()));
 
     head.or(get)

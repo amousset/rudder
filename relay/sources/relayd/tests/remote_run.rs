@@ -155,11 +155,16 @@ mod tests {
             ("classes", "clas~1,class2,class3"),
             ("nodes", "node2.rudder.local,server.rudder.local"),
         ];
-        let res = client
+        let response = client
             .post("http://localhost:3030/rudder/relay-api/1/remote-run/nodes")
             .form(&params)
-            .send();
+            .send()
+            .unwrap();
 
-        assert_eq!(res.unwrap().text().unwrap(), "Unhandled rejection: invalid condition: clas~1, should match ^[a-zA-Z0-9][a-zA-Z0-9_]*$".to_string());
+        assert_eq!(response.status(), hyper::StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.text().unwrap(),
+            "invalid condition: clas~1, should match ^[a-zA-Z0-9][a-zA-Z0-9_]*$".to_string()
+        );
     }
 }

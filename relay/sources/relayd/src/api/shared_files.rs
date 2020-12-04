@@ -27,11 +27,10 @@ pub fn routes_1(
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     let job_config_head = job_config.clone();
     let head = method::head()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
         .map(move || job_config_head.clone())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
+        .and(path!(
+            "rudder" / "relay-api" / "1" / "shared-files" / String / String / String
+        ))
         .and(query::<SharedFilesHeadParams>())
         .and_then(move |j, target_id, source_id, file_id, params| {
             handlers::head(target_id, source_id, file_id, params, j)
@@ -39,11 +38,10 @@ pub fn routes_1(
 
     let job_config_put = job_config.clone();
     let put = method::put()
-        .and(path!("rudder" / "relay-api" / "1" / "shared-files"))
         .map(move || job_config_put.clone())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
-        .and(path::param::<String>())
+        .and(path!(
+            "rudder" / "relay-api" / "1" / "shared-files" / String / String / String
+        ))
         .and(query::<SharedFilesPutParams>())
         .and(body::bytes())
         .and_then(move |j, target_id, source_id, file_id, params, buf| {

@@ -9,16 +9,23 @@ mod system;
 use crate::{stats::Stats, JobConfig};
 use serde::Serialize;
 use std::{
+    fmt,
     fmt::Display,
     net::ToSocketAddrs,
     sync::{Arc, RwLock},
 };
 use tracing::{error, info, span, Level};
-use warp::{http::StatusCode, reject, reject::Reject, reply, Filter, Rejection, Reply};
+use warp::{http::StatusCode, path, reject, reject::Reject, reply, Filter, Rejection, Reply};
 
 #[derive(Debug)]
 struct RudderReject {
     reason: String,
+}
+
+impl fmt::Display for RudderReject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.reason)
+    }
 }
 
 impl RudderReject {
@@ -95,10 +102,12 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
 
     info!("Starting API on {}", listen);
 
-    let routes_1 = system::routes_1(job_config.clone(), stats.clone())
-        .or(shared_folder::routes_1(job_config.clone()))
-        .or(shared_files::routes_1(job_config.clone()))
-        .or(remote_run::routes_1(job_config.clone()));
+    let routes_1 = path!("rudder" / "relay-api" / "1" / ..).and(
+        system::routes_1(job_config.clone(), stats.clone())
+            .or(shared_folder::routes_1(job_config.clone()))
+            .or(shared_files::routes_1(job_config.clone()))
+            .or(remote_run::routes_1(job_config.clone())),
+    );
 
     let routes = routes_1
         .recover(customize_error)
@@ -116,12 +125,28 @@ pub async fn run(job_config: Arc<JobConfig>, stats: Arc<RwLock<Stats>>) -> Resul
 
 async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
     // See https://github.com/seanmonstar/warp/issues/77
-    // We generally prefer 404 to 405 when they are conflicting.
-    // Maybe be improved in the future
-    if reject.is_not_found() || reject.find::<reject::MethodNotAllowed>().is_some() {
-        Ok(reply::with_status("", StatusCode::NOT_FOUND))
+    // Currently MethodNotAllowed has priority, which we don't want
+    println!("PLOUF {:?}", reject);
+    if reject.is_not_found() {
+        Ok(reply::with_status(
+            "NOT FOUND".to_string(),
+            StatusCode::NOT_FOUND,
+        ))
+    } else if let Some(e) = reject.find::<RudderReject>() {
+        Ok(reply::with_status(
+            format!("{}", e),
+            StatusCode::BAD_REQUEST,
+        ))
+    } else if let Some(_e) = reject.find::<reject::MethodNotAllowed>() {
+        Ok(reply::with_status(
+            "BAD REQUEST".to_string(),
+            StatusCode::BAD_REQUEST,
+        ))
     } else {
-        Err(reject)
+        Ok(reply::with_status(
+            format!("{:?}", reject),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ))
     }
 }
 
