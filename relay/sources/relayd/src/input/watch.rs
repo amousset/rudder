@@ -6,6 +6,7 @@ use crate::{
     processing::ReceivedFile,
     JobConfig,
 };
+use anyhow::Error;
 use futures::{future, StreamExt};
 use inotify::{Inotify, WatchMask};
 use std::{
@@ -18,9 +19,9 @@ use tokio::{
     sync::mpsc,
     time::interval,
 };
-use tracing::{debug, error, info, span, warn, Level};
+use tracing::{debug, error, info, span, Level};
 
-pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), ()> {
+pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), Error> {
     let mut timer = interval(cfg.frequency);
 
     loop {
@@ -36,15 +37,16 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), (
                 continue;
             }
         };
-        while let entry = files.next().await {
-            if entry.is_none() {
-                // nothing to do
-                return Ok(());
-            }
+        while let Some(entry) = files.next().await {
+            let entry = entry?;
 
-            let entry = entry.unwrap().unwrap();
-
-            let metadata = entry.metadata().await.unwrap();
+            let metadata = match entry.metadata().await {
+                Ok(m) => m,
+                Err(e) => {
+                    error!("metadata error: {}", e);
+                    continue;
+                }
+            };
             let since = sys_time
                 .duration_since(metadata.modified().unwrap_or(sys_time))
                 // An error indicates a file in the future, let's approximate it to now
@@ -55,8 +57,7 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), (
                 debug!("removing old file: {:?}", path);
                 remove_file(path)
                     .await
-                    .map_err(|e| warn!("remove error: {}", e))
-                    .map(|_| ());
+                    .unwrap_or_else(|e| error!("removal error: {}", e));
             }
         }
     }
@@ -78,7 +79,7 @@ async fn list_files(
     path: WatchedDirectory,
     cfg: CatchupConfig,
     tx: mpsc::Sender<ReceivedFile>,
-) -> Result<(), ()> {
+) -> Result<(), Error> {
     let mut timer = interval(cfg.frequency);
 
     loop {
@@ -96,14 +97,10 @@ async fn list_files(
             }
         };
 
-        while let entry = files.next().await {
-            if entry.is_none() {
-                return Ok(());
-            }
+        while let Some(entry) = files.next().await {
+            let entry = entry?;
 
-            let entry = entry.unwrap().unwrap();
-
-            let metadata = entry.metadata().await.unwrap();
+            let metadata = entry.metadata().await?;
             let since = sys_time
                 .duration_since(metadata.modified().unwrap_or(sys_time))
                 // An error indicates a file in the future, let's approximate it to now
@@ -112,11 +109,7 @@ async fn list_files(
             if since > Duration::from_secs(30) {
                 let path = entry.path();
                 debug!("list: {:?}", path);
-                tx.clone()
-                    .send(path)
-                    .await
-                    .map_err(|e| warn!("list error: {}", e))
-                    .map(|_| ());
+                tx.clone().send(path).await?;
             }
         }
     }
@@ -141,7 +134,7 @@ fn watch_stream<P: AsRef<Path>>(path: P) -> inotify::EventStream<Vec<u8>> {
         .expect("Could no create inotify event stream")
 }
 
-async fn watch_files<P: AsRef<Path>>(path: P, tx: mpsc::Sender<ReceivedFile>) -> Result<(), ()> {
+async fn watch_files<P: AsRef<Path>>(path: P, tx: mpsc::Sender<ReceivedFile>) -> Result<(), Error> {
     let path_prefix = path.as_ref().to_path_buf();
 
     let mut files = watch_stream(&path)
@@ -150,19 +143,12 @@ async fn watch_files<P: AsRef<Path>>(path: P, tx: mpsc::Sender<ReceivedFile>) ->
         .filter(|e| future::ready(e.is_some()))
         .map(|entry| entry.expect("inotify entry has no name"));
 
-    while let new_file = files.next().await {
-        if let Some(file) = new_file {
-            // inotify gives the filename, add the entire path
-            if let full_path = path_prefix.join(file) {
-                debug!("inotify: {:?}", full_path);
+    while let Some(file) = files.next().await {
+        // inotify gives the filename, add the entire path
+        let full_path = path_prefix.join(file);
+        debug!("inotify: {:?}", full_path);
 
-                tx.clone()
-                    .send(full_path)
-                    .await
-                    .map_err(|e| warn!("watch send error: {}", e))
-                    .map(|_| ());
-            }
-        }
+        tx.clone().send(full_path).await?;
     }
     Ok(())
 }
