@@ -158,29 +158,23 @@ async fn watch_files<P: AsRef<Path>>(path: P, tx: mpsc::Sender<ReceivedFile>) ->
     }
     Ok(())
 }
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{fs::File, path::PathBuf, str::FromStr};
     use tempfile::tempdir;
 
-    #[test]
-    fn it_watches_files() -> impl std::future::Future<Output = ()>{
+    #[tokio::test]
+    async fn it_watches_files() {
+        let dir = tempdir().unwrap();
 
-        async {
-            let dir = tempdir().unwrap();
-
-            let mut watch = watch_stream(dir.path());
-            File::create(dir.path().join("2019-01-24T15:55:01+00:00@root.log")).unwrap();
-            let event = watch.next().await.unwrap().unwrap();
-            assert_eq!(
-                event.name.map(PathBuf::from).unwrap(),
-                PathBuf::from_str("2019-01-24T15:55:01+00:00@root.log").unwrap()
-            );
-        }
-
-
+        let mut watch = watch_stream(dir.path());
+        File::create(dir.path().join("2019-01-24T15:55:01+00:00@root.log")).unwrap();
+        let event = watch.next().await.unwrap().unwrap();
+        assert_eq!(
+            event.name.map(PathBuf::from).unwrap(),
+            PathBuf::from_str("2019-01-24T15:55:01+00:00@root.log").unwrap()
+        );
     }
 }
-*/
