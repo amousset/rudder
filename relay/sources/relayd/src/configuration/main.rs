@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{configuration::Secret, data::node::NodeId, error::RudderError};
+use crate::{configuration::Secret, data::node::NodeId};
 use anyhow::Error;
 use serde::{
     de::{Deserializer, Error as SerdeError, Unexpected, Visitor},

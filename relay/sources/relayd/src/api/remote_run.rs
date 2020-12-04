@@ -63,7 +63,7 @@ pub fn routes_1(
 pub mod handlers {
     use super::*;
     use crate::JobConfig;
-    use warp::{reject, reject::Reject, Rejection, Reply};
+    use warp::{reject, Rejection, Reply};
 
     pub async fn node(
         node_id: String,

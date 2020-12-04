@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2019-2020 Normation SAS
 
-use crate::{stats::Event, RudderError};
+use crate::stats::Event;
 use anyhow::Error;
 use std::path::PathBuf;
 use tokio::{

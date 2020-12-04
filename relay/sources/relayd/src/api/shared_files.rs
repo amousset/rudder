@@ -20,14 +20,7 @@ use std::{
 };
 use tokio::fs;
 use tracing::{debug, error, span, warn, Level};
-use warp::{
-    body,
-    filters::{method, path::Peek},
-    http::StatusCode,
-    path, query, reject,
-    reject::Reject,
-    reply, Filter, Rejection, Reply,
-};
+use warp::{body, filters::method, http::StatusCode, path, query, Filter, Reply};
 
 pub fn routes_1(
     job_config: Arc<JobConfig>,
@@ -61,11 +54,9 @@ pub fn routes_1(
 }
 
 pub mod handlers {
-    use std::sync::RwLock;
-
     use super::*;
-    use crate::{api::ApiResponse, stats::Stats, Error, JobConfig};
-    use warp::{filters::path::Peek, reject, reply, Rejection, Reply};
+    use crate::JobConfig;
+    use warp::{reply, Rejection, Reply};
 
     pub async fn put(
         target_id: String,

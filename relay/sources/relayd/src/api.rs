@@ -7,7 +7,6 @@ mod shared_folder;
 mod system;
 
 use crate::{stats::Stats, JobConfig};
-use anyhow::Error;
 use serde::Serialize;
 use std::{
     fmt::Display,
@@ -119,7 +118,8 @@ async fn customize_error(reject: Rejection) -> Result<impl Reply, Rejection> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::RudderError;
+    use crate::error::RudderError;
+    use anyhow::Error;
 
     #[test]
     fn it_serializes_api_response() {

@@ -23,7 +23,6 @@ use crate::{
         main::{Configuration, InventoryOutputSelect, OutputSelect, ReportingOutputSelect},
     },
     data::node::NodesList,
-    error::RudderError,
     output::database::{pg_pool, PgPool},
     processing::{inventory, reporting},
     stats::Stats,
@@ -82,7 +81,7 @@ impl ExitStatus {
             ExitStatus::Crash => 1,
             ExitStatus::StartError(e) => match e.downcast_ref::<toml::de::Error>() {
                 // Configuration file error
-                Some(e) => 2,
+                Some(_e) => 2,
                 // Other error
                 None => 3,
             },
