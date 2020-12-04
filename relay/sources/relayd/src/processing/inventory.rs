@@ -9,6 +9,7 @@ use crate::{
     stats::Event,
     JobConfig,
 };
+use anyhow::Error;
 use md5::{Digest, Md5};
 use std::{os::unix::ffi::OsStrExt, sync::Arc};
 use tokio::sync::mpsc;
@@ -113,11 +114,12 @@ async fn serve(
         match job_config.cfg.processing.inventory.output {
             InventoryOutputSelect::Upstream => {
                 output_inventory_upstream(file, inventory_type, job_config.clone(), stats.clone())
-                    .await?
+                    .await
             }
             // The job should not be started in this case
             InventoryOutputSelect::Disabled => unreachable!("Inventory server should be disabled"),
-        };
+        }
+        .unwrap_or_else(|e| error!("output error: {}", e));
     }
     Ok(())
 }
@@ -127,7 +129,7 @@ async fn output_inventory_upstream(
     inventory_type: InventoryType,
     job_config: Arc<JobConfig>,
     stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
+) -> Result<(), Error> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
     let stats_clone = stats.clone();

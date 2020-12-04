@@ -18,7 +18,7 @@ use tokio::{
     sync::mpsc,
     time::interval,
 };
-use tracing::{debug, info, span, warn, Level};
+use tracing::{debug, error, info, span, warn, Level};
 
 pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), ()> {
     let mut timer = interval(cfg.frequency);
@@ -28,10 +28,14 @@ pub async fn cleanup(path: WatchedDirectory, cfg: CleanupConfig) -> Result<(), (
 
         debug!("cleaning {:?}", path);
         let sys_time = SystemTime::now();
-        let mut files = read_dir(path.clone())
-            .await
-            .map_err(|e| warn!("list error: {}", e))?;
 
+        let mut files = match read_dir(path.clone()).await {
+            Ok(f) => f,
+            Err(e) => {
+                error!("list file: {}", e);
+                continue;
+            }
+        };
         while let entry = files.next().await {
             if entry.is_none() {
                 // nothing to do
@@ -84,9 +88,13 @@ async fn list_files(
         let tx = tx.clone();
         let sys_time = SystemTime::now();
 
-        let mut files = read_dir(path.clone())
-            .await
-            .map_err(|e| warn!("list error: {}", e))?;
+        let mut files = match read_dir(path.clone()).await {
+            Ok(f) => f,
+            Err(e) => {
+                error!("list file: {}", e);
+                continue;
+            }
+        };
 
         while let entry = files.next().await {
             if entry.is_none() {

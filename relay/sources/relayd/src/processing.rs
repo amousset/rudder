@@ -8,7 +8,7 @@ use tokio::{
     fs::{remove_file, rename},
     sync::mpsc,
 };
-use tracing::{debug, error};
+use tracing::debug;
 
 pub mod inventory;
 pub mod reporting;
@@ -42,16 +42,12 @@ async fn success(
     file: ReceivedFile,
     event: Event,
     mut stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
-    stats
-        .send(event)
-        .await
-        .map_err(|e| error!("send error: {}", e))?;
+) -> Result<(), Error> {
+    stats.send(event).await?;
 
     remove_file(file.clone())
         .await
-        .map(move |_| debug!("deleted: {:#?}", file))
-        .map_err(|e| error!("error: {}", e))?;
+        .map(move |_| debug!("deleted: {:#?}", file))?;
     Ok(())
 }
 
@@ -60,11 +56,8 @@ async fn failure(
     directory: RootDirectory,
     event: Event,
     mut stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
-    stats
-        .send(event)
-        .await
-        .map_err(|e| error!("send error: {}", e))?;
+) -> Result<(), Error> {
+    stats.send(event).await?;
 
     rename(
         file.clone(),
@@ -72,8 +65,7 @@ async fn failure(
             .join("failed")
             .join(file.file_name().expect("not a file")),
     )
-    .await
-    .map_err(|e| error!("error: {}", e))?;
+    .await?;
 
     debug!(
         "moved: {:#?} to {:#?}",

@@ -42,14 +42,13 @@ pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
     watch(&path, &job_config, sender);
 }
 
+/// Should run forever except for fatal errors
 async fn serve(
     job_config: Arc<JobConfig>,
     mut rx: mpsc::Receiver<ReceivedFile>,
     stats: mpsc::Sender<Event>,
 ) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
-        // FIXME must not early return!
-
         // allows skipping temporary .dav files
         if !file
             .extension()
@@ -109,7 +108,8 @@ async fn serve(
                 Event::ReportRefused,
                 n_stats,
             )
-            .await?;
+            .await
+            .unwrap_or_else(|e| error!("output error: {}", e));
 
             error!("refused: report from {:?}, unknown id", &info.node_id);
             // this is actually expected behavior
@@ -120,14 +120,15 @@ async fn serve(
 
         match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => {
-                output_report_database(file, info, job_config.clone(), stats.clone()).await?
+                output_report_database(file, info, job_config.clone(), stats.clone()).await
             }
             ReportingOutputSelect::Upstream => {
-                output_report_upstream(file, job_config.clone(), stats.clone()).await?
+                output_report_upstream(file, job_config.clone(), stats.clone()).await
             }
             // The job should not be started in this case
             ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
-        };
+        }
+        .unwrap_or_else(|e| error!("output error: {}", e));
     }
     Ok(())
 }
@@ -137,7 +138,7 @@ async fn output_report_database(
     run_info: RunInfo,
     job_config: Arc<JobConfig>,
     stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
+) -> Result<(), Error> {
     // Everything here is blocking: reading on disk or inserting into database
     // We could use tokio::fs but it works the same and only makes things
     // more complicated, as diesel in sync.
@@ -148,8 +149,7 @@ async fn output_report_database(
     let result = spawn_blocking(move || {
         output_report_database_inner(&path_clone.clone(), &run_info, &job_config)
     })
-    .await
-    .unwrap();
+    .await?;
 
     match result {
         Ok(_) => success(path.clone(), Event::ReportInserted, stats_clone).await,
@@ -178,7 +178,7 @@ async fn output_report_upstream(
     path: ReceivedFile,
     job_config: Arc<JobConfig>,
     stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
+) -> Result<(), Error> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
     let stats_clone = stats.clone();
