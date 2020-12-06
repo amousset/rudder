@@ -40,6 +40,8 @@ paths:
     $ref: paths/system/info.yml
   "/system/reload":
     $ref: paths/system/reload.yml
+  "/system/metrics":
+    $ref: paths/system/metrics.yml
   "/shared-folder/{path}":
     $ref: paths/shared-folder.yml
   "/shared-files/{targetNodeId}/{sourceNodeId}/{fileId}":

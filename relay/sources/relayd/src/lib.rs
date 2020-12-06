@@ -12,9 +12,9 @@ pub mod data;
 pub mod error;
 pub mod hashing;
 pub mod input;
+pub mod metrics;
 pub mod output;
 pub mod processing;
-pub mod stats;
 
 use crate::{
     configuration::{
@@ -25,7 +25,6 @@ use crate::{
     data::node::NodesList,
     output::database::{pg_pool, PgPool},
     processing::{inventory, reporting},
-    stats::Stats,
 };
 use anyhow::Error;
 use reqwest::Client;
@@ -37,10 +36,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 use structopt::clap::crate_version;
-use tokio::{
-    signal::unix::{signal, SignalKind},
-    sync::mpsc,
-};
+use tokio::signal::unix::{signal, SignalKind};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     filter::EnvFilter,
@@ -122,7 +118,6 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
     // ---- Setup data structures ----
 
     let cfg = Configuration::new(cli_cfg.configuration_dir.clone())?;
-    let stats = Arc::new(RwLock::new(Stats::default()));
     let job_config = JobConfig::new(cli_cfg, cfg, reload_handle)?;
 
     // ---- Start server ----
@@ -158,24 +153,24 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
         let job_config_reload = job_config.clone();
         signal_handlers(job_config_reload);
 
-        // Spawn stats system
-        let (tx_stats, rx_stats) = mpsc::channel(1_024);
-        tokio::spawn(Stats::receiver(stats.clone(), rx_stats));
+        // Spawn metrics system
+        metrics::register();
+        tokio::spawn(metrics::data_collector(job_config.clone()));
 
         // Spawn report and inventory processing
         if job_config.cfg.processing.reporting.output.is_enabled() {
-            reporting::start(&job_config, tx_stats.clone());
+            reporting::start(&job_config);
         } else {
             info!("Skipping reporting as it is disabled");
         }
         if job_config.cfg.processing.inventory.output.is_enabled() {
-            inventory::start(&job_config, tx_stats);
+            inventory::start(&job_config);
         } else {
             info!("Skipping inventory as it is disabled");
         }
 
         // API should never return
-        api::run(job_config.clone(), stats.clone())
+        api::run(job_config.clone())
             .await
             .expect("could not start api");
     });

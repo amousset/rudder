@@ -6,12 +6,12 @@ use crate::{
     data::{RunInfo, RunLog},
     error::RudderError,
     input::{read_compressed_file, signature, watch::*},
+    metrics::{REPORTS_FORWARDED, REPORTS_INSERTED, REPORTS_RECEIVED, REPORTS_REFUSED},
     output::{
         database::{insert_runlog, InsertionBehavior},
         upstream::send_report,
     },
     processing::{failure, success, OutputError, ReceivedFile},
-    stats::Event,
     JobConfig,
 };
 use anyhow::Error;
@@ -22,7 +22,7 @@ use tracing::{debug, error, info, span, warn, Level};
 
 static REPORT_EXTENSIONS: &[&str] = &["gz", "zip", "log"];
 
-pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
+pub fn start(job_config: &Arc<JobConfig>) {
     let span = span!(Level::TRACE, "reporting");
     let _enter = span.enter();
 
@@ -34,7 +34,7 @@ pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
         .join("incoming");
 
     let (sender, receiver) = mpsc::channel(1_024);
-    tokio::spawn(serve(job_config.clone(), receiver, stats));
+    tokio::spawn(serve(job_config.clone(), receiver));
     tokio::spawn(cleanup(
         path.clone(),
         job_config.cfg.processing.reporting.cleanup,
@@ -43,11 +43,7 @@ pub fn start(job_config: &Arc<JobConfig>, stats: mpsc::Sender<Event>) {
 }
 
 /// Should run forever except for fatal errors
-async fn serve(
-    job_config: Arc<JobConfig>,
-    mut rx: mpsc::Receiver<ReceivedFile>,
-    stats: mpsc::Sender<Event>,
-) -> Result<(), ()> {
+async fn serve(job_config: Arc<JobConfig>, mut rx: mpsc::Receiver<ReceivedFile>) -> Result<(), ()> {
     while let Some(file) = rx.recv().await {
         // allows skipping temporary .dav files
         if !file
@@ -77,12 +73,7 @@ async fn serve(
         );
         let _enter = span.enter();
 
-        stats
-            .clone()
-            .send(Event::ReportReceived)
-            .await
-            .map_err(|e| error!("receive error: {}", e))
-            .map(|_| ())?;
+        REPORTS_RECEIVED.inc();
 
         // Check run info
         let info = RunInfo::try_from(file.as_ref()).map_err(|e| warn!("received: {}", e))?;
@@ -94,22 +85,16 @@ async fn serve(
         );
         let _node_enter = node_span.enter();
 
-        let n_stats = stats.clone();
-
         if !job_config
             .nodes
             .read()
             .expect("Cannot read nodes list")
             .is_subnode(&info.node_id)
         {
-            failure(
-                file,
-                job_config.cfg.processing.reporting.directory.clone(),
-                Event::ReportRefused,
-                n_stats,
-            )
-            .await
-            .unwrap_or_else(|e| error!("output error: {}", e));
+            REPORTS_REFUSED.inc();
+            failure(file, job_config.cfg.processing.reporting.directory.clone())
+                .await
+                .unwrap_or_else(|e| error!("output error: {}", e));
 
             error!("refused: report from {:?}, unknown id", &info.node_id);
             // this is actually expected behavior
@@ -120,10 +105,10 @@ async fn serve(
 
         match job_config.cfg.processing.reporting.output {
             ReportingOutputSelect::Database => {
-                output_report_database(file, info, job_config.clone(), stats.clone()).await
+                output_report_database(file, info, job_config.clone()).await
             }
             ReportingOutputSelect::Upstream => {
-                output_report_upstream(file, job_config.clone(), stats.clone()).await
+                output_report_upstream(file, job_config.clone()).await
             }
             // The job should not be started in this case
             ReportingOutputSelect::Disabled => unreachable!("Report server should be disabled"),
@@ -137,7 +122,6 @@ async fn output_report_database(
     path: ReceivedFile,
     run_info: RunInfo,
     job_config: Arc<JobConfig>,
-    stats: mpsc::Sender<Event>,
 ) -> Result<(), Error> {
     // Everything here is blocking: reading on disk or inserting into database
     // We could use tokio::fs but it works the same and only makes things
@@ -145,22 +129,23 @@ async fn output_report_database(
     let job_config_clone = job_config.clone();
     let path_clone = path.clone();
     let path_clone2 = path.clone();
-    let stats_clone = stats.clone();
     let result =
         spawn_blocking(move || output_report_database_inner(&path_clone, &run_info, &job_config))
             .await?;
 
     match result {
-        Ok(_) => success(path.clone(), Event::ReportInserted, stats_clone).await,
+        Ok(_) => {
+            REPORTS_INSERTED.inc();
+            success(path.clone()).await
+        }
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
                 OutputError::Permanent => {
+                    REPORTS_REFUSED.inc();
                     failure(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
-                        Event::ReportRefused,
-                        stats.clone(),
                     )
                     .await
                 }
@@ -176,25 +161,25 @@ async fn output_report_database(
 async fn output_report_upstream(
     path: ReceivedFile,
     job_config: Arc<JobConfig>,
-    stats: mpsc::Sender<Event>,
 ) -> Result<(), Error> {
     let job_config_clone = job_config.clone();
     let path_clone2 = path.clone();
-    let stats_clone = stats.clone();
 
     let result = send_report(job_config, path.clone()).await;
 
     match result {
-        Ok(_) => success(path.clone(), Event::ReportSent, stats_clone).await,
+        Ok(_) => {
+            REPORTS_FORWARDED.inc();
+            success(path.clone()).await
+        }
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
                 OutputError::Permanent => {
+                    REPORTS_REFUSED.inc();
                     failure(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
-                        Event::ReportRefused,
-                        stats.clone(),
                     )
                     .await
                 }

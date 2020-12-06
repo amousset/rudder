@@ -280,7 +280,7 @@ impl RemoteRun {
             Err(e) => {
                 error!("forward error: {}", e);
                 // TODO find a better way to chain errors
-                return Box::new(futures::stream::empty());
+                Box::new(futures::stream::empty())
             }
         }
     }

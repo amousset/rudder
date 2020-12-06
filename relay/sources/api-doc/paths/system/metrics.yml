@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: CC-BY-SA-2.0
+# SPDX-FileCopyrightText: 2013-2020 Normation SAS
+get:
+  summary: Get metrics
+  description: Get metrics in prometheus format. This operation does not follow usual JSON output format. There is also a `/metrics` alias to follow prometheus usual scheme.
+  operationId: getMetrics
+  responses:
+    "200":
+      description: Service status
+      content:
+        text/plain:
+          schema:
+            type: string
+            format: Prometheus metrics
+            example: |
+              # HELP inventories_received Inventories Received
+              # TYPE inventories_received counter
+              inventories_received 0
+              # HELP inventories_refused Inventories Refused
+              # TYPE inventories_refused counter
+              inventories_refused 0
+              # HELP inventories_sent Inventories Sent
+              # TYPE inventories_sent counter
+              inventories_sent 0
+              # HELP managed_nodes Managed Nodes
+              # TYPE managed_nodes gauge
+              managed_nodes 3
+              # HELP reports_forwarded Reports Sent
+              # TYPE reports_forwarded counter
+              reports_forwarded 0
+              # HELP reports_inserted Reports Inserted
+              # TYPE reports_inserted counter
+              reports_inserted 0
+              # HELP reports_received Reports Received
+              # TYPE reports_received counter
+              reports_received 0
+              # HELP reports_refused Reports Refused
+              # TYPE reports_refused counter
+              reports_refused 0
+              # HELP sub_nodes Nodes behind this policy server
+              # TYPE sub_nodes gauge
+              sub_nodes 6
+              # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+              # TYPE process_cpu_seconds_total counter
+              process_cpu_seconds_total 0.06
+              # HELP process_max_fds Maximum number of open file descriptors.
+              # TYPE process_max_fds gauge
+              process_max_fds 1024
+              # HELP process_open_fds Number of open file descriptors.
+              # TYPE process_open_fds gauge
+              process_open_fds 22
+              # HELP process_resident_memory_bytes Resident memory size in bytes.
+              # TYPE process_resident_memory_bytes gauge
+              process_resident_memory_bytes 28655616
+              # HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+              # TYPE process_start_time_seconds gauge
+              process_start_time_seconds 1607209964.27
+              # HELP process_virtual_memory_bytes Virtual memory size in bytes.
+              # TYPE process_virtual_memory_bytes gauge
+              process_virtual_memory_bytes 1285677056
+
+  tags:
+    - System
+  x-code-samples:
+    - lang: curl
+      source:
+        $ref: ../../code_samples/curl/system/metrics.sh

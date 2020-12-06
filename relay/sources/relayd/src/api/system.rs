@@ -4,18 +4,17 @@
 use crate::{
     api::{ApiResponse, ApiResult},
     check_configuration,
+    metrics::REGISTRY,
     output::database::ping,
-    stats::Stats,
     Error, JobConfig,
 };
 use serde::Serialize;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use structopt::clap::crate_version;
-use warp::{filters::method, path, reply, Filter, Reply};
+use warp::{filters::method, path, Filter, Reply};
 
 pub fn routes_1(
     job_config: Arc<JobConfig>,
-    stats: Arc<RwLock<Stats>>,
 ) -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     let base = path!("system" / ..);
 
@@ -43,15 +42,54 @@ pub fn routes_1(
         .reply())
     });
 
-    // WARNING: Not stable, will be replaced soon
-    // Kept for testing mainly
-    let stats = method::get().and(base).and(path!("stats")).map(move || {
-        Ok(reply::json(
-            &(*stats.clone().read().expect("open stats database")),
-        ))
-    });
+    let metrics = method::get()
+        .and(base)
+        .and(path!("metrics"))
+        .and_then(handlers::metrics);
 
-    info.or(reload).or(status).or(stats)
+    info.or(reload).or(status).or(metrics)
+}
+
+/// Special case for /metrics, pretty standard for prometheus
+/// alias for /rudder/relay-api/1/system/metrics
+pub fn routes_metrics() -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    method::get()
+        .and(path!("metrics"))
+        .and_then(handlers::metrics)
+}
+
+pub mod handlers {
+    use super::*;
+    use crate::api::RudderReject;
+    use warp::{reject, Rejection, Reply};
+
+    pub async fn metrics() -> Result<impl Reply, Rejection> {
+        use prometheus::Encoder;
+        let encoder = prometheus::TextEncoder::new();
+
+        let mut buffer = Vec::new();
+        if let Err(e) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
+            return Err(reject::custom(RudderReject::new(e)));
+        };
+        let mut res = match String::from_utf8(buffer.clone()) {
+            Ok(v) => v,
+            Err(e) => return Err(reject::custom(RudderReject::new(e))),
+        };
+        buffer.clear();
+
+        let mut buffer = Vec::new();
+        if let Err(e) = encoder.encode(&prometheus::gather(), &mut buffer) {
+            return Err(reject::custom(RudderReject::new(e)));
+        };
+        let res_custom = match String::from_utf8(buffer.clone()) {
+            Ok(v) => v,
+            Err(e) => return Err(reject::custom(RudderReject::new(e))),
+        };
+        buffer.clear();
+
+        res.push_str(&res_custom);
+        Ok(res)
+    }
 }
 
 // TODO could be in once_cell

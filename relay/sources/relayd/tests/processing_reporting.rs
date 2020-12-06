@@ -3,15 +3,16 @@
 
 use diesel::{self, prelude::*, PgConnection};
 use filetime::{set_file_times, FileTime};
+use regex::Regex;
 use relayd::{
     configuration::cli::CliConfiguration,
     data::report::QueryableReport,
     init_logger,
     output::database::schema::{reportsexecution::dsl::*, ruddersysevents::dsl::*},
     start,
-    stats::Stats,
 };
 use std::{
+    collections::HashMap,
     fs::{copy, create_dir_all, remove_dir_all},
     path::Path,
     thread, time,
@@ -19,6 +20,31 @@ use std::{
 
 pub fn db_connection() -> PgConnection {
     PgConnection::establish("postgres://rudderreports:PASSWORD@127.0.0.1/rudder").unwrap()
+}
+
+// List of key values to check in the metrics text
+pub fn check_prometheus(metrics: &str, mut expected: HashMap<&str, &str>) -> bool {
+    let mut is_ok = true;
+    let re = Regex::new(r"\n(?P<name>[[:word:]]+) (?P<value>.*)\n").unwrap();
+    for caps in re.captures_iter(metrics) {
+        if let Some(value) = expected.get(&caps["name"]) {
+            if !(*value == &caps["value"]) {
+                println!(
+                    "{} should equal {} but is {}",
+                    &caps["name"], value, &caps["value"]
+                );
+                is_ok = false;
+            }
+            expected.remove(&caps["name"]);
+        }
+    }
+
+    for key in expected.keys() {
+        is_ok = false;
+        println!("{} should be present but is not there", key);
+    }
+
+    is_ok
 }
 
 // Checks number of start execution reports
@@ -105,19 +131,19 @@ fn it_reads_and_inserts_a_runlog() {
     assert!(!Path::new(file_unknown).exists());
     assert!(Path::new(file_unknown_failed).exists());
 
-    let body = reqwest::blocking::get("http://localhost:3030/rudder/relay-api/1/system/stats")
+    let body = reqwest::blocking::get("http://localhost:3030/rudder/relay-api/1/system/metrics")
         .unwrap()
         .text()
         .unwrap();
-    let answer = serde_json::from_str(&body).unwrap();
-    let reference = Stats {
-        report_received: 4,
-        report_refused: 2,
-        report_sent: 0,
-        report_inserted: 2,
-        inventory_received: 0,
-        inventory_refused: 0,
-        inventory_sent: 0,
-    };
-    assert_eq!(reference, answer);
+    let mut expected = HashMap::new();
+    expected.insert("reports_received", "4");
+    expected.insert("reports_refused", "2");
+    expected.insert("reports_forwarded", "0");
+    expected.insert("reports_inserted", "2");
+    expected.insert("inventories_received", "0");
+    expected.insert("inventories_refused", "0");
+    expected.insert("inventories_sent", "0");
+    expected.insert("managed_nodes", "3");
+    expected.insert("sub_nodes", "6");
+    assert!(check_prometheus(&body, expected));
 }
