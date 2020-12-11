@@ -23,6 +23,7 @@ use crate::{
         main::{Configuration, InventoryOutputSelect, OutputSelect, ReportingOutputSelect},
     },
     data::node::NodesList,
+    metrics::{MANAGED_NODES, SUB_NODES},
     output::database::{pg_pool, PgPool},
     processing::{inventory, reporting},
 };
@@ -115,6 +116,9 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
     info!("Read configuration from {:#?}", &cli_cfg.configuration_dir);
     debug!("Parsed logging configuration:\n{:#?}", &log_cfg);
 
+    // Spawn metrics
+    metrics::register();
+
     // ---- Setup data structures ----
 
     let cfg = Configuration::new(cli_cfg.configuration_dir.clone())?;
@@ -152,10 +156,6 @@ pub fn start(cli_cfg: CliConfiguration, reload_handle: LogHandle) -> Result<(), 
         // Setup signal handlers first
         let job_config_reload = job_config.clone();
         signal_handlers(job_config_reload);
-
-        // Spawn metrics system
-        metrics::register();
-        tokio::spawn(metrics::data_collector(job_config.clone()));
 
         // Spawn report and inventory processing
         if job_config.cfg.processing.reporting.output.is_enabled() {
@@ -277,6 +277,11 @@ impl JobConfig {
             &self.cfg.general.nodes_list_file,
             Some(&self.cfg.general.nodes_certs_file),
         )?;
+        // Update nodes metrics
+        let nodes = self.nodes.read().unwrap();
+        MANAGED_NODES.set(nodes.managed_nodes() as i64);
+        SUB_NODES.set(nodes.sub_nodes() as i64);
+
         Ok(())
     }
 

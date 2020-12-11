@@ -25,8 +25,19 @@ pub fn db_connection() -> PgConnection {
 // List of key values to check in the metrics text
 pub fn check_prometheus(metrics: &str, mut expected: HashMap<&str, &str>) -> bool {
     let mut is_ok = true;
-    let re = Regex::new(r"\n(?P<name>[[:word:]]+) (?P<value>.*)\n").unwrap();
-    for caps in re.captures_iter(metrics) {
+    println!("{}", metrics);
+
+    let re = Regex::new(r"^(?P<name>.+) (?P<value>.*)$").unwrap();
+
+    for line in metrics.split("\n") {
+        if line.starts_with("#") {
+            continue;
+        }
+
+        let pp = line.split(" ").collect();
+    }
+
+    for caps in re.captures_iter(&metrics) {
         if let Some(value) = expected.get(&caps["name"]) {
             if !(*value == &caps["value"]) {
                 println!(
@@ -131,19 +142,27 @@ fn it_reads_and_inserts_a_runlog() {
     assert!(!Path::new(file_unknown).exists());
     assert!(Path::new(file_unknown_failed).exists());
 
+    //thread::sleep(time::Duration::from_secs(500));
+
     let body = reqwest::blocking::get("http://localhost:3030/rudder/relay-api/1/system/metrics")
         .unwrap()
         .text()
         .unwrap();
     let mut expected = HashMap::new();
-    expected.insert("reports_received", "4");
-    expected.insert("reports_refused", "2");
-    expected.insert("reports_forwarded", "0");
-    expected.insert("reports_inserted", "2");
-    expected.insert("inventories_received", "0");
-    expected.insert("inventories_refused", "0");
-    expected.insert("inventories_sent", "0");
-    expected.insert("managed_nodes", "3");
-    expected.insert("sub_nodes", "6");
+    expected.insert("rudder_relayd_reports_total{status=\"invalid\"}", "1");
+    expected.insert("rudder_relayd_reports_total{status=\"ok\"}", "2");
+    expected.insert("rudder_relayd_reports_total{status=\"error\"}", "1");
+    expected.insert("rudder_relayd_reports_total{status=\"forward_ok\"}", "0");
+    expected.insert("rudder_relayd_reports_total{status=\"forward_error\"}", "0");
+    expected.insert(
+        "rudder_relayd_inventories_total{status=\"forward_ok\"}",
+        "0",
+    );
+    expected.insert(
+        "rudder_relayd_inventories_total{status=\"forward_error\"}",
+        "0",
+    );
+    expected.insert("rudder_relayd_managed_nodes_total", "3");
+    expected.insert("rudder_relayd_sub_nodes_total", "6");
     assert!(check_prometheus(&body, expected));
 }

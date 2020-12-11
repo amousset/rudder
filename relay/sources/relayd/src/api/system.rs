@@ -3,7 +3,7 @@
 
 use crate::{
     api::{ApiResponse, ApiResult},
-    check_configuration,
+    check_configuration, metrics,
     metrics::REGISTRY,
     output::database::ping,
     Error, JobConfig,

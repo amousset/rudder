@@ -4,7 +4,7 @@
 use crate::{
     configuration::main::InventoryOutputSelect,
     input::watch::*,
-    metrics::{INVENTORIES_FORWARDED, INVENTORIES_RECEIVED, INVENTORIES_REFUSED},
+    metrics::INVENTORIES,
     output::upstream::send_inventory,
     processing::{failure, success, OutputError, ReceivedFile},
     JobConfig,
@@ -91,8 +91,6 @@ async fn serve(
         );
         let _enter = span.enter();
 
-        INVENTORIES_RECEIVED.inc();
-
         debug!("received: {:?}", file);
 
         match job_config.cfg.processing.inventory.output {
@@ -119,14 +117,15 @@ async fn output_inventory_upstream(
 
     match result {
         Ok(_) => {
-            INVENTORIES_FORWARDED.inc();
+            INVENTORIES.with_label_values(&["forward_ok"]).inc();
             success(path.clone()).await
         }
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
                 OutputError::Permanent => {
-                    INVENTORIES_REFUSED.inc();
+                    INVENTORIES.with_label_values(&["forward_error"]).inc();
+
                     failure(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.inventory.directory.clone(),

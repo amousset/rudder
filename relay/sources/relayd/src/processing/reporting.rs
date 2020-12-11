@@ -6,7 +6,9 @@ use crate::{
     data::{RunInfo, RunLog},
     error::RudderError,
     input::{read_compressed_file, signature, watch::*},
-    metrics::{REPORTS_FORWARDED, REPORTS_INSERTED, REPORTS_RECEIVED, REPORTS_REFUSED},
+    metrics::REPORTS,
+    metrics::REPORTS_PROCESSING_DURATION,
+    metrics::REPORTS_SIZE_BYTES,
     output::{
         database::{insert_runlog, InsertionBehavior},
         upstream::send_report,
@@ -73,8 +75,6 @@ async fn serve(job_config: Arc<JobConfig>, mut rx: mpsc::Receiver<ReceivedFile>)
         );
         let _enter = span.enter();
 
-        REPORTS_RECEIVED.inc();
-
         // Check run info
         let info = RunInfo::try_from(file.as_ref()).map_err(|e| warn!("received: {}", e))?;
 
@@ -91,7 +91,7 @@ async fn serve(job_config: Arc<JobConfig>, mut rx: mpsc::Receiver<ReceivedFile>)
             .expect("Cannot read nodes list")
             .is_subnode(&info.node_id)
         {
-            REPORTS_REFUSED.inc();
+            REPORTS.with_label_values(&["invalid"]).inc();
             failure(file, job_config.cfg.processing.reporting.directory.clone())
                 .await
                 .unwrap_or_else(|e| error!("output error: {}", e));
@@ -135,14 +135,14 @@ async fn output_report_database(
 
     match result {
         Ok(_) => {
-            REPORTS_INSERTED.inc();
+            REPORTS.with_label_values(&["ok"]).inc();
             success(path.clone()).await
         }
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
                 OutputError::Permanent => {
-                    REPORTS_REFUSED.inc();
+                    REPORTS.with_label_values(&["error"]).inc();
                     failure(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
@@ -169,14 +169,14 @@ async fn output_report_upstream(
 
     match result {
         Ok(_) => {
-            REPORTS_FORWARDED.inc();
+            REPORTS.with_label_values(&["forward_ok"]).inc();
             success(path.clone()).await
         }
         Err(e) => {
             error!("output error: {}", e);
             match OutputError::from(e) {
                 OutputError::Permanent => {
-                    REPORTS_REFUSED.inc();
+                    REPORTS.with_label_values(&["forward_error"]).inc();
                     failure(
                         path_clone2.clone(),
                         job_config_clone.cfg.processing.reporting.directory.clone(),
@@ -198,6 +198,7 @@ fn output_report_database_inner(
     job_config: &Arc<JobConfig>,
 ) -> Result<(), Error> {
     debug!("Starting insertion of {:#?}", path);
+    let timer = REPORTS_PROCESSING_DURATION.start_timer();
 
     let signed_runlog = signature(
         &read_compressed_file(&path)?,
@@ -209,6 +210,8 @@ fn output_report_database_inner(
             .certs(&run_info.node_id)
             .ok_or_else(|| RudderError::MissingCertificateForNode(run_info.node_id.clone()))?,
     )?;
+
+    REPORTS_SIZE_BYTES.observe(signed_runlog.len() as f64);
 
     let parsed_runlog: RunLog = RunLog::try_from((run_info.clone(), signed_runlog.as_ref()))?;
 
@@ -232,5 +235,7 @@ fn output_report_database_inner(
         &filtered_runlog,
         InsertionBehavior::SkipDuplicate,
     )?;
+
+    timer.observe_duration();
     Ok(())
 }
