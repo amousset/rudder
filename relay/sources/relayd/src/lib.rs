@@ -29,15 +29,10 @@ use crate::{
 };
 use anyhow::Error;
 use reqwest::Client;
-use std::{
-    fs::create_dir_all,
-    path::Path,
-    process::exit,
-    string::ToString,
-    sync::{Arc, RwLock},
-};
+use std::{fs::create_dir_all, path::Path, process::exit, string::ToString, sync::Arc};
 use structopt::clap::crate_version;
 use tokio::signal::unix::{signal, SignalKind};
+use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
     filter::EnvFilter,
@@ -270,15 +265,15 @@ impl JobConfig {
         }))
     }
 
-    fn reload_nodeslist(&self) -> Result<(), Error> {
-        let mut nodes = self.nodes.write().expect("could not write nodes list");
+    async fn reload_nodeslist(&self) -> Result<(), Error> {
+        let mut nodes = self.nodes.write().await;
         *nodes = NodesList::new(
             self.cfg.general.node_id.to_string(),
             &self.cfg.general.nodes_list_file,
             Some(&self.cfg.general.nodes_certs_file),
         )?;
         // Update nodes metrics
-        let nodes = self.nodes.read().unwrap();
+        let nodes = self.nodes.read().await;
         MANAGED_NODES.set(nodes.managed_nodes() as i64);
         SUB_NODES.set(nodes.sub_nodes() as i64);
 
@@ -293,10 +288,10 @@ impl JobConfig {
         })
     }
 
-    pub fn reload(&self) -> Result<(), Error> {
+    pub async fn reload(&self) -> Result<(), Error> {
         info!("Configuration reload requested");
         self.reload_logging()
-            .and_then(|_| self.reload_nodeslist())
+            .and_then(|_| async { self.reload_nodeslist().await })
             .map_err(|e| {
                 error!("reload error {}", e);
                 e

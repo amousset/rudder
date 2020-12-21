@@ -294,7 +294,7 @@ pub enum RemoteRunTarget {
 
 impl RemoteRunTarget {
     pub fn neighbors(&self, job_config: Arc<JobConfig>) -> Vec<Host> {
-        let nodes = job_config.nodes.read().expect("Cannot read nodes list");
+        let nodes = job_config.nodes.read().await;
         let neighbors = match self {
             RemoteRunTarget::All => nodes.my_neighbors(),
             RemoteRunTarget::Nodes(nodeslist) => nodes.my_neighbors_from(nodeslist),
@@ -304,7 +304,7 @@ impl RemoteRunTarget {
     }
 
     pub fn next_hops(&self, job_config: Arc<JobConfig>) -> Vec<(Host, RemoteRunTarget)> {
-        let nodes = job_config.nodes.read().expect("Cannot read nodes list");
+        let nodes = job_config.nodes.read().await;
         let next_hops = match self {
             RemoteRunTarget::All => nodes
                 .my_sub_relays()

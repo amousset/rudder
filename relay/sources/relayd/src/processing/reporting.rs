@@ -85,12 +85,7 @@ async fn serve(job_config: Arc<JobConfig>, mut rx: mpsc::Receiver<ReceivedFile>)
         );
         let _node_enter = node_span.enter();
 
-        if !job_config
-            .nodes
-            .read()
-            .expect("Cannot read nodes list")
-            .is_subnode(&info.node_id)
-        {
+        if !job_config.nodes.read().await.is_subnode(&info.node_id) {
             REPORTS.with_label_values(&["invalid"]).inc();
             failure(file, job_config.cfg.processing.reporting.directory.clone())
                 .await
@@ -206,7 +201,7 @@ fn output_report_database_inner(
             .clone()
             .nodes
             .read()
-            .expect("read nodes")
+            .await
             .certs(&run_info.node_id)
             .ok_or_else(|| RudderError::MissingCertificateForNode(run_info.node_id.clone()))?,
     )?;
