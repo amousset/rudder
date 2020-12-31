@@ -147,7 +147,7 @@ pub async fn put(
 
     if job_config.nodes.read().await.is_subnode(&file.target_id) {
         put_local(file, params, job_config, body).await
-    } else if job_config.cfg.general.node_id == "root" {
+    } else if job_config.nodes.read().await.my_id() == "root" {
         Err(RudderError::UnknownNode(file.target_id).into())
     } else {
         put_forward(file, params, job_config, body).await
@@ -292,7 +292,7 @@ pub async fn head(
 
     if job_config.nodes.read().await.is_subnode(&file.target_id) {
         head_local(file, params, job_config).await
-    } else if job_config.cfg.general.node_id == "root" {
+    } else if job_config.nodes.read().await.my_id() == "root" {
         Err(RudderError::UnknownNode(file.target_id).into())
     } else {
         head_forward(file, params, job_config).await

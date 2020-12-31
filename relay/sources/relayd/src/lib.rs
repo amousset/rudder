@@ -22,6 +22,7 @@ use crate::{
         logging::LogConfig,
         main::{Configuration, InventoryOutputSelect, OutputSelect, ReportingOutputSelect},
     },
+    data::node::NodeId,
     data::node::NodesList,
     metrics::{MANAGED_NODES, SUB_NODES},
     output::database::{pg_pool, PgPool},
@@ -29,6 +30,7 @@ use crate::{
 };
 use anyhow::Error;
 use reqwest::Client;
+use std::fs::read_to_string;
 use std::{fs::create_dir_all, path::Path, process::exit, string::ToString, sync::Arc};
 use structopt::clap::crate_version;
 use tokio::{
@@ -255,7 +257,7 @@ impl JobConfig {
             .build()?;
 
         let nodes = RwLock::new(NodesList::new(
-            cfg.general.node_id.to_string(),
+            cfg.read_node_id()?,
             &cfg.general.nodes_list_file,
             Some(&cfg.general.nodes_certs_file),
         )?);
@@ -273,7 +275,8 @@ impl JobConfig {
     async fn reload_nodeslist(&self) -> Result<(), Error> {
         let mut nodes = self.nodes.write().await;
         *nodes = NodesList::new(
-            self.cfg.general.node_id.to_string(),
+            // Reload node_id too
+            self.cfg.read_node_id()?,
             &self.cfg.general.nodes_list_file,
             Some(&self.cfg.general.nodes_certs_file),
         )?;

@@ -172,6 +172,10 @@ impl NodesList {
             .and_then(|node| node.certificates.as_ref())
     }
 
+    pub fn my_id(&self) -> &str {
+        &self.my_id
+    }
+
     fn id_from_cert(cert: &X509) -> Result<NodeId, Error> {
         Ok(cert
             .subject_name()

@@ -17,6 +17,7 @@ use std::{
     time::Duration,
 };
 use tracing::debug;
+use tracing::warn;
 
 pub type BaseDirectory = PathBuf;
 pub type WatchedDirectory = PathBuf;
@@ -60,7 +61,7 @@ where
 #[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 // Default can be implemented in serde using the Default trait
 pub struct Configuration {
-    // general section is mandatory
+    #[serde(default)]
     pub general: GeneralConfig,
     #[serde(default)]
     pub processing: ProcessingConfig,
@@ -81,6 +82,18 @@ impl Configuration {
             debug!("Parsed main configuration:\n{:#?}", &cfg);
         }
         res
+    }
+
+    /// Read current node_id, and handle override by node_id
+    /// Can be removed once node_id is removed
+    pub fn read_node_id(&self) -> Result<NodeId, Error> {
+        Ok(match &self.general.node_id {
+            Some(id) => {
+                warn!("node_id setting is deprecated, use node_id_file instead");
+                id.clone()
+            }
+            None => read_to_string(&self.general.node_id_file)?,
+        })
     }
 }
 
@@ -103,8 +116,11 @@ pub struct GeneralConfig {
     pub nodes_list_file: NodesListFile,
     #[serde(default = "GeneralConfig::default_nodes_certs_file")]
     pub nodes_certs_file: NodesCertsFile,
-    /// No possible sane default value
-    pub node_id: NodeId,
+    #[serde(default = "GeneralConfig::default_node_id_file")]
+    node_id_file: PathBuf,
+    /// DEPRECATED: Has priority over node_id_file, use the
+    /// `Configuration::node_id()` method to get correct value
+    node_id: Option<NodeId>,
     #[serde(default = "GeneralConfig::default_listen")]
     pub listen: String,
     /// None means using the number of available CPUs
@@ -128,6 +144,10 @@ impl GeneralConfig {
 
     fn default_listen() -> String {
         "127.0.0.1:3030".to_string()
+    }
+
+    fn default_node_id_file() -> PathBuf {
+        PathBuf::from("/opt/rudder/etc/uuid.hive")
     }
 }
 
@@ -456,10 +476,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_fails_with_empty_config() {
-        let empty = "";
-        let config = empty.parse::<Configuration>();
-        assert!(config.is_err());
+    fn it_parses_deprecated_node_id() {
+        let default = "[general]\n\
+        node_id = \"test\"\n";
+        let config = default.parse::<Configuration>().unwrap();
+        assert_eq!(config.read_node_id().unwrap(), "test".to_string());
     }
 
     #[test]
@@ -467,21 +488,20 @@ mod tests {
         let default = "[general]\n\
                        node_id = \"root\"\n\
                        listen = \"relayd:3030\"";
-        let config = default.parse::<Configuration>().unwrap();
-        dbg!(&config);
+        let _ = default.parse::<Configuration>().unwrap();
     }
 
     #[test]
-    fn it_parses_main_configuration_with_defaults() {
-        let default = "[general]\n\
-                       node_id = \"root\"";
-        let config = default.parse::<Configuration>();
+    fn it_parses_empty_main_configuration() {
+        let empty = "";
+        let config = empty.parse::<Configuration>().unwrap();
 
         let reference = Configuration {
             general: GeneralConfig {
                 nodes_list_file: PathBuf::from("/var/rudder/lib/relay/nodeslist.json"),
                 nodes_certs_file: PathBuf::from("/var/rudder/lib/ssl/allnodescerts.pem"),
-                node_id: "root".to_string(),
+                node_id: None,
+                node_id_file: PathBuf::from("/opt/rudder/etc/uuid.hive"),
                 listen: "127.0.0.1:3030".parse().unwrap(),
                 core_threads: None,
                 max_threads: None,
@@ -540,7 +560,7 @@ mod tests {
             },
         };
 
-        assert_eq!(config.unwrap(), reference);
+        assert_eq!(config, reference);
     }
 
     #[test]
@@ -563,13 +583,14 @@ mod tests {
 
     #[test]
     fn it_parses_main_configuration() {
-        let config = Configuration::new("tests/files/config/");
+        let config = Configuration::new("tests/files/config/").unwrap();
 
         let reference = Configuration {
             general: GeneralConfig {
                 nodes_list_file: PathBuf::from("tests/files/nodeslist.json"),
                 nodes_certs_file: PathBuf::from("tests/files/keys/nodescerts.pem"),
-                node_id: "root".to_string(),
+                node_id: None,
+                node_id_file: PathBuf::from("tests/files/config/uuid.hive"),
                 listen: "127.0.0.1:3030".parse().unwrap(),
                 core_threads: None,
                 max_threads: Some(512),
@@ -627,6 +648,7 @@ mod tests {
                 path: PathBuf::from("tests/api_shared_folder"),
             },
         };
-        assert_eq!(config.unwrap(), reference);
+        assert_eq!(config, reference);
+        assert_eq!(config.read_node_id().unwrap(), "root".to_string());
     }
 }
