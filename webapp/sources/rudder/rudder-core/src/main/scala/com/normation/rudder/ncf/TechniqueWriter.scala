@@ -184,21 +184,20 @@ class RudderCRunner(
   // Create an empty reporting bundle for compatibility with the fallback process
   // Can be removed once rudderc is the only generation method
   def emptyReportingFile(technique : EditorTechnique) = {
-
     val bundleParams = if (technique.parameters.nonEmpty) technique.parameters.map(_.name.canonify).mkString("(",",",")") else ""
     val content =
       s"""bundle agent ${technique.bundleName.value}_rudder_reporting${bundleParams}
          |{
          |}"""
+    val reportingFile = File(outputPath) / "techniques"/ technique.category / technique.bundleName.value / technique.version.value / "rudder_reporting.cf"
 
-    val reportingFile = File(outputPath) / "rudder_reporting.cf"
-
-
-    TechniqueWriterLoggerPure.error(s"PLOUF target '${technique.name}' in path ${reportingFile.path.toString}")
-
-    IOResult.effect(s"Could not write empty reporting Technique file '${technique.name}' in path ${reportingFile.path.toString}") {
-      reportingFile.createFileIfNotExists(true).write(content.stripMargin('|'))
-      Seq(File(outputPath).relativize(reportingFile.path).toString)
+    for {
+      _ <- TechniqueWriterLoggerPure.debug(s"Creating empty reporting file for target '${technique.name}' in path ${reportingFile.path.toString}")
+      _ <- IOResult.effect(s"Could not write empty reporting Technique file '${technique.name}' in path ${reportingFile.path.toString}") {
+             reportingFile.createFileIfNotExists(true).write(content.stripMargin('|'))
+           }
+    } yield {
+      ()
     }
   }
 
