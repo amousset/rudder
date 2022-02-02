@@ -169,7 +169,7 @@ class ComplianceTest extends Specification {
           , RuleId(RuleUid(l (4)))
           , DirectiveId(DirectiveUid(l(3)))
           , NodeId(l(2))
-          , l(5).toInt
+          , l(5)
           , l(6)
           , l(7)
           , dateParser.parseDateTime(l(8))

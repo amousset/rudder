@@ -352,7 +352,7 @@ class TechniqueWriter (
             }
 
           } yield {
-            <VALUE>{class_param}</VALUE>
+            <VALUE id={call.id}>{class_param}</VALUE>
           }
 
         )
@@ -583,7 +583,7 @@ class ClassicTechniqueWriter(basePath : String, parameterTypeService: ParameterT
   def reportingContext(methodCall: MethodCall, classParameterValue: String ) = {
     val component  = escapeCFEngineString(methodCall.component)
     val value = escapeCFEngineString(classParameterValue)
-    s"""_method_reporting_context("${component}", "${value}")"""
+    s"""_method_reporting_context("${component}", "${value}","${methodCall.id}")"""
   }
 
 

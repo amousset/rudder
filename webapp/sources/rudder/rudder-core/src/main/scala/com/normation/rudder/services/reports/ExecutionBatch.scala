@@ -357,21 +357,25 @@ object ExecutionBatch extends Loggable {
     Pattern.compile("""\Q"""+ x.replaceAll(replaceCFEngineVars, """\\E.*\\Q""") + """\E""")
   }
 
-  final def checkExpectedVariable(expected: String, effective: String) : Boolean = {
-    if (expected == effective) {
-      true
-    } else {
-      // If this is not a var, there isn't anything to match.
-      if (StringUtils.contains(expected, '$')) {
-        val isVar = matchCFEngineVars.pattern.matcher(expected).matches()
-        if (isVar) {
-          replaceCFEngineVars(expected).matcher(effective).matches()
+  final def checkExpectedVariable(expected: ExpectedValue, effective: ResultReports) : Boolean = {
+    expected match {
+      case ExpectedValueId(_,id) => id == effective.reportId
+      case ExpectedValueMatch(expected, _) =>
+        if (expected == effective.keyValue) {
+          true
         } else {
-          false
+          // If this is not a var, there isn't anything to match.
+          if (StringUtils.contains(expected, '$')) {
+            val isVar = matchCFEngineVars.pattern.matcher(expected).matches()
+            if (isVar) {
+              replaceCFEngineVars(expected).matcher(effective.keyValue).matches()
+            } else {
+              false
+            }
+          } else {
+            false
+          }
         }
-      } else {
-        false
-      }
     }
   }
 
@@ -837,17 +841,6 @@ final case class ContextForNoAnswer(
   }
 
 
-  private[reports] def componentExpectedReportToStatusReport (reportType: ReportType, c : ComponentExpectedReport) : ComponentStatusReport = {
-    c match {
-      case c : ValueExpectedReport =>
-        ValueStatusReport(c.componentName, c.groupedComponentValues.map { case(v,u) => (u ->
-          ComponentValueStatusReport(v, u, MessageStatusReport(reportType, None) :: Nil)
-          )}.toMap)
-      case c : BlockExpectedReport =>
-        BlockStatusReport(c.componentName, c.reportingLogic, c.subComponents.map(componentExpectedReportToStatusReport(reportType, _)))
-    }
-
-  }
 
 
   class ComputeComplianceTimer() {
@@ -946,7 +939,7 @@ final case class ContextForNoAnswer(
               val r = components.map { c =>
                 // HEre reports need to be filtered to only match values that are expected for the Value that is at the end of the component path
                 // and its component nae
-                val filteredReports = reports.flatMap { case ((id, cname), r) => r.filter(value => directiveId == id && cname == c.value.componentName && c.value.componentsValues.exists(v => checkExpectedVariable(v, value.keyValue))) }.toList
+                val filteredReports = reports.flatMap { case ((id, cname), r) => r.filter(value => directiveId == id && cname == c.value.componentName && c.value.componentsValues.exists(v => checkExpectedVariable(v, value))) }.toList
                 // The component used to analyse reports is the component at the top of our structure that we recreate the whole tree
                 checkExpectedComponentWithReports(c.component, filteredReports, missingReportStatus, policyMode, unexpectedInterpretation)
               }
@@ -1138,6 +1131,22 @@ final case class ContextForNoAnswer(
     }
   }
 
+  private[reports] def componentExpectedReportToStatusReport (reportType: ReportType, c : ComponentExpectedReport) : ComponentStatusReport = {
+       c match {
+         case c : ValueExpectedReport =>
+              ValueStatusReport(c.componentName, c.componentsValues.map {
+                case ExpectedValueId(v,_) => (v,v)
+                case ExpectedValueMatch(v,u) => (v,u)
+              }.map { case(v,u) => (u ->
+                  ComponentValueStatusReport(v, u, MessageStatusReport(reportType, None) :: Nil)
+                  )}.toMap)
+            case c : BlockExpectedReport =>
+              BlockStatusReport(c.componentName, c.reportingLogic, c.subComponents.map(componentExpectedReportToStatusReport(reportType, _)))
+          }
+
+        }
+
+
   // by construct, NodeExpectedReports are correctly grouped by Rule/Directive/Component
   private[reports] def buildRuleNodeStatusReport(
       mergeInfo      : MergeInfo
@@ -1201,10 +1210,16 @@ final case class ContextForNoAnswer(
           checkExpectedComponentWithReports(e,filteredReports.filter(_.component == e.componentName), noAnswerType, policyMode, unexpectedInterpretation)
         case e => checkExpectedComponentWithReports(e,filteredReports, noAnswerType, policyMode, unexpectedInterpretation)})
       case expectedComponent: ValueExpectedReport =>
+
+        val (matchValue, matchId) = expectedComponent.componentsValues.partitionMap{
+          case e:ExpectedValueMatch => Left(e)
+          case e: ExpectedValueId => Right(e)
+        }
+
+
         // an utility class that store an expected value and the list of matching reports for it
         final case class Value(
-          value: String
-          , unexpanded: String
+            expectedValue: ExpectedValueMatch
           , cardinality: Int // number of expected reports, most of the time '1'
           , isVar: Boolean
           , pattern: Option[Pattern]
@@ -1241,7 +1256,7 @@ final case class ContextForNoAnswer(
                 case Some(x) => (value :: stack, Some(x))
                 case None =>
                   // We don't need to match if it's not a variable. By construct, if it is a var, there is a pattern
-                  if (((!value.isVar) && (value.value == report.keyValue)) || (value.isVar && (value.pattern.get.matcher(report.keyValue).matches()))) {
+                  if (((!value.isVar) && (value.expectedValue.value == report.keyValue)) || (value.isVar && (value.pattern.get.matcher(report.keyValue).matches()))) {
                     val card = value.cardinality + (if (incrementCardinality(value, report)) 1 else 0)
                     (stack, Some(value.copy(
                       cardinality = card
@@ -1303,18 +1318,18 @@ final case class ContextForNoAnswer(
         // bugs like #7758. A pattern specificity, in our case, can somehow be told from
         // the lenght of the pattern when \Q\E.* are removed.
         //
-        val values = expectedComponent.groupedComponentValues.toList.map { case (v, u) =>
-          val isVar = matchCFEngineVars.pattern.matcher(v).matches()
+        val values = matchValue.map { v =>
+          val isVar = matchCFEngineVars.pattern.matcher(v.value).matches()
           val pattern = if (isVar) { // If this is not a var, there isn't anything to replace.
-            Some(replaceCFEngineVars(v))
+            Some(replaceCFEngineVars(v.value))
           } else {
             None
           }
           //If this is not a variable, we use the variable itself
-          val specificity = pattern.map(_.toString.replaceAll("""\\Q""", "").replaceAll("""\\E""", "").replaceAll("""\.\*""", "")).getOrElse(v).size
+          val specificity = pattern.map(_.toString.replaceAll("""\\Q""", "").replaceAll("""\\E""", "").replaceAll("""\.\*""", "")).getOrElse(v.value).size
           // default cardinality for a value is 1
           // default duplicate is 0 (and hopefully will remain so)
-          Value(v, u, 1, isVar, pattern, specificity, Nil)
+          Value(v, 1, isVar, pattern, specificity, Nil)
         }.sortWith(_.specificity > _.specificity)
 
         if (logger.isTraceEnabled)
@@ -1340,7 +1355,7 @@ final case class ContextForNoAnswer(
           //here, we need to lie a little about the cardinality. It should be 1 (because it's only one component value),
           //but it may be more if we accept duplicate/unboundVar. So just use the max(1, number of paired reports)
           buildComponentValueStatus(
-            v.unexpanded
+              v.expectedValue
             , v.matchingReports
             , componentGotAtLeastOneReport
             , v.cardinality
@@ -1387,7 +1402,7 @@ final case class ContextForNoAnswer(
    *
    */
   private[this] def buildComponentValueStatus(
-      currentValue        : String
+      expectedValueMatch: ExpectedValueMatch
     , filteredReports     : Seq[Reports]
     , componentGotReports : Boolean // does the component got at least one report?
     , cardinality         : Int
@@ -1419,8 +1434,8 @@ final case class ContextForNoAnswer(
      * Note: we DO use expanded values to merge with reports.
      */
     ComponentValueStatusReport(
-        currentValue
-      , currentValue
+        expectedValueMatch.value
+      , expectedValueMatch.value
       , messageStatusReports
     )
   }

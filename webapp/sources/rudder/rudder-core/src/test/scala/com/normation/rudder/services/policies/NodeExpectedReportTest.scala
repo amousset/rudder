@@ -72,9 +72,9 @@ class NodeExpectedReportTest extends Specification {
 
   //a technique with a var non multi-valued and a mutivalued section with 2 components
   // a non multivalued var
-  def tvar(x: String)  = SectionVariableSpec(s"var_${x}", "", "INPUT", valueslabels = Nil, providedValues = Nil)
+  def tvar(x: String)  = SectionVariableSpec(s"var_${x}", "", "INPUT", valueslabels = Nil, providedValues = Nil, id = None)
   // a multivalued var
-  def tmvar(x: String) = SectionVariableSpec(s"m_var_${x}", "", "INPUT", multivalued = true, valueslabels = Nil, providedValues = Nil)
+  def tmvar(x: String) = SectionVariableSpec(s"m_var_${x}", "", "INPUT", multivalued = true, valueslabels = Nil, providedValues = Nil, id = None)
 
   // return the couple of (var name, var with value)
   def v(x: String, values: String*) = {
@@ -91,7 +91,7 @@ class NodeExpectedReportTest extends Specification {
     PolicyTechnique(
         TechniqueId(TechniqueName("t"+x), TechniqueVersionHelper("1.0"))
       , AgentConfig(AgentType.CfeCommunity, Nil, Nil, List(BundleName("t"+x)), Nil)
-      , TrackerVariableSpec(Some(s"m_var_${x}_1"))
+      , TrackerVariableSpec(Some(s"m_var_${x}_1"), None)
       , SectionSpec(name = "root", isMultivalued = false, isComponent = false, componentKey = None, children = List(
           SectionSpec(name = s"var_${x}_0", isMultivalued = false, isComponent = true, componentKey = Some(s"var_${x}_0"), children = List(
             tvar(x+"_0")
@@ -326,7 +326,7 @@ class NodeExpectedReportTest extends Specification {
     def componentIdCreator(componentKey: String, parentPath: List[String], value: String) : (ComponentId, Variable)= {
       // expectedReportKey is the prefix of the variable name, so necessary
       val componentId = ComponentId("expectedReportKey " + componentKey, parentPath)
-      val variable = SectionVariableSpec("expectedReportKey " + componentKey, "", "REPORTKEYS", valueslabels = Nil, providedValues = Seq(value))
+      val variable = SectionVariableSpec("expectedReportKey " + componentKey, "", "REPORTKEYS", valueslabels = Nil, providedValues = Seq(value), id = None)
       (componentId, variable.toVariable(Seq(value)))
     }
 
