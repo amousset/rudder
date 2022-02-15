@@ -271,6 +271,7 @@ pub struct Report {
     pub node_id: NodeId,
     #[column_name = "executiondate"]
     pub execution_datetime: DateTime<FixedOffset>,
+    #[column_name = "reportid"]
     pub report_id: String,
 }
 
