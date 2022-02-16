@@ -359,7 +359,8 @@ object ExecutionBatch extends Loggable {
 
   final def checkExpectedVariable(expected: ExpectedValue, effective: ResultReports) : Boolean = {
     expected match {
-      case ExpectedValueId(_,id) => id == effective.reportId
+      case ExpectedValueId(_,id) =>
+        id == effective.reportId
       case ExpectedValueMatch(expected, _) =>
         if (expected == effective.keyValue) {
           true
@@ -879,7 +880,7 @@ final case class ContextForNoAnswer(
     val t1 = System.nanoTime
     //here, we had at least one report, even if it not a ResultReports (i.e: run start/end is meaningful
 
-    val reports = reportsForThatNodeRule.groupBy(x => (x.directiveId, x.component) )
+    val reports = reportsForThatNodeRule.groupBy(x => x.directiveId )
 
     val expectedComponents: Map[(DirectiveId, List[EffectiveExpectedComponent]), (PolicyMode, ReportType)] = (for {
       directive  <- directives
@@ -911,7 +912,7 @@ final case class ContextForNoAnswer(
      * - both expected component and reports => check
      */
     val reportKeys = reports.keySet
-    val expectedKeys: Set[(DirectiveId,String)] = expectedComponents.keySet.flatMap(c => c._2.map(d => (c._1, d.value.componentName)))
+    val expectedKeys: Set[DirectiveId] = expectedComponents.keySet.map(_._1)
     val okKeys = reportKeys.intersect(expectedKeys)
 
     val t3 = System.nanoTime
@@ -920,7 +921,7 @@ final case class ContextForNoAnswer(
     //unexpected contains the one with unexpected key and all non matching serial/version
     val unexpected = (if (okKeys.size != reportKeys.size) {
       buildUnexpectedDirectives(
-        reports.filter(k => !expectedKeys.contains((k._1._1,k._1._2)                                       )).values.flatten.toSeq
+        reports.filter(k => !expectedKeys.contains(k._1                                       )).values.flatten.toSeq
       )
     } else {
       Seq[DirectiveStatusReport]()
@@ -935,17 +936,17 @@ final case class ContextForNoAnswer(
         case (directiveId, expectedComponentsForDirective) =>
           DirectiveStatusReport(directiveId, expectedComponentsForDirective.flatMap {
             case ((directiveId, components), (policyMode, missingReportStatus)) =>
+              val filteredReports = reports.get(directiveId).getOrElse(Seq())
               // We iterate on each effective component (not a component but a component that only contains a unique path to a unique value
               val r = components.map { c =>
                 // HEre reports need to be filtered to only match values that are expected for the Value that is at the end of the component path
                 // and its component nae
-                val filteredReports = reports.flatMap { case ((id, cname), r) => r.filter(value => directiveId == id && cname == c.value.componentName && c.value.componentsValues.exists(v => checkExpectedVariable(v, value))) }.toList
                 // The component used to analyse reports is the component at the top of our structure that we recreate the whole tree
                 checkExpectedComponentWithReports(c.component, filteredReports, missingReportStatus, policyMode, unexpectedInterpretation)
               }
               // Merge all components together
-              ComponentStatusReport.merge(r)
-          })
+              ComponentStatusReport.merge(r.flatten)
+          }.toList)
       }
 
 
@@ -1108,11 +1109,11 @@ final case class ContextForNoAnswer(
         , mergeInfo.run
         , mergeInfo.configId
         , seq.groupBy(_.directiveId).map{ case (directiveId, reportsByDirectives) =>
-          (directiveId, DirectiveStatusReport(directiveId, reportsByDirectives.groupBy(_.component).map { case (component, reportsByComponents) =>
-            (component, ValueStatusReport(component, reportsByComponents.groupBy(_.keyValue).map { case (keyValue, reportsByComponent) =>
-              (keyValue, ComponentValueStatusReport(keyValue, keyValue, reportsByComponent.map(r => MessageStatusReport(ReportType.Unexpected, r.message)).toList))
-              }.toMap)
-            )}.toMap)
+          (directiveId, DirectiveStatusReport(directiveId, reportsByDirectives.groupBy(_.component).toList.map { case (component, reportsByComponents) =>
+            ValueStatusReport(component, reportsByComponents.groupBy(_.keyValue).toList.map { case (keyValue, reportsByComponent) =>
+              ComponentValueStatusReport(keyValue, keyValue, reportsByComponent.map(r => MessageStatusReport(ReportType.Unexpected, r.message)).toList)
+            })
+            })
           )}.toMap
         , mergeInfo.expirationTime
       )
@@ -1123,11 +1124,10 @@ final case class ContextForNoAnswer(
    */
   private[this] def buildUnexpectedDirectives(reports: Seq[Reports]): Seq[DirectiveStatusReport] = {
     reports.map { r =>
-      DirectiveStatusReport(r.directiveId, Map(r.component ->
-        ValueStatusReport(r.component, Map(r.keyValue ->
-          ComponentValueStatusReport(r.keyValue, r.keyValue, MessageStatusReport(ReportType.Unexpected, r.message) :: Nil)
-        )))
-      )
+      DirectiveStatusReport(r.directiveId,
+        ValueStatusReport(r.component, ComponentValueStatusReport(r.keyValue, r.keyValue, MessageStatusReport(ReportType.Unexpected, r.message) :: Nil) :: Nil
+        ) :: Nil)
+
     }
   }
 
@@ -1137,9 +1137,9 @@ final case class ContextForNoAnswer(
               ValueStatusReport(c.componentName, c.componentsValues.map {
                 case ExpectedValueId(v,_) => (v,v)
                 case ExpectedValueMatch(v,u) => (v,u)
-              }.map { case(v,u) => (u ->
+              }.map { case(v,u) =>
                   ComponentValueStatusReport(v, u, MessageStatusReport(reportType, None) :: Nil)
-                  )}.toMap)
+                  })
             case c : BlockExpectedReport =>
               BlockStatusReport(c.componentName, c.reportingLogic, c.subComponents.map(componentExpectedReportToStatusReport(reportType, _)))
           }
@@ -1158,10 +1158,8 @@ final case class ContextForNoAnswer(
       val d = directives.map { d =>
         (d.directiveId, DirectiveStatusReport(d.directiveId,
           d.components.map { c =>
-
-
-            (c.componentName, componentExpectedReportToStatusReport(status, c))
-          }.toMap
+            componentExpectedReportToStatusReport(status, c)
+          }
         )
         )}.toMap
       RuleNodeStatusReport(
@@ -1202,14 +1200,14 @@ final case class ContextForNoAnswer(
     , noAnswerType            : ReportType
     , policyMode              : PolicyMode //the one of the directive, or node, or global
     , unexpectedInterpretation: UnexpectedReportInterpretation
-  ) : ComponentStatusReport = {
+  ) : List[ComponentStatusReport] = {
 
     expectedComponent match {
       case g: BlockExpectedReport =>
-        BlockStatusReport(g.componentName, g.reportingLogic, g.subComponents.map{case e : ValueExpectedReport =>
-          checkExpectedComponentWithReports(e,filteredReports.filter(_.component == e.componentName), noAnswerType, policyMode, unexpectedInterpretation)
-        case e => checkExpectedComponentWithReports(e,filteredReports, noAnswerType, policyMode, unexpectedInterpretation)})
-      case expectedComponent: ValueExpectedReport =>
+        BlockStatusReport(g.componentName, g.reportingLogic, g.subComponents.flatMap { case e =>
+          checkExpectedComponentWithReports(e, filteredReports, noAnswerType, policyMode, unexpectedInterpretation)
+        }) :: Nil
+         case expectedComponent: ValueExpectedReport =>
 
         val (matchValue, matchId) = expectedComponent.componentsValues.partitionMap{
           case e:ExpectedValueMatch => Left(e)
@@ -1341,16 +1339,12 @@ final case class ContextForNoAnswer(
         if (logger.isTraceEnabled)
           logger.trace("sorted reports: \n - " + sortedReports.map(_.keyValue).mkString("\n - "))
 
-        val (pairedValue, unexpected) = recPairReports(sortedReports.toList, values, Nil, Nil, unexpectedInterpretation)
+        val (pairedValue, unexpected) = recPairReports(sortedReports.toList.filter(_.component == expectedComponent.componentName), values, Nil, Nil, unexpectedInterpretation)
 
         if (logger.isTraceEnabled) {
           logger.trace("paires: \n + " + pairedValue.mkString("\n + "))
           logger.trace("unexpected: " + unexpected)
         }
-        // now, we need to transform pairedValue into ComponentStatus reports
-        val unexpectedReportStatus = unexpected.map(r =>
-          ComponentValueStatusReport(r.keyValue, r.keyValue, MessageStatusReport(ReportType.Unexpected, r.message) :: Nil)
-        )
         val pairedReportStatus = pairedValue.map { v =>
           //here, we need to lie a little about the cardinality. It should be 1 (because it's only one component value),
           //but it may be more if we accept duplicate/unboundVar. So just use the max(1, number of paired reports)
@@ -1363,21 +1357,31 @@ final case class ContextForNoAnswer(
             , policyMode
           )
         }
+
+      val matched =  matchId.flatMap(
+         id =>
+           filteredReports.filter(_.reportId == id.id).groupBy(_.component).toList.map {
+             case (c, reports) =>
+               ValueStatusReport(c,
+                 reports.groupBy(_.keyValue).toList.map {
+                   case (v, r) =>
+                     ComponentValueStatusReport(v,v, r.map(r => r.toMessageStatusReport(policyMode)).toList)
+                 }
+               )
+           }
+
+       )
         /*
      * And now, merge all values into a component.
      */
-        ValueStatusReport(
-          expectedComponent.componentName
-          , ComponentValueStatusReport.merge(unexpectedReportStatus ::: pairedReportStatus).view.mapValues { status =>
-            // here we want to ensure that if a message is unexpected, all other are
-            if (status.messages.exists(_.reportType == ReportType.Unexpected)) {
-              val msgs = status.messages.map(m => m.copy(reportType = ReportType.Unexpected))
-              status.copy(messages = msgs)
-            } else {
-              status
-            }
-          }.toMap
-        )
+           if (pairedReportStatus.isEmpty) {
+             matched
+           } else {
+             ValueStatusReport(
+               expectedComponent.componentName
+               , ComponentValueStatusReport.merge(pairedReportStatus)
+             ) :: matched
+           }
     }
   }
 

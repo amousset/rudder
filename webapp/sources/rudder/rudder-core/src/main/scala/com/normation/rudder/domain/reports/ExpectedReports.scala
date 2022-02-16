@@ -464,7 +464,7 @@ object ExpectedReportsSerialisation {
       , (json \ "unexpanded").extractOpt[String]
       ) match {
         case ( Some (value),Some(id), _ ) => Full(ExpectedValueId(value,id))
-        case ( Some (value),_, Some(unexpanded) ) => Full(ExpectedValueId(value,unexpanded))
+        case ( Some (value),_, Some(unexpanded) ) => Full(ExpectedValueMatch(value,unexpanded))
         case _ => Failure("")
       }
     }

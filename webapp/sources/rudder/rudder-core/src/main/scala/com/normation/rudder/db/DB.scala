@@ -104,7 +104,7 @@ final object DB {
 
     Update[DB.Reports[Unit]]("""
       insert into ruddersysevents
-        (executiondate, nodeid, directiveid, ruleid, serial, component, keyvalue, executiontimestamp, eventtype, policy, msg)
+        (executiondate, nodeid, directiveid, ruleid, reportid, component, keyvalue, executiontimestamp, eventtype, policy, msg)
       values (?,?,?, ?,?,?, ?,?,?, ?,?)
     """).updateMany(dbreports)
   }

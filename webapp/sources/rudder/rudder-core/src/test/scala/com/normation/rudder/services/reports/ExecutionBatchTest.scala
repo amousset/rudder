@@ -259,8 +259,8 @@ class ExecutionBatchTest extends Specification {
       , ExpectedValueMatch("foo", "foo") :: ExpectedValueMatch("bar", "bar") :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel(success = 1, repaired = 1)
@@ -269,12 +269,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-      withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+      withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-      withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+      withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in plus, mark the whole key unexpected" in {
@@ -284,12 +284,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo which is unknwon " in {
-      withBad.componentValues("foo").messages.size === 2 and
-      withBad.componentValues("foo").messages.head.reportType ===  Unexpected
+      withBad.componentValues("foo").head.messages.size === 2 and
+      withBad.componentValues("foo").head.messages.head.reportType ===  Unexpected
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-      withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+      withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -305,11 +305,11 @@ class ExecutionBatchTest extends Specification {
     )
 
     "give a no answer if none report at all" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, noAnswer, ReportType.NoAnswer, PolicyMode.Enforce, strictUnexpectedInterpretation)
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, noAnswer, ReportType.NoAnswer, PolicyMode.Enforce, strictUnexpectedInterpretation).head
       res.compliance === ComplianceLevel(noAnswer = 2)
     }
     "give a missing if some reports present" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, missing, ReportType.NoAnswer, PolicyMode.Enforce, strictUnexpectedInterpretation)
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, missing, ReportType.NoAnswer, PolicyMode.Enforce, strictUnexpectedInterpretation).head
       res.compliance === ComplianceLevel(success = 1, missing = 1)
     }
   }
@@ -331,8 +331,8 @@ class ExecutionBatchTest extends Specification {
         "component"
       , ExpectedValueMatch("None", "None") :: ExpectedValueMatch("None", "None") :: Nil
     )
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component with exact reporting" in {
       withGood.compliance === ComplianceLevel(repaired = 1, success = 1)
@@ -341,8 +341,8 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 1
     }
     "return a component with exact reporting in None key" in {
-      withGood.componentValues("None").messages.size === 2 and
-      withGood.componentValues("None").compliance === ComplianceLevel(repaired = 1, success = 1)
+      withGood.componentValues("None").head.messages.size === 2 and
+      withGood.componentValues("None").head.compliance === ComplianceLevel(repaired = 1, success = 1)
     }
 
     "with bad reports return a component globally unexpected " in {
@@ -352,8 +352,8 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 1
     }
     "with bad reports return a component with None key unexpected " in {
-      withBad.componentValues("None").messages.size === 3 and
-      withBad.componentValues("None").messages.forall(x => x.reportType === Unexpected)
+      withBad.componentValues("None").head.messages.size === 3 and
+      withBad.componentValues("None").head.messages.forall(x => x.reportType === Unexpected)
     }
   }
 
@@ -379,8 +379,8 @@ class ExecutionBatchTest extends Specification {
     ) :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel( repaired = 1, success = 1)
@@ -389,12 +389,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-        withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+        withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-        withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+        withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in addition, mark only foo (ie repaired) unexpected" in {
@@ -404,12 +404,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo which is unexpected " in {
-      withBad.componentValues("foo").messages.size === 2 and
-        withBad.componentValues("foo").messages.head.reportType ===  Unexpected
+      withBad.componentValues("foo").head.messages.size === 2 and
+        withBad.componentValues("foo").head.messages.head.reportType ===  Unexpected
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-        withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+        withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -435,8 +435,8 @@ class ExecutionBatchTest extends Specification {
     ) :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel( repaired = 2)
@@ -445,12 +445,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-        withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+        withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-        withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+        withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in addition, mark the whole weighted block unexpected" in {
@@ -460,12 +460,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo which is unexpected " in {
-      withBad.componentValues("foo").messages.size === 2 and
-        withBad.componentValues("foo").messages.head.reportType ===  Unexpected
+      withBad.componentValues("foo").head.messages.size === 2 and
+        withBad.componentValues("foo").head.messages.head.reportType ===  Unexpected
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-        withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+        withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -490,8 +490,8 @@ class ExecutionBatchTest extends Specification {
     ) :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel( repaired = 1)
@@ -500,12 +500,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2 // yes, still 2 here, we keep access to sub values to show details
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-        withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+        withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-        withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+        withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in addition, mark the whole block unexpected with weight 1" in {
@@ -515,12 +515,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo which is unexpected " in {
-      withBad.componentValues("foo").messages.size === 2 and
-        withBad.componentValues("foo").messages.head.reportType ===  Unexpected
+      withBad.componentValues("foo").head.messages.size === 2 and
+        withBad.componentValues("foo").head.messages.head.reportType ===  Unexpected
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-        withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+        withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -548,8 +548,8 @@ class ExecutionBatchTest extends Specification {
       )  :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a success block " in {
       withGood.compliance === ComplianceLevel(success = 1)
@@ -558,12 +558,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-        withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+        withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-        withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+        withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in plus, mark the whole key unexpected" in {
@@ -573,12 +573,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo with one unexpected and one repaired " in {
-      withBad.componentValues("foo").messages.size === 2 and
-        withBad.componentValues("foo").messages.map(_.reportType) ===  Unexpected :: EnforceRepaired ::Nil
+      withBad.componentValues("foo").head.messages.size === 2 and
+        withBad.componentValues("foo").head.messages.map(_.reportType) ===  Unexpected :: EnforceRepaired ::Nil
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-        withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+        withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -637,23 +637,23 @@ class ExecutionBatchTest extends Specification {
       withGood.compliance === ComplianceLevel(success = 1, repaired = 3)
     }
     "return one root component with 4 key values " in {
-      withGood.components("blockRoot").componentValues.size === 4
+      withGood.components.filter(_.componentName == "blockRoot").head.componentValues.size === 4
     }
     "return 3 component with the key values b1c1,b1c2,b2c2 which is repaired " in {
-      val block1 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      val block1 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
 
-      (block1.componentValues("b1c1").messages.size === 1) and
-        (block1.componentValues("b1c1").messages.head.reportType ===  EnforceRepaired) and
-        (block1.componentValues("b1c2").messages.size === 1) and
-        (block1.componentValues("b1c2").messages.head.reportType ===  EnforceRepaired) and
-        (block2.componentValues("b2c2").messages.size === 1) and
-        (block2.componentValues("b2c2").messages.head.reportType ===  EnforceRepaired)
+      (block1.componentValues("b1c1").head.messages.size === 1) and
+        (block1.componentValues("b1c1").head.messages.head.reportType ===  EnforceRepaired) and
+        (block1.componentValues("b1c2").head.messages.size === 1) and
+        (block1.componentValues("b1c2").head.messages.head.reportType ===  EnforceRepaired) and
+        (block2.componentValues("b2c2").head.messages.size === 1) and
+        (block2.componentValues("b2c2").head.messages.head.reportType ===  EnforceRepaired)
     }
     "return a component with the key values b2c1 which is a success " in {
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
-      block2.componentValues("b2c1").messages.size === 1 and
-        block2.componentValues("b2c1").messages.head.reportType ===  EnforceSuccess
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      block2.componentValues("b2c1").head.messages.size === 1 and
+        block2.componentValues("b2c1").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in plus, mark the whole key unexpected" in {
@@ -709,12 +709,12 @@ class ExecutionBatchTest extends Specification {
       withLoop.compliance === ComplianceLevel(success = 4, repaired = 3)
     }
     "return one root component with 4 key values " in {
-      withLoop.components("blockRoot").componentValues.size === 4
+      withLoop.components.filter(_.componentName == "blockRoot").head.componentValues.size === 4
     }
     "return 1 loop component with the key values loopX which is success, and one too many time because we don't count correctly" in {
-      val block2 = withLoop.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      val block2 = withLoop.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
 
-      (block2.componentValues("${loop}").messages.size === 4)
+      (block2.componentValues("${loop}").head.messages.size === 4)
     }
 
 
@@ -775,23 +775,23 @@ class ExecutionBatchTest extends Specification {
       withGood.compliance === ComplianceLevel(success = 1)
     }
     "return one root component with 4 key values " in {
-      withGood.components("blockRoot").componentValues.size === 4
+      withGood.components.filter(_.componentName == "blockRoot").head.componentValues.size === 4
     }
     "return 3 component with the key values b1c1,b1c2,b2c2 which is repaired " in {
-      val block1 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      val block1 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
 
-      (block1.componentValues("b1c1").messages.size === 1) and
-        (block1.componentValues("b1c1").messages.head.reportType ===  EnforceRepaired) and
-        (block1.componentValues("b1c2").messages.size === 1) and
-        (block1.componentValues("b1c2").messages.head.reportType ===  EnforceRepaired) and
-        (block2.componentValues("b2c2").messages.size === 1) and
-        (block2.componentValues("b2c2").messages.head.reportType ===  EnforceRepaired)
+      (block1.componentValues("b1c1").head.messages.size === 1) and
+        (block1.componentValues("b1c1").head.messages.head.reportType ===  EnforceRepaired) and
+        (block1.componentValues("b1c2").head.messages.size === 1) and
+        (block1.componentValues("b1c2").head.messages.head.reportType ===  EnforceRepaired) and
+        (block2.componentValues("b2c2").head.messages.size === 1) and
+        (block2.componentValues("b2c2").head.messages.head.reportType ===  EnforceRepaired)
     }
     "return a component with the key values b2c1 which is a success " in {
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
-      block2.componentValues("b2c1").messages.size === 1 and
-        block2.componentValues("b2c1").messages.head.reportType ===  EnforceSuccess
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      block2.componentValues("b2c1").head.messages.size === 1 and
+        block2.componentValues("b2c1").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "Ignore the unexpected reports from components that are not within the focus" in {
@@ -856,23 +856,23 @@ class ExecutionBatchTest extends Specification {
       withGood.compliance === ComplianceLevel(repaired = 4)
     }
     "return one root component with 4 key values " in {
-      withGood.components("blockRoot").componentValues.size === 4
+      withGood.components.filter(_.componentName == "blockRoot").head.componentValues.size === 4
     }
     "return 3 component with the key values b1c1,b1c2,b2c2 which is repaired " in {
-      val block1 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      val block1 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block1").get
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
 
-      (block1.componentValues("b1c1").messages.size === 1) and
-        (block1.componentValues("b1c1").messages.head.reportType ===  EnforceRepaired) and
-        (block1.componentValues("b1c2").messages.size === 1) and
-        (block1.componentValues("b1c2").messages.head.reportType ===  EnforceRepaired) and
-        (block2.componentValues("b2c2").messages.size === 1) and
-        (block2.componentValues("b2c2").messages.head.reportType ===  EnforceRepaired)
+      (block1.componentValues("b1c1").head.messages.size === 1) and
+        (block1.componentValues("b1c1").head.messages.head.reportType ===  EnforceRepaired) and
+        (block1.componentValues("b1c2").head.messages.size === 1) and
+        (block1.componentValues("b1c2").head.messages.head.reportType ===  EnforceRepaired) and
+        (block2.componentValues("b2c2").head.messages.size === 1) and
+        (block2.componentValues("b2c2").head.messages.head.reportType ===  EnforceRepaired)
     }
     "return a component with the key values b2c1 which is a success " in {
-      val block2 = withGood.components("blockRoot").asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
-      block2.componentValues("b2c1").messages.size === 1 and
-        block2.componentValues("b2c1").messages.head.reportType ===  EnforceSuccess
+      val block2 = withGood.components.filter(_.componentName == "blockRoot").head.asInstanceOf[BlockStatusReport].subComponents.find(_.componentName == "block2").get
+      block2.componentValues("b2c1").head.messages.size === 1 and
+        block2.componentValues("b2c1").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "Return an unexpected Block" in {
@@ -902,8 +902,8 @@ class ExecutionBatchTest extends Specification {
       ) :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel(success = 1, repaired = 1)
@@ -912,12 +912,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the key values foo which is repaired " in {
-      withGood.componentValues("foo").messages.size === 1 and
-        withGood.componentValues("foo").messages.head.reportType ===  EnforceRepaired
+      withGood.componentValues("foo").head.messages.size === 1 and
+        withGood.componentValues("foo").head.messages.head.reportType ===  EnforceRepaired
     }
     "return a component with the key values bar which is a success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-        withGood.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withGood.componentValues("bar").head.messages.size === 1 and
+        withGood.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
 
     "only one reports in plus, mark the whole key unexpected" in {
@@ -927,12 +927,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 2
     }
     "with bad reports return a component with the key values foo which is unknwon " in {
-      withBad.componentValues("foo").messages.size === 2 and
-        withBad.componentValues("foo").messages.head.reportType ===  Unexpected
+      withBad.componentValues("foo").head.messages.size === 2 and
+        withBad.componentValues("foo").head.messages.head.reportType ===  Unexpected
     }
     "with bad reports return a component with the key values bar which is a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-        withBad.componentValues("bar").messages.head.reportType ===  EnforceSuccess
+      withBad.componentValues("bar").head.messages.size === 1 and
+        withBad.componentValues("bar").head.messages.head.reportType ===  EnforceSuccess
     }
   }
 
@@ -953,8 +953,8 @@ class ExecutionBatchTest extends Specification {
       , ExpectedValueMatch("${sys.bla}", "${sys.bla}") :: ExpectedValueMatch("${sys.foo}", "${sys.foo}") :: Nil
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad   = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad   = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally repaired " in {
       withGood.compliance === ComplianceLevel(success = 1, repaired = 1)
@@ -963,7 +963,7 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with both cfengine keys repaired " in {
-      withGood.componentValues("${sys.bla}").messages.size === 1
+      withGood.componentValues("${sys.bla}").head.messages.size === 1
     }
     "with bad reports return a component with 2 values and 3 messages" in {
       (withBad.componentValues.size === 2) and withBad.compliance.total === 3
@@ -994,8 +994,8 @@ class ExecutionBatchTest extends Specification {
 
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
-    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
+    val withBad  = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, badReports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component with the correct number of success and repaired" in {
       //be careful, here the second success is for the same unexpanded as the repaire,
@@ -1007,8 +1007,8 @@ class ExecutionBatchTest extends Specification {
     }
 
     "return a component with the bar key success " in {
-      withGood.componentValues("bar").messages.size === 1 and
-      withGood.componentValues("bar").messages.forall(x => x.reportType === EnforceSuccess)
+      withGood.componentValues("bar").head.messages.size === 1 and
+      withGood.componentValues("bar").head.messages.forall(x => x.reportType === EnforceSuccess)
     }
 
     "with some bad reports mark them as unexpected (because the check is not done in checkExpectedComponentWithReports" in {
@@ -1018,12 +1018,12 @@ class ExecutionBatchTest extends Specification {
       withBad.componentValues.size === 3
     }
     "with bad reports return a component with bar as a success " in {
-      withBad.componentValues("bar").messages.size === 1 and
-      withBad.componentValues("bar").messages.forall(x => x.reportType === EnforceSuccess)
+      withBad.componentValues("bar").head.messages.size === 1 and
+      withBad.componentValues("bar").head.messages.forall(x => x.reportType === EnforceSuccess)
     }
     "with bad reports return a component with the cfengine key as unexpected " in {
-      withBad.componentValues("node1").messages.size === 2 and
-      withBad.componentValues("node1").messages.forall(x => x.reportType === Unexpected)
+      withBad.componentValues("node1").head.messages.size === 2 and
+      withBad.componentValues("node1").head.messages.forall(x => x.reportType === Unexpected)
     }
   }
 
@@ -1059,24 +1059,24 @@ class ExecutionBatchTest extends Specification {
 
 
     "when strict mode is set, duplicate messages lead to unexpected" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, duplicated, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, duplicated, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
       res.compliance === ComplianceLevel(success = 1, unexpected = 2) // 2 unexpected because the whole "foo" becomes unexpected
     }
     "when allow duplicated, duplicate messages is ignored" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, duplicated, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set()))
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, duplicated, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set())).head
       res.compliance === ComplianceLevel(success = 1, unexpected = 2)
     }
     "when allow duplicated, duplicate messages is ignored but not for 4 duplications" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, tooMuchDuplicated, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set()))
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, tooMuchDuplicated, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set())).head
       res.compliance === ComplianceLevel(success = 1, unexpected = 4)
     }
 
     "when on strict mode, out of bound vars are unexpected" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, unboundedVars, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, unboundedVars, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
       res.compliance === ComplianceLevel(success = 1, unexpected = 3)
     }
     "when on strict mode, out of bound vars are unexpected" in {
-      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, unboundedVars, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set(UnexpectedReportBehavior.UnboundVarValues)))
+      val res = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, unboundedVars, ReportType.Missing, PolicyMode.Enforce, UnexpectedReportInterpretation(Set(UnexpectedReportBehavior.UnboundVarValues))).head
       res.compliance === ComplianceLevel(success = 4)
     }
 
@@ -1130,8 +1130,8 @@ class ExecutionBatchTest extends Specification {
       )
 
       s"[${id}] be OK with patterns ${patterns}" in {
-        p.foldLeft((result.compliance === compliance)) { case( example, nextPattern) =>
-          result.componentValues(nextPattern._1).messages.foldLeft(example) { case (newExample, nextMessage) =>
+        p.foldLeft((result.head.compliance === compliance)) { case( example, nextPattern) =>
+          result.head.componentValues(nextPattern._1).head.messages.foldLeft(example) { case (newExample, nextMessage) =>
             val msgCompliance = ComplianceLevel.compute(List( nextMessage.reportType))
             val patternCompliance = ComplianceLevel.compute(List( nextPattern._2.tpe))
             newExample and msgCompliance === patternCompliance
@@ -1538,13 +1538,13 @@ class ExecutionBatchTest extends Specification {
       aggregated.directives("policy2").compliance === ComplianceLevel(success = 3, missing = 3)
     }
     "have detailed rule report for policy-component of 100%" in {
-      aggregated.directives("policy").components("component").compliance === ComplianceLevel(success = 3)
+      aggregated.directives("policy").components.filter(_.componentName == "component").head.compliance === ComplianceLevel(success = 3)
     }
     "have detailed rule report for policy-component2 of 67%" in {
-      aggregated.directives("policy").components("component2").compliance === ComplianceLevel(success = 2, missing = 1)
+      aggregated.directives("policy").components.filter(_.componentName == "component2").head.compliance === ComplianceLevel(success = 2, missing = 1)
     }
     "have detailed rule report for policy2-component2 of 33%" in {
-      aggregated.directives("policy2").components("component2").compliance === ComplianceLevel(success = 1, missing = 2)
+      aggregated.directives("policy2").components.filter(_.componentName == "component2").head.compliance === ComplianceLevel(success = 1, missing = 2)
     }
   }
 
@@ -1579,15 +1579,15 @@ class ExecutionBatchTest extends Specification {
       aggregated.directives("policy").compliance === ComplianceLevel(success = 6, missing = 3)
     }
     "have detailed rule report for policy/component/value of 100%" in {
-      aggregated.directives("policy").components("component").componentValues("value").compliance ===
+      aggregated.directives("policy").components.filter(_.componentName == "component").head.componentValues("value").head.compliance ===
         ComplianceLevel(success = 3)
     }
     "have detailed rule report for policy/component/value2 of 67%" in {
-      aggregated.directives("policy").components("component").componentValues("value2").compliance ===
+      aggregated.directives("policy").components.filter(_.componentName == "component").head.componentValues("value2").head.compliance ===
         ComplianceLevel(success = 2, missing = 1)
     }
     "have detailed rule report for policy/component/value3 of 33%" in {
-      aggregated.directives("policy").components("component").componentValues("value3").compliance ===
+      aggregated.directives("policy").components.filter(_.componentName == "component").head.componentValues("value3").head.compliance ===
         ComplianceLevel(success = 1, missing = 2)
     }
   }
@@ -1686,7 +1686,7 @@ class ExecutionBatchTest extends Specification {
       , List(ExpectedValueMatch("/var/cfengine","/var/cfengine"), ExpectedValueMatch("bar", "bar"))
     )
 
-    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation)
+    val withGood = ExecutionBatch.checkExpectedComponentWithReports(expectedComponent, reports, ReportType.Missing, PolicyMode.Enforce, strictUnexpectedInterpretation).head
 
     "return a component globally success " in {
       withGood.compliance === ComplianceLevel(success = 1, notApplicable = 1)
@@ -1695,12 +1695,12 @@ class ExecutionBatchTest extends Specification {
       withGood.componentValues.size === 2
     }
     "return a component with the /var/cfengine in NotApplicable " in {
-      withGood.componentValues("/var/cfengine").messages.size === 1 and
-      withGood.componentValues("/var/cfengine").compliance.computePercent().notApplicable === 100
+      withGood.componentValues("/var/cfengine").head.messages.size === 1 and
+      withGood.componentValues("/var/cfengine").head.compliance.computePercent().notApplicable === 100
     }
     "return a component with the bar key success " in {
-      withGood.componentValues("bar").messages.size == 1 and
-      withGood.componentValues("bar").compliance.computePercent().success === 100
+      withGood.componentValues("bar").head.messages.size == 1 and
+      withGood.componentValues("bar").head.compliance.computePercent().success === 100
     }
   }
 
