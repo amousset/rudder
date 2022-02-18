@@ -1309,6 +1309,20 @@ final case class ContextForNoAnswer(
         }
 
 
+        val (matched,last_unexpected) =  matchId.foldLeft((List.empty[ValueStatusReport],filteredReports)) {
+          case ((acc, reports), id) =>
+            val (matched, left) = reports.partition(_.reportId == id.id)
+            val res = matched.groupBy(_.component).toList.map {
+              case (c, reports) =>
+                ValueStatusReport(c,
+                  reports.groupBy(_.keyValue).toList.map {
+                    case (v, r) =>
+                      ComponentValueStatusReport(v, v, r.map(r => r.toMessageStatusReport(policyMode)).toList)
+                  }
+                )
+            }
+            (res ::: acc, left)
+        }
         val componentGotAtLeastOneReport = filteredReports.nonEmpty
 
         // the list of expected (value, unexpanded value for display)
@@ -1334,7 +1348,7 @@ final case class ContextForNoAnswer(
           logger.trace("values order: \n - " + values.mkString("\n - "))
 
         // we also need to sort reports to have a chance to not use a specific pattern for not the most specific report
-        val sortedReports = filteredReports.sortWith(_.keyValue.size > _.keyValue.size)
+        val sortedReports = last_unexpected.sortWith(_.keyValue.size > _.keyValue.size)
 
         if (logger.isTraceEnabled)
           logger.trace("sorted reports: \n - " + sortedReports.map(_.keyValue).mkString("\n - "))
@@ -1358,19 +1372,7 @@ final case class ContextForNoAnswer(
           )
         }
 
-      val matched =  matchId.flatMap(
-         id =>
-           filteredReports.filter(_.reportId == id.id).groupBy(_.component).toList.map {
-             case (c, reports) =>
-               ValueStatusReport(c,
-                 reports.groupBy(_.keyValue).toList.map {
-                   case (v, r) =>
-                     ComponentValueStatusReport(v,v, r.map(r => r.toMessageStatusReport(policyMode)).toList)
-                 }
-               )
-           }
 
-       )
         /*
      * And now, merge all values into a component.
      */

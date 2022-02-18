@@ -252,18 +252,38 @@ class NodeExpectedReportTest extends Specification {
                , "components" : [
                    {
                      "componentName": "var_1_0"
-                   , "values"       : ["1_0_0"]
-                   , "unexpanded"   : ["1_0_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"1_0_0"
+                       , "value":"1_0_0"
+                       }
+                     ]
                    }
                  , {
                      "componentName": "m_var_1_1"
-                   , "values"       : ["1_1_0", "1_1_1"]
-                   , "unexpanded"   : ["1_1_0", "1_1_1"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"1_1_0"
+                       , "value":"1_1_0"
+                       }
+                     , {
+                         "unexpanded":"1_1_1"
+                       ,  "value":"1_1_1"
+                       }
+                     ]
                    }
                  , {
                      "componentName": "m_var_1_2"
-                   , "values"       : ["1_2_0", "1_2_1"]
-                   , "unexpanded"   : ["1_2_0", "1_2_1"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"1_2_0"
+                       , "value":"1_2_0"
+                       }
+                     , {
+                         "unexpanded":"1_2_1"
+                       ,  "value":"1_2_1"
+                       }
+                     ]
                    }
                  ]
                }
@@ -278,18 +298,30 @@ class NodeExpectedReportTest extends Specification {
                , "components" : [
                    {
                      "componentName": "var_1_0"
-                   , "values"       : ["2_0_0"]
-                   , "unexpanded"   : ["2_0_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"2_0_0"
+                       , "value":"2_0_0"
+                       }
+                     ]
                    }
                  , {
                      "componentName": "m_var_1_1"
-                   , "values"       : ["2_1_0"]
-                   , "unexpanded"   : ["2_1_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"2_1_0"
+                       , "value":"2_1_0"
+                       }
+                     ]
                    }
                  , {
                      "componentName": "m_var_1_2"
-                   , "values"       : ["2_2_0"]
-                   , "unexpanded"   : ["2_2_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"2_2_0"
+                       , "value":"2_2_0"
+                       }
+                     ]
                    }
                  ]
                }
@@ -299,18 +331,30 @@ class NodeExpectedReportTest extends Specification {
                , "components" : [
                    {
                      "componentName": "var_2_0"
-                   , "values"       : ["3_0_0"]
-                   , "unexpanded"   : ["3_0_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"3_0_0"
+                       , "value":"3_0_0"
+                       }
+                     ]
                    }
                  , {
                      "componentName":"m_var_2_1"
-                   , "values"       : ["3_1_0"]
-                   , "unexpanded"   : ["3_1_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"3_1_0"
+                       , "value":"3_1_0"
+                       }
+                     ]
                    }
                  , {
                      "componentName": "m_var_2_2"
-                   , "values"       : ["3_2_0"]
-                   , "unexpanded"   : ["3_2_0"]
+                   , "values"       : [
+                       {
+                         "unexpanded":"3_2_0"
+                       , "value":"3_2_0"
+                       }
+                     ]
                    }
                  ]
                }
@@ -377,13 +421,21 @@ class NodeExpectedReportTest extends Specification {
                , "components":[
                    {
                      "componentName":"File absent"
-                   , "values": [ "/tmp/root2" ]
-                   , "unexpanded": [ "/tmp/root2" ]
+                   , "values": [
+                       {
+                         "unexpanded":"/tmp/root2"
+                       , "value":"/tmp/root2"
+                       }
+                     ]
                    }
                  , {
                      "componentName":"Command execution"
-                   , "values": [ "/bin/true #root1" ]
-                   , "unexpanded":[ "/bin/true #root1" ]
+                   , "values": [
+                       {
+                         "unexpanded":"/bin/true #root1"
+                       , "value":"/bin/true #root1"
+                       }
+                     ]
                    }
                  , {
                      "componentName":"First block"
@@ -391,8 +443,12 @@ class NodeExpectedReportTest extends Specification {
                    , "subComponents": [
                        {
                          "componentName":"File absent"
-                       , "values":[ "/tmp/block1" ]
-                       , "unexpanded":[ "/tmp/block1" ]
+                       , "values":[
+                       {
+                         "unexpanded":"/tmp/block1"
+                       , "value":"/tmp/block1"
+                       }
+                     ]
                        }
                      , {
                          "componentName":"inner block"
@@ -400,13 +456,21 @@ class NodeExpectedReportTest extends Specification {
                        , "subComponents": [
                          {
                            "componentName":"File absent"
-                         , "values":[ "/tmp/block1_1" ]
-                         , "unexpanded":[ "/tmp/block1_1" ]
+                         , "values":[
+                       {
+                         "unexpanded":"/tmp/block1_1"
+                       , "value":"/tmp/block1_1"
+                       }
+                     ]
                          }
                        , {
                            "componentName":"Command execution"
-                         , "values": [  "/bin/true" ]
-                         , "unexpanded": [  "/bin/true" ]
+                         , "values": [
+                       {
+                         "unexpanded":"/bin/true"
+                       , "value":"/bin/true"
+                       }
+                       ]
                          }
                        ]
                      }

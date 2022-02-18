@@ -561,7 +561,7 @@ class ClassicTechniqueWriter(basePath : String, parameterTypeService: ParameterT
   def reportingContext(methodCall: MethodCall, classParameterValue: String ) = {
     val component  = escapeCFEngineString(methodCall.component)
     val value = escapeCFEngineString(classParameterValue)
-    s"""_method_reporting_context_bis("${component}", "${value}","${methodCall.id}")"""
+    s"""_method_reporting_context_v4("${component}", "${value}","${methodCall.id}")"""
   }
 
 
