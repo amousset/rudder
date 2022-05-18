@@ -107,7 +107,7 @@ listAllMethodWithMissingParameters methodCallList libMethods =
           _      -> (mCall.methodName.value, [ValidState])
       ) methodCallList
   in
-  Dict.fromList (List.filter (\(_, errors) -> if (List.isEmpty errors) then False else True) errorsOnParamByCallId)
+  Dict.fromList (List.filter (\(_, errors) -> not (List.isEmpty errors)) errorsOnParamByCallId)
 
 checkBlocksOnError: List MethodElem -> Dict String (ValidationState BlockError)
 checkBlocksOnError methodElems =

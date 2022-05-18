@@ -8,7 +8,6 @@ import DataTypes exposing (..)
 import Http exposing (..)
 import Init exposing (init)
 import View exposing (view)
-import Result
 import ApiCalls exposing (..)
 import ViewUtils exposing (..)
 import List.Extra
@@ -25,13 +24,12 @@ port copy : String -> Cmd msg
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  Sub.batch
-  [ readUrl ( \(kind,id) -> case kind of
+  
+  readUrl ( \(kind,id) -> case kind of
               "rule" -> OpenRuleDetails (RuleId id) False
               "ruleCategory" -> OpenCategoryDetails id False
               _ -> Ignore
-            )
-  ]
+          )
 
 main =
   Browser.element
@@ -394,10 +392,7 @@ update msg model =
             |> List.filter (\id -> id /= "rootRuleCategory")
         ui = model.ui
         newState =
-          if(List.length foldedCat == (List.length catIds)) then
-            False
-          else
-            True
+          not (List.length foldedCat == (List.length catIds))
         treeFilters = filters.treeFilters
         foldedList = {filters | treeFilters = {treeFilters | folded = if(newState) then catIds else []}}
       in

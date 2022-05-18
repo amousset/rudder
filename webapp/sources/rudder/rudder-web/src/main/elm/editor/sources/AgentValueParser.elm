@@ -7,7 +7,7 @@ import Set
 
 displayValue : List AgentValue -> String
 displayValue value =
-  String.join "" (List.map displayValueHelper value)
+  String.concat (List.map displayValueHelper value)
 
 displayValueHelper : AgentValue -> String
 displayValueHelper value =
@@ -17,7 +17,7 @@ displayValueHelper value =
 
 canonify : List AgentValue -> String
 canonify value =
-  String.join "" (List.map canonifyHelper value)
+  String.concat (List.map canonifyHelper value)
 
 canonifyHelper : AgentValue -> String
 canonifyHelper value =
@@ -75,12 +75,10 @@ parseInnerDollarValue =
 
 parseVariable : Parser AgentValue
 parseVariable =
-    oneOf [
-      succeed Variable
-        |. Parser.symbol "${"
-        |= innerLoop
-        |. Parser.symbol "}"
-    ]
+  succeed Variable
+    |. Parser.symbol "${"
+    |= innerLoop
+    |. Parser.symbol "}"
 
 parseAgentValue : Parser AgentValue
 parseAgentValue =

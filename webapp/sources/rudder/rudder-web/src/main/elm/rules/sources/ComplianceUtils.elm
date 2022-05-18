@@ -52,7 +52,7 @@ getAllComplianceValues complianceDetails =
               ""
           )
       in
-        String.join "" (List.append ["</ul>"] ("<ul>" :: content))
+        String.concat (List.append ["</ul>"] ("<ul>" :: content))
 
     valSuccessNotApplicable       = getValueCompliance complianceDetails.successNotApplicable       -- 0
     valSuccessAlreadyOK           = getValueCompliance complianceDetails.successAlreadyOK           -- 0

@@ -357,9 +357,9 @@ update msg model =
 
     ClosePopup callback ->
       let
-        (nm,cmd) = update callback { model | modal = Nothing}
+        (nm, cmd) = update callback { model | modal = Nothing}
       in
-        (nm , Cmd.batch [ cmd ] )
+        (nm, cmd) 
 
     ResetTechnique  ->
       let

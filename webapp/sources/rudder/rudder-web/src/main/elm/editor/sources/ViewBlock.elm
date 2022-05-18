@@ -14,9 +14,10 @@ import MethodElemUtils exposing (..)
 
 appendNodeConditional : Html msg -> Bool -> Element msg -> Element msg
 appendNodeConditional e test =
-  case test of
-    True -> appendNode e
-    False -> (\x -> x)
+  if test then
+    appendNode e
+  else
+    (\x -> x)
 
 showMethodBlock: Model -> TechniqueUiInfo ->  MethodBlockUiInfo -> Maybe CallId -> MethodBlock -> Element Msg
 showMethodBlock model techniqueUi ui parentId block =
