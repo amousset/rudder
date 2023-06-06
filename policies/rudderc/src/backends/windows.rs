@@ -28,7 +28,13 @@ impl Backend for Windows {
         resources: &Path,
         _standalone: bool,
     ) -> Result<String> {
-        Self::technique(technique, resources)
+        // Powershell requires a BOM added at the beginning of all files when using UTF8 encoding
+        // See https://docs.microsoft.com/en-us/windows/desktop/intl/using-byte-order-marks
+        // Bom for UTF-8 content, three bytes: EF BB BF https://en.wikipedia.org/wiki/Byte_order_mark
+        const UTF8_BOM: &[u8; 3] = &[0xef, 0xbb, 0xbf];
+        let mut with_bom = String::from_utf8(UTF8_BOM.to_vec()).unwrap();
+        with_bom.push_str(&Self::technique(technique, resources)?);
+        Ok(with_bom)
     }
 }
 
@@ -149,3 +155,13 @@ impl Windows {
         technique.render().map_err(|e| e.into())
     }
 }
+
+/*
+def canonifyCondition(methodCall: MethodCall, parentBlocks: List[MethodBlock]) = {
+formatCondition(methodCall, parentBlocks).replaceAll(
+"""(\$\{[^\}]*})""",
+"""" + ([Rudder.Condition]::canonify($1)) + """"
+)
+}
+
+*/

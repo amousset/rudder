@@ -70,10 +70,6 @@ criteria = "safe-to-deploy"
 version = "2.0.11"
 criteria = "safe-to-deploy"
 
-[[exemptions.base64]]
-version = "0.21.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.basic-toml]]
 version = "0.1.2"
 criteria = "safe-to-deploy"
@@ -99,7 +95,7 @@ version = "1.0.79"
 criteria = "safe-to-deploy"
 
 [[exemptions.chrono]]
-version = "0.4.25"
+version = "0.4.26"
 criteria = "safe-to-deploy"
 
 [[exemptions.clap]]
@@ -315,7 +311,7 @@ version = "2.0.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.minijinja]]
-version = "0.33.0"
+version = "0.34.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.minimal-lexical]]
