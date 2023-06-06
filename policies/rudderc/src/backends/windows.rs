@@ -48,7 +48,7 @@ struct TechniqueTemplate<'a> {
 }
 
 /// Filters for the technique template
-mod filters {
+pub mod filters {
     use crate::regex;
     use std::fmt::Display;
 
