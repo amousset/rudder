@@ -47,6 +47,56 @@ struct TechniqueTemplate<'a> {
     methods: Vec<WindowsMethod>,
 }
 
+/// Filters for the technique template
+mod filters {
+    use crate::regex;
+    use std::fmt::Display;
+
+    fn uppercase_first_letter(s: &str) -> String {
+        let mut c = s.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }
+
+    /// `my_method` -> `My-Method`
+    pub fn dsc_case<T: Display>(s: T) -> askama::Result<String> {
+        Ok(s.to_string()
+            .split('_')
+            .map(uppercase_first_letter)
+            .collect::<Vec<String>>()
+            .join("-"))
+    }
+
+    /// `my_method` -> `MyMethod`
+    pub fn camel_case<T: Display>(s: T) -> askama::Result<String> {
+        Ok(s.to_string()
+            .split('_')
+            .map(uppercase_first_letter)
+            .collect::<Vec<String>>()
+            .join(""))
+    }
+
+    pub fn escape_double_quotes<T: Display>(s: T) -> askama::Result<String> {
+        Ok(s.to_string().replace("\"", "`\""))
+    }
+
+    pub fn canonify_condition<T: Display>(s: T) -> askama::Result<String> {
+        let s = s.to_string();
+        Ok(if !s.contains("${") {
+            format!("\"{s}\"")
+        } else {
+            // TODO: does not handle nested vars, we need a parser for this.
+            let var = regex!(r"(\$\{[^\}]*})");
+            format!(
+                "\"{}\"",
+                var.replace_all(&s, r##"" + ([Rudder.Condition]::canonify($1)) + ""##)
+            )
+        })
+    }
+}
+
 struct WindowsMethod {
     id: String,
     class_prefix: String,
@@ -155,13 +205,3 @@ impl Windows {
         technique.render().map_err(|e| e.into())
     }
 }
-
-/*
-def canonifyCondition(methodCall: MethodCall, parentBlocks: List[MethodBlock]) = {
-formatCondition(methodCall, parentBlocks).replaceAll(
-"""(\$\{[^\}]*})""",
-"""" + ([Rudder.Condition]::canonify($1)) + """"
-)
-}
-
-*/

@@ -27,7 +27,7 @@ function {{ id }} {
 
 {% for m in methods %}
     $reportId=$reportIdBase + "{{ m.id }}"
-    $componentKey = "{{ m.component_key }}"
+    $componentKey = {{ m.component_key }}
     $reportParams = @{
         ClassPrefix = ([Rudder.Condition]::canonify(("{{ m.class_prefix }}_" + $componentKey)))
         ComponentKey = $componentKey
@@ -46,7 +46,7 @@ function {{ id }} {
                 {{- arg.0 }} = "{{ arg.1 }}"
             {% endfor %}
         }
-        $call = {{ m.name }} @methodParams
+        $call = {{ m.name | dsc_case }} FIXME -PolicyMode $policyMode
         $methodContext = Compute-Method-Call @reportParams -MethodCall $call
         $localContext.merge($methodContext)
     } else {
