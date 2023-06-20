@@ -9,7 +9,7 @@ use askama::Template;
 use super::Backend;
 use crate::ir::{
     condition::Condition,
-    technique::{ItemKind, LeafReporting, Method, Parameter},
+    technique::{ItemKind, LeafReportingMode, Method, Parameter},
     Technique,
 };
 
@@ -127,7 +127,7 @@ impl TryFrom<Method> for WindowsMethod {
             class_prefix: m.info.as_ref().unwrap().class_prefix.clone(),
             component_name: m.name,
             component_key: report_parameter.to_string(),
-            disable_reporting: m.reporting == LeafReporting::Disabled,
+            disable_reporting: m.reporting.mode == LeafReportingMode::Disabled,
             // FIXME: None
             condition: Some(m.condition.to_string()),
             args,

@@ -1,5 +1,4 @@
-function ntp
-{
+﻿function ntp {
     [CmdletBinding()]
     param (
         [parameter(Mandatory = $true)]
@@ -7,11 +6,15 @@ function ntp
         [parameter(Mandatory = $true)]
         [string]$techniqueName,
 
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory = $false)]
         [string]$server,
         [Rudder.PolicyMode]$policyMode
     )
-    BeginTechniqueCall -Name $techniqueName
+    $techniqueParams = @{
+
+        "server" = $server
+    }
+    BeginTechniqueCall -Name $techniqueName -Parameters $techniqueParams
     $reportIdBase = $reportId.Substring(0, $reportId.Length - 1)
     $localContext = New-Object -TypeName "Rudder.Context" -ArgumentList @($techniqueName)
     $localContext.Merge($system_classes)
@@ -21,15 +24,15 @@ function ntp
 
 
     $reportId=$reportIdBase + "d86ce2e5-d5b6-45cc-87e8-c11cca71d907"
-    $componentKey = "htop"
+    $componentKey = htop
     $reportParams = @{
-    ClassPrefix = ([Rudder.Condition]::canonify(("package_present_" + $componentKey)))
-    ComponentKey = $componentKey
-    ComponentName = "Ensure correct ntp configuration"
-    PolicyMode = $policyMode
-    ReportId = $reportId
-    DisableReporting = false
-    TechniqueName = $techniqueName
+        ClassPrefix = ([Rudder.Condition]::canonify(("package_present_" + $componentKey)))
+        ComponentKey = $componentKey
+        ComponentName = "Ensure correct ntp configuration"
+        PolicyMode = $policyMode
+        ReportId = $reportId
+        DisableReporting = false
+        TechniqueName = $techniqueName
     }
     
     $class = "debian"
@@ -41,7 +44,7 @@ function ntp
             version = "2.3.4"
             
         }
-        $call = PackagePresent @methodParams
+        $call = PackagePresent FIXME -PolicyMode $policyMode
         $methodContext = Compute-Method-Call @reportParams -MethodCall $call
         $localContext.merge($methodContext)
     } else {
@@ -49,15 +52,15 @@ function ntp
     }
 
     $reportId=$reportIdBase + "cf06e919-02b7-41a7-a03f-4239592f3c12"
-    $componentKey = "ntp"
+    $componentKey = ntp
     $reportParams = @{
-    ClassPrefix = ([Rudder.Condition]::canonify(("package_install_" + $componentKey)))
-    ComponentKey = $componentKey
-    ComponentName = "NTP service"
-    PolicyMode = $policyMode
-    ReportId = $reportId
-    DisableReporting = false
-    TechniqueName = $techniqueName
+        ClassPrefix = ([Rudder.Condition]::canonify(("package_install_" + $componentKey)))
+        ComponentKey = $componentKey
+        ComponentName = "NTP service"
+        PolicyMode = $policyMode
+        ReportId = $reportId
+        DisableReporting = false
+        TechniqueName = $techniqueName
     }
     
     $class = "true"
@@ -66,7 +69,7 @@ function ntp
             name = "ntp"
             
         }
-        $call = PackageInstall @methodParams
+        $call = PackageInstall FIXME -PolicyMode $policyMode
         $methodContext = Compute-Method-Call @reportParams -MethodCall $call
         $localContext.merge($methodContext)
     } else {

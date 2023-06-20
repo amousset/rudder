@@ -46,7 +46,7 @@ function {{ id }} {
                 {{- arg.0 }} = "{{ arg.1 }}"
             {% endfor %}
         }
-        $call = {{ m.name | dsc_case }} FIXME -PolicyMode $policyMode
+        $call = {{ m.name }} FIXME -PolicyMode $policyMode
         $methodContext = Compute-Method-Call @reportParams -MethodCall $call
         $localContext.merge($methodContext)
     } else {

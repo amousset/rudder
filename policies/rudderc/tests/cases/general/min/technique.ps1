@@ -1,5 +1,4 @@
-function min
-{
+﻿function min {
     [CmdletBinding()]
     param (
         [parameter(Mandatory = $true)]
@@ -9,7 +8,10 @@ function min
 
         [Rudder.PolicyMode]$policyMode
     )
-    BeginTechniqueCall -Name $techniqueName
+    $techniqueParams = @{
+
+    }
+    BeginTechniqueCall -Name $techniqueName -Parameters $techniqueParams
     $reportIdBase = $reportId.Substring(0, $reportId.Length - 1)
     $localContext = New-Object -TypeName "Rudder.Context" -ArgumentList @($techniqueName)
     $localContext.Merge($system_classes)
@@ -17,15 +19,15 @@ function min
 
 
     $reportId=$reportIdBase + "d86ce2e5-d5b6-45cc-87e8-c11cca71d907"
-    $componentKey = "htop"
+    $componentKey = htop
     $reportParams = @{
-    ClassPrefix = ([Rudder.Condition]::canonify(("package_present_" + $componentKey)))
-    ComponentKey = $componentKey
-    ComponentName = "Package present"
-    PolicyMode = $policyMode
-    ReportId = $reportId
-    DisableReporting = false
-    TechniqueName = $techniqueName
+        ClassPrefix = ([Rudder.Condition]::canonify(("package_present_" + $componentKey)))
+        ComponentKey = $componentKey
+        ComponentName = "Package present"
+        PolicyMode = $policyMode
+        ReportId = $reportId
+        DisableReporting = false
+        TechniqueName = $techniqueName
     }
     
     $class = "true"
@@ -37,7 +39,7 @@ function min
             version = "2.3.4"
             
         }
-        $call = PackagePresent @methodParams
+        $call = PackagePresent FIXME -PolicyMode $policyMode
         $methodContext = Compute-Method-Call @reportParams -MethodCall $call
         $localContext.merge($methodContext)
     } else {

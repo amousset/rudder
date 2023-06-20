@@ -1364,6 +1364,7 @@ dependencies = [
  "include_dir",
  "log 0.4.18",
  "mdbook",
+ "nom",
  "once_cell",
  "pretty_assertions",
  "quick-xml",

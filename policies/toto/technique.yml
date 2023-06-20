@@ -1,0 +1,67 @@
+id: technique_by_Rudder
+name: Test Technique created through Rudder API
+version: '1.0'
+description: This Technique exists only to see if Rudder creates Technique correctly.
+items:
+  - id: id_method
+    name: block component
+    reporting: worst-case-weighted-sum
+    condition: debian
+    items:
+      - method: package_install_version
+        id: id1
+        params:
+          name: ${node.properties[apache_package_name]}
+          package_version: 2.2.11
+        condition: any
+        name: Customized component
+        reporting: enabled
+        type: call
+      - method: command_execution
+        id: id2
+        params:
+          command: Write-Host "testing special characters ` è &é 'à é "
+        condition: windows
+        name: Command execution
+        reporting: disabled
+        type: call
+    type: block
+  - method: service_start
+    id: id3
+    params:
+      name: ${node.properties[apache_package_name]}
+    condition: package_install_version_${node.properties[apache_package_name]}_repaired
+    name: Customized component
+    reporting: enabled
+    type: call
+  - method: package_install
+    id: id4
+    params:
+      name: openssh-server
+    condition: redhat
+    name: Package install
+    reporting: enabled
+    type: call
+  - method: command_execution
+    id: id5
+    params:
+      command: /bin/echo "testing special characters ` è &é 'à é "\
+    condition: cfengine_community
+    name: Command execution
+    reporting: enabled
+    type: call
+  - method: package_state_windows
+    id: id6
+    params:
+      PackageName: vim
+      Status: "present"
+    condition: dsc
+    name: Package state windows
+    reporting: enabled
+    type: call
+category: ncf_techniques
+params:
+  - id: 1aaacd71-c2d5-482c-bcff-5eee6f8da9c2
+    name: technique_parameter
+    description: " a long description, with line \n break within"
+    may_be_empty: true
