@@ -16,7 +16,7 @@
 
 use anyhow::Error;
 use nom::branch::alt;
-use nom::bytes::complete::{take_till, take_until, take_while};
+use nom::bytes::complete::{take_till};
 use nom::combinator::eof;
 use nom::multi::{many0, many1};
 use nom::{bytes::complete::tag, IResult};
