@@ -57,7 +57,9 @@ test infrastructure.
 
 ### Install Rudder
 
-Follow the documentation to setup Rudder:
+Follow the documentation to setup Rudder (the documentation is the same for Rudder _core_, a free trial or a
+subscription, just be careful that public repository is [repository.rudder.io](https://repository.rudder.io),
+and private one is [download.rudder.io](https://download.rudder.io):
 
 <div  align="center">
     ➡️ <a href="https://docs.rudder.io/get-started/current/index.html">🧪 Install a test platform (using Vargant)</a> ⬅️
@@ -69,11 +71,17 @@ Follow the documentation to setup Rudder:
 
 ### Is Rudder open-source? Is it free?
 
-**TL; DR: Rudder has an _open-core_ model:**
+Rudder has an _open-core_ model:
 
-* Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components plus several plugins.
+* Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
 * The complete Rudder solution is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
-   It also includes other ... like long-term support, support for a wider set of operating systems, support, etc.
+   It also includes other ... like long-term support, support for a wider set of operating systems, support, etc. It is part of a subscription and includes:
+  * Additionnal plugins that add major features
+  * Support for older versions on Linux distributions
+  * Support for aditionnal architecures (ARM & Power)
+  * Support for proprietary operating systems: Windows and AIX
+  * Extended support (see FAQ)
+  * User support
 
 We are strong believers in the merits of free / open-source software, and have turned to open-core to ensure the perenity of the project
 (i.e. pay the developers).
@@ -84,8 +92,6 @@ We strive to open-source as much code as possible, without threatening the proje
 Contrary to a lot of other tools, we made the decision to keep the the Web interface free of access.
 
 ### What are the differences between Rudder Core and the full Rudder solution?
-
-**TL; DR:**
 
 * Rudder _core_ is a versatile automation engine for pretty recent Linux systems,
 thought to give access to ... to small organizations and indivudals
@@ -115,7 +121,7 @@ The community also provides a chat room and discussions.
 
 ### How long are Rudder versions maintained?
 
-Rudder Community follows the same release schedule as the
+Release schedule + maintenance (core & not)
 
 ### What is Rudder technical stack? In which language(s) is it developed?
 
