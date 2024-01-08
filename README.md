@@ -66,11 +66,36 @@ to install a test plaform locally using Vagrant.
 
 ### Install Rudder
 
+#### Standard installation
+
 Follow the step-by-step instructions of the documentation to setup Rudder:
 
 <div align="center">
     ➡️ <a href="https://docs.rudder.io/reference/current/installation/index.html">📥 <b>Install Rudder</b></a> ⬅️
 </div>
+
+#### Quick installation
+
+For a quick setup on Linux systems, you can use an installer script.
+For a Rudder server:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://repository.rudder.io/tools/rudder-setup | sh -s -- setup-server latest
+```
+
+For a Rudder agent:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://repository.rudder.io/tools/rudder-setup | sh -s -- setup-agent latest [IP or hostname of you server]
+```
+
+For more options and to review the script before running it:
+
+```bash
+wget https://repository.rudder.io/tools/rudder-setup
+chmod +x rudder-setup
+./rudder-setup -h
+```
 
 ## FAQ
 
