@@ -26,15 +26,9 @@
 
 ## What is Rudder?
 
-System infrastructure automation for operational security
+Operational Security Automation
 
-Leader in IT operational security automation for critical productions.
-Empowering Ops teams to ensure cyber-resilience
-and foster SecOps collaboration.
-
-Rudder is a configuration and security automation platform. Manage your Cloud, hybrid or on-premise infrastructure in a simple, scalable and dynamic way.
-
-This is the primary repository of the Rudder project, containing the core component of the [Rudder platform](https://www.rudder.io).
+Rudder is a leading-edge system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps). It serves as a robust configuration and security automation solution designed for managing diverse IT environments, whether in the Cloud, hybrid, or on-premise.
 
 A Rudder installation is made of:
 
@@ -110,20 +104,36 @@ a "two-scope" model.
 ### What is the governance structure of the Rudder project?
 
 The project is managed by the French (🇫🇷 🇪🇺) company of the same name (previously known as _Normation_).
-
 The community is diverse and comes from all over the world.
 
 ### Where can I find support for Rudder?
 
-The best way to get support is to ...
+The best way to get support is 
 
-The community also provides a chat room and discussions.
+### How to join the community?
+
+Join our community on GitHub Discussions or Elements chat for support, feedback, and collaboration.
 
 ### How long are Rudder versions maintained?
 
-Release schedule + maintenance (core & not)
+Rudder uses a `MAJOR.MINOR.PATCH` versionning scheme:
+
+* Minor (or Major) releases: A new minor or major version of Rudder is typically released approximately every 6 months. These releases introduce new features, enhancements, and improvements.
+* Patch releases: For the maintenance of existing versions, a new patch release covering all currently maintained versions is released approximately every month. These releases focus on bug fixes and security updates.
+
+Maintenance policy:
+
+* Users of Rudder _core_ have a 3-month window to upgrade to the newest minor or major version after its release. This ensures that users can take advantage of the latest features and security enhancements promptly.
+* With a subscription, major releases are maintained for an extended period of 18 to 24 months after their initial release. Subscribers also benefit from an extended upgrade window of 6 to 9 months between minor versions. This extended timeframe allows for strategic planning and execution of version upgrades.
 
 ### What is Rudder technical stack? In which language(s) is it developed?
+
+This infrastructure automation software is crafted with a deliberate choice of dependancies and programming languages to ensure reliability, performance, and maintainability. The core of the software is built using Scala and Rust, each serving a specific purpose to elevate the overall quality of the system.
+
+
+In summary, the combination of Scala's reliability and expressiveness with Rust's performance and safety features creates a powerful foundation for Rudder. This technology stack ensures that the software is not only robust and secure but also aligns with contemporary development practices.
+
+
 
 Our current stack of choice is:
 
