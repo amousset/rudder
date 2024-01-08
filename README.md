@@ -27,7 +27,8 @@
 
 ## What is Rudder?
 
-Rudder is a system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
+Rudder is a system infrastructure automation platform, dedicated to empowering IT operational teams
+to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
 
 ### Features
 
@@ -36,7 +37,7 @@ Rudder is a system infrastructure automation platform, dedicated to empowering I
   - Patch management
   - Vulnerability management
   - System hardening and security standards compliance
-- **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability. Configuration policies can be created seamlessly using a visual editor, or YAML code.
+- **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability, with advanced compliance visualization. Configuration policies can be created seamlessly using a visual editor, or YAML code.
 - **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX)
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. Typical deployments manage 100s to 1000s of systems, and a single Rudder server can manage more than 10k systems.
 
@@ -44,7 +45,7 @@ Rudder is a system infrastructure automation platform, dedicated to empowering I
 
 A Rudder installation is made of:
 
-* A central server, providing the Web interface, HTTP APIs and the automation engine. It can be extended by installing plugins.
+* A central server, providing the Web interface, HTTP APIs and the automation engine. It can be extended with plugins.
 * (optional) Relays acting as smart proxies between the server and the agents.
 * A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default).
 
@@ -83,10 +84,10 @@ For a Rudder server:
 curl --proto '=https' --tlsv1.2 -sSf https://repository.rudder.io/tools/rudder-setup | sh -s -- setup-server latest
 ```
 
-For a Rudder agent:
+For a Rudder agent, replace `SERVER` by you Rudder server's IP or hostname:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://repository.rudder.io/tools/rudder-setup | sh -s -- setup-agent latest [IP or hostname of you server]
+curl --proto '=https' --tlsv1.2 -sSf https://repository.rudder.io/tools/rudder-setup | sh -s -- setup-agent latest SERVER
 ```
 
 For more options and to review the script before running it:
