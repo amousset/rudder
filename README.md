@@ -41,43 +41,40 @@ to enhance cyber-resilience and foster collaboration in Security Operations (Sec
 - **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX)
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. Typical deployments manage 100s to 1000s of systems, and a single Rudder server can manage more than 10k systems.
 
+### Online demo
+
+Browse the [demo Web interface](https://demo.rudder.io) (with fake data) to get a glimpse of the available features and interfaces.
+
+<a href="https://demo.rudder.io"><img height="300" alt="Rudder dashboard" src="https://github.com/amousset/rudder/assets/329388/45eeb10b-97ca-4514-81fe-842fb38bf47c" /></a>
+
 ### Components
 
 A Rudder installation is made of:
 
 * A central server, providing the Web interface, the [HTTP API](https://docs.rudder.io/api) and the automation engine. It can be extended with plugins.
 * (optional) Relays acting as smart proxies between the server and the agents.
-* A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default).
+* A light agent installed on every managed system. It runs autonomously and check and/or modifies the state of the system continuously (in practice, every 5 minutes by default).
 
-## Get started
+## Install Rudder
 
-### Evaluate Rudder
+> [!TIP]
+> You need an active subscription to get a complete experience includng Rudder's operational security features. Without a subscritpion
+> you will get access to [Rudder _core_](/#rudder-core).
+> It you want to evaluate how Rudder can help you, you can [ask for a free trial](https://www.rudder.io/free-trial/) on the website.
+>
+> If you have installed Rudder _core_, you can upgrade it at any time to a subscrition
+> or a free trial license.
 
-You can browse a demo version of Rudder (with fake data) or ask for a license to
-test it on your own test infrastructure.
-The documentation also provides [a guide](https://docs.rudder.io/get-started/current/index.html)
-to install a test plaform locally using Vagrant.
-
-<div align="center">
-    ➡️ <a href="https://demo.rudder.io">👁️ <b>Open the demo interface</b></a> ⬅️
-    <br><br>
-    ➡️ <a href="https://www.rudder.io/free-trial/">💯 <b>Get a one-month free trial of a fully-featured Rudder server</b></a> ⬅️
-    <br><br>
-</div>
-
-### Install Rudder
-
-#### Standard installation
+### Standard installation
 
 Follow the step-by-step instructions of the documentation to setup Rudder:
 
-<div align="center">
-    ➡️ <a href="https://docs.rudder.io/reference/current/installation/index.html">📥 <b>Install Rudder</b></a> ⬅️
-</div>
+* 📥 [**Install Rudder**](https://docs.rudder.io/reference/current/installation/index.html)
+* You can then follow the [get started documentation](https://docs.rudder.io/get-started/current/configuration-policies/index.html) to discover the features with a hands-on tutorial.
 
-#### Quick installation
+### Quick installation
 
-For a quick setup on Linux systems, you can use an installer script.
+Alternatively, for a quick setup on Linux systems, you can use the installer script.
 For a Rudder server:
 
 ```bash
@@ -100,12 +97,13 @@ chmod +x rudder-setup
 
 ## FAQ
 
+[open core](#open-core)
 ### Is Rudder open-source? Is it free?
 
-Rudder follows an _open-core_ model:
+Rudder has adopted an _open-core_ model:
 
 * Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
-* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under closed license.
+* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
    It also includes other benefits:
   * Additionnal plugins that add major features
   * Support for older versions on Linux distributions
