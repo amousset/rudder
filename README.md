@@ -45,7 +45,7 @@ to enhance cyber-resilience and foster collaboration in Security Operations (Sec
 
 A Rudder installation is made of:
 
-* A central server, providing the Web interface, HTTP APIs and the automation engine. It can be extended with plugins.
+* A central server, providing the Web interface, the [HTTP API](https://docs.rudder.io/api) and the automation engine. It can be extended with plugins.
 * (optional) Relays acting as smart proxies between the server and the agents.
 * A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default).
 
