@@ -37,21 +37,21 @@ Rudder is a leading-edge system infrastructure automation platform, dedicated to
 
 A Rudder installation is made of:
 
-* A central server, providing the Web interface, HTTP APIs and the automation engine
-* (optional) relays that act as smart proxies between the server and the agents
-* A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default)
+* A central server, providing the Web interface, HTTP APIs and the automation engine. It can be extended by installing plugins.
+* (optional) Relays acting as smart proxies between the server and the agents.
+* A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default).
 
 ## Get started
 
 ### Evaluate Rudder
 
-You can browse a demo version of Rudder (with fake data) or install a real
-test infrastructure.
+You can browse a demo version of Rudder (with fake data) or ask for a license to
+test it on your own infrastructure.
 
 <div  align="center">
     ➡️ <a href="https://demo.rudder.io">👁️ <b>Open the demo interface</b></a> ⬅️
     <br/><br/>
-    ➡️ <a href="https://www.rudder.io/free-trial/">💯 <b>Get a one month free trial of the full Rudder experience</b></a> ⬅️
+    ➡️ <a href="https://www.rudder.io/free-trial/">💯 <b>Get a one-month free trial of a fully-featured Rudder server</b></a> ⬅️
 </div>
 
 ### Install Rudder
@@ -73,8 +73,8 @@ and private one is [download.rudder.io](https://download.rudder.io):
 Rudder has an _open-core_ model:
 
 * Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
-* The complete Rudder solution is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
-   It also includes other ... like long-term support, support for a wider set of operating systems, support, etc. It is part of a subscription and includes:
+* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
+   It also includes other benefits like long-term support, support for a wider set of operating systems, support, etc. It is part of a subscription and includes:
   * Additionnal plugins that add major features
   * Support for older versions on Linux distributions
   * Support for aditionnal architecures (ARM & Power)
