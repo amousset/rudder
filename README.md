@@ -30,8 +30,8 @@ Operational Security Automation
 
 Rudder is a leading-edge system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
 
-- **Operational Security Automation:** Automate critical IT operations to fortify infrastructure security: inventory, hardening, patch management, vulnerability tracking
-- **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability.
+- **Operational Security Automation:** Automate critical IT operations to fortify infrastructure security: inventory, hardening, patch management, vulnerability management and standard compliance.
+- **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability. Configuration policies can be created seamlessly using a visual editor, or YAML code.
 - **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, on various operating system (wide Linux support, Windows, AIX) and architctures (i386, x86_64, Power, ARM 32, ARM 64).
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. 
 
