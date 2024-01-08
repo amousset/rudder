@@ -15,6 +15,7 @@
     <br><br>
     <a href="https://twitter.com/rudderio">X (Twitter)</a> •
     <a href="https://bsky.app/profile/rudder.io">Bluesky</a> •
+    <a href="https://mamot.fr/@rudderio">Mastodon</a> •
     <a href="https://www.linkedin.com/company/rudderbynormation/">LinkedIn</a>
 </p>
 
@@ -26,14 +27,20 @@
 
 ## What is Rudder?
 
-Operational Security Automation
+Rudder is a system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
 
-Rudder is a leading-edge system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
+### Features
 
-- **Operational Security Automation:** Automate critical IT operations to fortify infrastructure security: inventory, hardening, patch management, vulnerability management and standard compliance.
+- **Operational Security Automation:** Automate critical IT operations to fortify infrastructure security:
+  - Automated systems inventory
+  - Patch management
+  - Vulnerability management
+  - System hardening and security standards compliance
 - **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability. Configuration policies can be created seamlessly using a visual editor, or YAML code.
-- **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, on various operating system (wide Linux support, Windows, AIX) and architctures (i386, x86_64, Power, ARM 32, ARM 64).
+- **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX)
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. 
+
+### Components
 
 A Rudder installation is made of:
 
@@ -46,23 +53,22 @@ A Rudder installation is made of:
 ### Evaluate Rudder
 
 You can browse a demo version of Rudder (with fake data) or ask for a license to
-test it on your own infrastructure.
+test it on your own test infrastructure.
+The documentation also provides [a guide](https://docs.rudder.io/get-started/current/index.html)
+to install a test plaform locally using Vagrant.
 
-<div  align="center">
+<div align="center">
     ➡️ <a href="https://demo.rudder.io">👁️ <b>Open the demo interface</b></a> ⬅️
-    <br/><br/>
+    <br><br>
     ➡️ <a href="https://www.rudder.io/free-trial/">💯 <b>Get a one-month free trial of a fully-featured Rudder server</b></a> ⬅️
+    <br><br>
 </div>
 
 ### Install Rudder
 
-Follow the documentation to setup Rudder (the documentation is the same for Rudder _core_, a free trial or a
-subscription, just be careful that public repository is [repository.rudder.io](https://repository.rudder.io),
-and private one is [download.rudder.io](https://download.rudder.io):
+Follow the step-by-step instructions of the documentation to setup Rudder:
 
-<div  align="center">
-    ➡️ <a href="https://docs.rudder.io/get-started/current/index.html">🧪 Install a test platform (using Vargant)</a> ⬅️
-    <br/><br/>
+<div align="center">
     ➡️ <a href="https://docs.rudder.io/reference/current/installation/index.html">📥 <b>Install Rudder</b></a> ⬅️
 </div>
 
