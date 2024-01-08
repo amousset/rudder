@@ -28,13 +28,18 @@
 
 Operational Security Automation
 
-Rudder is a leading-edge system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps). It serves as a robust configuration and security automation solution designed for managing diverse IT environments, whether in the Cloud, hybrid, or on-premise.
+Rudder is a leading-edge system infrastructure automation platform, dedicated to empowering IT operational teams to enhance cyber-resilience and foster collaboration in Security Operations (SecOps).
+
+- **Operational Security Automation:** Automate critical IT operations to fortify infrastructure security: inventory, hardening, patch management, vulnerability tracking
+- **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability.
+- **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, on various operating system (wide Linux support, Windows, AIX) and architctures (i386, x86_64, Power, ARM 32, ARM 64).
+- **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. 
 
 A Rudder installation is made of:
 
-* A central server
-* (optional) relays that act as smart proxies
-* A light agent installed on every managed node
+* A central server, providing the Web interface, HTTP APIs and the automation engine
+* (optional) relays that act as smart proxies between the server and the agents
+* A light agent installed on every managed system. It runs autonomously and checks the state of the system continuously (practicaly, every 5 minutes by default)
 
 ## Get started
 
@@ -108,11 +113,12 @@ The community is diverse and comes from all over the world.
 
 ### Where can I find support for Rudder?
 
-The best way to get support is 
+The best option is through a Rudder subscription which includes profesionnal support. Users of Rudder _core_ can find help on the 
+community channels.
 
 ### How to join the community?
 
-Join our community on GitHub Discussions or Elements chat for support, feedback, and collaboration.
+Join our community on [GitHub Discussions](https://github.com/amousset/rudder/discussions) or our [Gitter/Element chat](https://app.gitter.im/#/room/#rudder:gitter.im) for support, feedback, and collaboration.
 
 ### How long are Rudder versions maintained?
 
