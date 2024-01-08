@@ -38,7 +38,7 @@ Rudder is a system infrastructure automation platform, dedicated to empowering I
   - System hardening and security standards compliance
 - **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability. Configuration policies can be created seamlessly using a visual editor, or YAML code.
 - **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX)
-- **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. 
+- **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. Typical deployments manage 100s to 1000s of systems, and a single Rudder server can manage more than 10k systems.
 
 ### Components
 
@@ -101,11 +101,11 @@ chmod +x rudder-setup
 
 ### Is Rudder open-source? Is it free?
 
-Rudder has an _open-core_ model:
+Rudder follows an _open-core_ model:
 
 * Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
-* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
-   It also includes other benefits like long-term support, support for a wider set of operating systems, support, etc. It is part of a subscription and includes:
+* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under closed license.
+   It also includes other benefits:
   * Additionnal plugins that add major features
   * Support for older versions on Linux distributions
   * Support for aditionnal architecures (ARM & Power)
@@ -123,7 +123,7 @@ Contrary to a lot of other tools, we made the decision to keep the the Web inter
 
 ### What are the differences between Rudder Core and the full Rudder solution?
 
-* Rudder _core_ is a versatile automation engine for pretty recent Linux systems,
+* Rudder _core_ is a versatile automation engine for mainstream Linux systems,
 thought to give access to ... to small organizations and indivudals
 * Rudder is an multiplatform operational security solution
 matching the current needs of ... (based on Rudder _core_).
@@ -136,6 +136,15 @@ There are no separate solution, the free version is identical to the core of the
 This means there the packages publicly available users are the same as the packages provided to
 subscription users, with the same QA and security processes. This is not a two-speed model, but
 a "two-scope" model.
+
+### Do I need to reinstall everything if upgrading from Rudder _core_ to a subscription?
+
+The full Rudder solution is a direct superset of Rudder _core_, so you don't have to
+reinstall anything and your server and agents are compatible with the additional
+features which come as plugins.
+
+You may just need to change the repository URL on your systems to benefit from the extended
+maintenance in the future.
 
 ### What is the governance structure of the Rudder project?
 
@@ -162,6 +171,8 @@ Maintenance policy:
 
 * Users of Rudder _core_ have a 3-month window to upgrade to the newest minor or major version after its release. This ensures that users can take advantage of the latest features and security enhancements promptly.
 * With a subscription, major releases are maintained for an extended period of 18 to 24 months after their initial release. Subscribers also benefit from an extended upgrade window of 6 to 9 months between minor versions. This extended timeframe allows for strategic planning and execution of version upgrades.
+
+Get the list of currently maintained versions [in the documentation](https://docs.rudder.io/versions).
 
 ### What is Rudder technical stack? In which language(s) is it developed?
 
