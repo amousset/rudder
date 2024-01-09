@@ -168,7 +168,6 @@ Get the list of currently maintained versions [in the documentation](https://doc
 
 All kinds of contributions are welcome, including code, documentation, examples of Rudder use cases,
 feedback about your usage, etc.
-
 If you are interested, you can come talk with the development team, is often present in the [char room](https://char.rudder.io),
 or open a discussion directly on GitHub.
 
