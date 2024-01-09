@@ -41,6 +41,8 @@ to enhance cyber-resilience and foster collaboration in Security Operations (Sec
 - **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX).
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. Typical deployments manage 100s to 1000s of systems, and a single Rudder server can manage more than 10k systems.
 
+Learn more about Rudder features and use cases [on the website](https://www.rudder.io/).
+
 ### Online demo
 
 Browse the [demo Web interface](https://demo.rudder.io) (with fake data) to get a glimpse of the available features and interfaces.
