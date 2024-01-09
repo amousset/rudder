@@ -38,7 +38,7 @@ to enhance cyber-resilience and foster collaboration in Security Operations (Sec
   - Vulnerability management
   - System hardening and security standards compliance
 - **Configuration Management:** Streamline and automate configuration tasks for enhanced reliability, with advanced compliance visualization. Configuration policies can be created seamlessly using a visual editor, or YAML code.
-- **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX)
+- **Multiplatform Support:** Manage diverse environments, including Cloud, hybrid, and on-premise setups, running various operating system (Linux/Windows/AIX).
 - **Scalable and Dynamic:** A scalable and dynamic approach to infrastructure management, including a powerful hirarchical configuration data engine and automated classification of managed systems. Typical deployments manage 100s to 1000s of systems, and a single Rudder server can manage more than 10k systems.
 
 ### Online demo
