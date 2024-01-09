@@ -97,20 +97,20 @@ chmod +x rudder-setup
 
 ## FAQ
 
-[open core](#open-core)
-### Is Rudder open-source? Is it free?
+### Is Rudder open-source? Is it free? What is Rudder core?
 
 Rudder has adopted an _open-core_ model:
 
 * Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
-* The complete Rudder solution, the enterprise version, is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
+* The complete Rudder solution is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
    It also includes other benefits:
   * Additionnal plugins that add major features
   * Support for older versions on Linux distributions
   * Support for aditionnal architecures (ARM & Power)
   * Support for proprietary operating systems: Windows and AIX
-  * Extended support (see FAQ)
-  * User support
+  * Extended support for Rudder releases
+  * Profesionnal support, user assistance
+  * Training
 
 They serve different purposes:
 
@@ -120,10 +120,7 @@ small businesses and indivudals.
 * Rudder is an multiplatform operational security solution, answering the needs of
 most organizations, inclusing enterprise setup and critical infrastructures.
 
-
-
-There are no separate solution, the free version is identical to the core of the full solution.
-This means there the packages publicly available users are the same as the packages provided to
+Rudder core is a subset of the full solution, and the packages publicly available are identical the packages provided to
 subscription users, with the same QA and security processes. This is not a two-speed model, but
 a "two-scope" model.
 
