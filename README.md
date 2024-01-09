@@ -58,8 +58,8 @@ A Rudder installation is made of:
 ## Install Rudder
 
 > [!TIP]
-> You need an active subscription to get a complete experience includng Rudder's operational security features. Without a subscritpion
-> you will get access to [Rudder _core_](/#rudder-core).
+> You need an active subscription to get a complete setup, including Rudder's operational security features. Without a subscritpion
+> you will get access to [Rudder _core_](#rudder-core) only.
 > It you want to evaluate how Rudder can help you, you can [ask for a free trial](https://www.rudder.io/free-trial/) on the website.
 >
 > If you have installed Rudder _core_, you can upgrade it at any time to a subscrition
@@ -69,7 +69,7 @@ A Rudder installation is made of:
 
 Follow the step-by-step instructions of the documentation to setup Rudder:
 
-* 📥 [**Install Rudder**](https://docs.rudder.io/reference/current/installation/index.html)
+* 📥 [**Install Rudder**](https://docs.rudder.io/reference/current/installation/index.html), with or without a subscription.
 * You can then follow the [get started documentation](https://docs.rudder.io/get-started/current/configuration-policies/index.html) to discover the features with a hands-on tutorial.
 
 ### Quick installation
@@ -112,31 +112,22 @@ Rudder has adopted an _open-core_ model:
   * Extended support (see FAQ)
   * User support
 
-We are strong believers in the merits of free / open-source software, and have turned to open-core to ensure the perenity of the project
-(i.e. pay the developers).
-Rudder is developped by a profesional team, 
-
-We strive to open-source as much code as possible, without threatening the project viability.
-
-Contrary to a lot of other tools, we made the decision to keep the the Web interface free of access.
-
-### What are the differences between Rudder Core and the full Rudder solution?
+They serve different purposes:
 
 * Rudder _core_ is a versatile automation engine for mainstream Linux systems,
-thought to give access to ... to small organizations and indivudals
-* Rudder is an multiplatform operational security solution
-matching the current needs of ... (based on Rudder _core_).
+built to give access to essential configuration management and inventory features to
+small businesses and indivudals.
+* Rudder is an multiplatform operational security solution, answering the needs of
+most organizations, inclusing enterprise setup and critical infrastructures.
 
-Main traction to conﬁguration management
-enabling small businesses and individuals to
-start their journey in cyber-resilience.
+
 
 There are no separate solution, the free version is identical to the core of the full solution.
 This means there the packages publicly available users are the same as the packages provided to
 subscription users, with the same QA and security processes. This is not a two-speed model, but
 a "two-scope" model.
 
-### Do I need to reinstall everything if upgrading from Rudder _core_ to a subscription?
+### Do I need to reinstall anything if upgrading from Rudder _core_ to a subscription?
 
 The full Rudder solution is a direct superset of Rudder _core_, so you don't have to
 reinstall anything and your server and agents are compatible with the additional
@@ -147,8 +138,7 @@ maintenance in the future.
 
 ### What is the governance structure of the Rudder project?
 
-The project is managed by the French (🇫🇷 🇪🇺) company of the same name (previously known as _Normation_).
-The community is diverse and comes from all over the world.
+The project is lead by the French (🇫🇷 🇪🇺) company of the same name (previously known as _Normation_).
 
 ### Where can I find support for Rudder?
 
@@ -173,53 +163,24 @@ Maintenance policy:
 
 Get the list of currently maintained versions [in the documentation](https://docs.rudder.io/versions).
 
-### What is Rudder technical stack? In which language(s) is it developed?
-
-This infrastructure automation software is crafted with a deliberate choice of dependancies and programming languages to ensure reliability, performance, and maintainability. The core of the software is built using Scala and Rust, each serving a specific purpose to elevate the overall quality of the system.
-
-
-In summary, the combination of Scala's reliability and expressiveness with Rust's performance and safety features creates a powerful foundation for Rudder. This technology stack ensures that the software is not only robust and secure but also aligns with contemporary development practices.
-
-
-
-Our current stack of choice is:
-
-* Scala for the main application backend.
-* Rust for system components (network daemons and CLIs). The communication between the nodes and the server is handled with the tokio.
-* Elm for frontend. Stable, reliable, secured
-* PostgreSQL
-
-Learn more [in the documentation](https://docs.rudder.io/reference/8.0/technical_stack.html).
-
 ## Contributing 
 
 ### How can I get involved with the Rudder project?
 
-We are open to contributions, and development is made in the open.
-
 All kinds of contributions are welcome, including code, documentation, examples of Rudder use cases,
 feedback about your usage, etc.
 
+If you are interested, you can come talk with the development team, is often present in the [char room](https://char.rudder.io),
+or open a discussion directly on GitHub.
+
 ### Contributor License Agreement
 
-We need a signed individual or entity CLA (Contributor License Agreement) before we can merge any code or documentation to Rudder.
-We decided to ask for a CLA to:
-
-* Allow us to enforce the license: in general, only the copyright holder or someone having assignment of the copyright can enforce the license of a program.
-* Give us options for the future. For example, this allowed us to relicense Rudder from AGLv3 to GPLv3 to facilitate its adoption.
+We require a signed individual or entity Contributor License Agreement (CLA) before we can merge any significnt code or documentation change to Rudder.
 
 Given the recent developments in the legal framework surrounding patents, copyrights and their use, we want to be very clear about what we give and wait in return before we can accept a contribution. We want to be able to evolve with all these legal issues, and be able to defend the project if something unpleasant happens, or simply if a contributor changes their mind. Prevention is better than cure!
 
 * If you are making a personal contribution, here is the reference text to consult: [individual CLA](https://sign.signable.app/widget/xs2adbWSXS).
 * If you are contributing on behalf of a company, consult this version: [entity CLA](https://sign.signable.app/#/widget/4YpYMVZKWG).
-
-In summary (but you should really read the full text, because it alone has legal value), you state that:
-
-* your contribution is voluntary,
-* your work is your original creation,
-* you grant a copyright license for your contributions to Normation, the software publisher that develops Rudder in the legal and administrative sense,
-* you grant a patent license for your contributions to Normation,
-* you are not required to provide support for your contributions.
 
 Our text is based on the CLA provided by the [Harmony Agreement Project](https://www.harmonyagreements.org/). The Harmony agreements are a community group focused on contribution agreements for free and open source software (FOSS).
 
