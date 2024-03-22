@@ -61,10 +61,10 @@ A Rudder installation is made of:
 
 > [!TIP]
 > You need an active subscription to get a complete setup, including Rudder's operational security features. Without a subscritpion
-> you will get access to [Rudder _core_](#rudder-core) only.
+> you will get access to [Rudder Core](#rudder-core) only.
 > It you want to evaluate how Rudder can help you, you can [ask for a free trial](https://www.rudder.io/free-trial/) on the website.
 >
-> If you have installed Rudder _core_, you can upgrade it at any time to a subscrition
+> If you have installed Rudder Core, you can upgrade it at any time to a subscrition
 > or a free trial license.
 
 ### Standard installation
@@ -99,12 +99,12 @@ chmod +x rudder-setup
 
 ## FAQ
 
-### Is Rudder open-source? Is it free? What is Rudder core?
+### Is Rudder open-source? Is it free? What is Rudder Core?
 
 Rudder has adopted an _open-core_ model:
 
-* Rudder _core_ is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
-* The complete Rudder solution is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
+* **Rudder Core** is available for free and totally open-source (under GPLv3 an Apache 2.0). It includes the main Rudder components, Linux agents, plus several plugins.
+* The complete **Rudder** solution is paid and partially open-source. A part of the paid plugins and agents are distributed under proprietary license.
    It also includes other benefits:
   * Additionnal plugins that add major features
   * Support for older versions on Linux distributions
@@ -116,19 +116,19 @@ Rudder has adopted an _open-core_ model:
 
 They serve different purposes:
 
-* Rudder _core_ is a versatile automation engine for mainstream Linux systems,
+* **Rudder Core** is a versatile automation engine for mainstream Linux systems,
 built to give access to essential configuration management and inventory features to
 small businesses and indivudals.
-* Rudder is an multiplatform operational security solution, answering the needs of
+* **Rudder** is an multiplatform operational security solution, answering the needs of
 most organizations, inclusing enterprise setup and critical infrastructures.
 
-Rudder core is a subset of the full solution, and the packages publicly available are identical the packages provided to
+Rudder Core is a subset of the full solution, and the packages publicly available are identical the packages provided to
 subscription users, with the same QA and security processes. This is not a two-speed model, but
 a "two-scope" model.
 
-### Do I need to reinstall anything if upgrading from Rudder _core_ to a subscription?
+### Do I need to reinstall anything if upgrading from Rudder Core to a subscription?
 
-The full Rudder solution is a direct superset of Rudder _core_, so you don't have to
+The full Rudder solution is a direct superset of Rudder Core, so you don't have to
 reinstall anything and your server and agents are compatible with the additional
 features which come as plugins.
 
@@ -141,7 +141,7 @@ The project is lead by the French (🇫🇷 🇪🇺) company of the same name (
 
 ### Where can I find support for Rudder?
 
-The best option is through a Rudder subscription which includes profesionnal support. Users of Rudder _core_ can find help on the 
+The best option is through a Rudder subscription which includes profesionnal support. Users of Rudder Core can find help on the 
 community channels.
 
 ### How to join the community?
@@ -157,7 +157,7 @@ Rudder uses a `MAJOR.MINOR.PATCH` versionning scheme:
 
 Maintenance policy:
 
-* Users of Rudder _core_ have a 3-month window to upgrade to the newest minor or major version after its release. This ensures that users can take advantage of the latest features and security enhancements promptly.
+* Users of Rudder Core have a 3-month window to upgrade to the newest minor or major version after its release. This ensures that users can take advantage of the latest features and security enhancements promptly.
 * With a subscription, major releases are maintained for an extended period of 18 to 24 months after their initial release. Subscribers also benefit from an extended upgrade window of 6 to 9 months between minor versions. This extended timeframe allows for strategic planning and execution of version upgrades.
 
 Get the list of currently maintained versions [in the documentation](https://docs.rudder.io/versions).
