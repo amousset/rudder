@@ -22,7 +22,11 @@ create table if not exists update_events (
     report_datetime text,
 
     -- report sent to the server
-    report text -- json string
+    report text, -- json string
+
+    -- process id of the current process handling the upgrade
+    -- when not null, acts as a lock
+    pid integer
 );
 
 create index if not exists idx_event_id on update_events (event_id);

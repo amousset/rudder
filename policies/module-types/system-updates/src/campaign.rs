@@ -64,11 +64,12 @@ pub fn check_update(
         if do_update {
             let report = update(pm, p.reboot_type, p.campaign_type, p.package_list)?;
             db.store_report(&p.event_id, &report)?;
+
+            // Dubious }
         }
 
         // Update takes time
         let do_post_actions = db.post_event(&p.event_id)?;
-
         if do_post_actions {
             let init_report = db.get_report(&p.event_id)?;
             let report = post_update(init_report)?;
@@ -80,7 +81,7 @@ pub fn check_update(
             }
 
             let now_finished = Utc::now();
-            db.sent(&p.event_id, now_finished)?;
+            db.completed(&p.event_id, now_finished)?;
 
             // The repaired status is the trigger to read and send the report.
             Ok(Outcome::Repaired("Update has run".to_string()))

@@ -107,7 +107,6 @@ impl PackageDatabase {
 
     /// Schedule an event
     ///
-    /// The insertion also acts as the locking mechanism
     pub fn schedule_event(
         &mut self,
         event_id: &str,
@@ -129,7 +128,7 @@ impl PackageDatabase {
         if !already_scheduled {
             tx.execute(
                 "insert into update_events (event_id, campaign_name, status, schedule_datetime) values (?1, ?2, ?3, ?4)",
-                (&event_id, &campaign_name, UpdateStatus::Scheduled.to_string(), schedule_datetime.to_rfc3339()),
+                (&event_id, &campaign_name, UpdateStatus::ScheduledUpdate.to_string(), schedule_datetime.to_rfc3339()),
             )?;
         }
 
@@ -140,6 +139,8 @@ impl PackageDatabase {
     /// Start an event
     ///
     /// The update also acts as the locking mechanism
+    ///
+    /// We take the actual start time, which is >= scheduled.
     pub fn start_event(
         &mut self,
         event_id: &str,
@@ -149,7 +150,7 @@ impl PackageDatabase {
 
         let r = tx.query_row(
             "select id from update_events where event_id = ?1 and status = ?2",
-            (&event_id, UpdateStatus::Scheduled.to_string()),
+            (&event_id, UpdateStatus::ScheduledUpdate.to_string()),
             |_| Ok(()),
         );
         let pending_update = match r {
@@ -161,7 +162,7 @@ impl PackageDatabase {
             tx.execute(
                 "update update_events set status = ?1, run_datetime = ?2 where event_id = ?3",
                 (
-                    UpdateStatus::Running.to_string(),
+                    UpdateStatus::RunningUpdate.to_string(),
                     start_datetime.to_rfc3339(),
                     &event_id,
                 ),
@@ -172,15 +173,14 @@ impl PackageDatabase {
         Ok(pending_update)
     }
 
-    /// Start post-event action. Can happen after a reboot in a separate run.
+    /// Schedule post-event action. Can happen after a reboot in a separate run.
     ///
-    /// The update also acts as the locking mechanism
-    pub fn post_event(&mut self, event_id: &str) -> Result<bool, rusqlite::Error> {
+    pub fn schedule_post_event(&mut self, event_id: &str) -> Result<bool, rusqlite::Error> {
         let tx = self.conn.transaction()?;
 
         let r = tx.query_row(
             "select event_id from update_events where event_id = ?1 and status = ?2",
-            (&event_id, UpdateStatus::Running.to_string()),
+            (&event_id, UpdateStatus::RunningUpdate.to_string()),
             |_| Ok(()),
         );
         let pending_post_actions = match r {
@@ -199,6 +199,33 @@ impl PackageDatabase {
         Ok(pending_post_actions)
     }
 
+    /// Start post-event action. Can happen after a reboot in a separate run.
+    ///
+    /// The update also acts as the locking mechanism
+    pub fn post_event(&mut self, event_id: &str) -> Result<bool, rusqlite::Error> {
+        let tx = self.conn.transaction()?;
+
+        let r = tx.query_row(
+            "select event_id from update_events where event_id = ?1 and status = ?2",
+            (&event_id, UpdateStatus::PendingPostActions.to_string()),
+            |_| Ok(()),
+        );
+        let pending_post_actions = match r {
+            Ok(_) => true,
+            Err(rusqlite::Error::QueryReturnedNoRows) => false,
+            Err(e) => return Err(e),
+        };
+        if pending_post_actions {
+            tx.execute(
+                "update update_events set status = ?1 where event_id = ?2",
+                (UpdateStatus::RunningPostActions.to_string(), &event_id),
+            )?;
+        }
+
+        tx.commit()?;
+        Ok(pending_post_actions)
+    }
+
     pub fn store_report(&self, event_id: &str, report: &Report) -> Result<(), rusqlite::Error> {
         self.conn.execute(
             "update update_events set report = ?1 where event_id = ?2",
@@ -207,6 +234,7 @@ impl PackageDatabase {
         Ok(())
     }
 
+    /// Assumes the report exists, fails otherwise
     pub fn get_report(&self, event_id: &str) -> Result<Report, rusqlite::Error> {
         self.conn.query_row(
             "select report from update_events where event_id = ?1",
@@ -220,7 +248,7 @@ impl PackageDatabase {
     }
 
     /// Mark the event as completed
-    pub fn sent(
+    pub fn completed(
         &self,
         event_id: &str,
         report_datetime: DateTime<Utc>,
@@ -334,7 +362,7 @@ mod tests {
         let event = Event {
             id: event_id.to_string(),
             campaign_name: campaign_name.to_string(),
-            status: UpdateStatus::Running,
+            status: UpdateStatus::RunningUpdate,
             scheduled_datetime: schedule,
             run_datetime: Some(start),
             report_datetime: None,
@@ -346,7 +374,7 @@ mod tests {
         let ref_event = Event {
             id: event_id.to_string(),
             campaign_name: campaign_name.to_string(),
-            status: UpdateStatus::Running,
+            status: UpdateStatus::RunningUpdate,
             scheduled_datetime: schedule,
             run_datetime: Some(start),
             report_datetime: None,
