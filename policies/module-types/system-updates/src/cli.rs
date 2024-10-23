@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2024 Normation SAS
 #![allow(unused_imports)]
 
+use crate::campaign::SchedulerParameters;
+use crate::system::{System, Systemd};
 use crate::{
     campaign::{check_update, FullSchedule},
     cli,
@@ -71,9 +73,11 @@ struct RunOpts {
     security: bool,
     #[options(help = "package manager to use (defaults to system detection)")]
     package_manager: Option<PackageManager>,
+    #[options(help = "reboot/restart behavior")]
+    reboot_type: RebootType,
+    #[options(help = "name of the campaign")]
+    name: Option<String>,
     /*
-    "campaign_name": "My campaign",
-    "reboot_type": "as_needed",
     "package_list": [],
     */
 }
@@ -115,29 +119,25 @@ impl Cli {
             }
             Some(Command::Run(opts)) => {
                 let state_dir = opts.state_dir.unwrap_or(PathBuf::from(MODULE_DIR));
-                let package_parameters = PackageParameters {
+                let pm = opts
+                    .package_manager
+                    .unwrap_or_else(|| PackageManager::detect().unwrap());
+                let package_parameters = SchedulerParameters {
                     campaign_type: if opts.security {
                         CampaignType::SecurityUpdate
                     } else {
                         CampaignType::SystemUpdate
                     },
-                    package_manager: opts
-                        .package_manager
-                        .unwrap_or_else(|| PackageManager::detect().unwrap()),
                     event_id: Uuid::new_v4().to_string(),
-                    campaign_name: "CLI".to_string(),
-                    schedule: Schedule::Immediate,
-                    reboot_type: RebootType::Disabled,
+                    campaign_name: opts.name.unwrap_or("CLI".to_string()),
+                    schedule: FullSchedule::Immediate,
+                    reboot_type: opts.reboot_type,
                     package_list: vec![],
                     report_file: None,
                     schedule_file: None,
                 };
-
-                check_update(
-                    state_dir.as_path(),
-                    FullSchedule::Immediate,
-                    package_parameters,
-                )?;
+                let mut db = PackageDatabase::new(Some(state_dir.as_path()))?;
+                check_update(package_parameters, &mut pm.get()?, &mut db, &Systemd::new())?;
             }
             Some(Command::Clear(l)) => {
                 let dir = l.state_dir.unwrap_or(PathBuf::from(MODULE_DIR));

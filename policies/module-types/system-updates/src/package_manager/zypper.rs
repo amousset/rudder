@@ -23,14 +23,14 @@ impl ZypperPackageManager {
         Self { rpm }
     }
 
-    pub fn package_spec_as_argument(p: PackageSpec) -> String {
-        let mut res = p.name;
+    pub fn package_spec_as_argument(p: &PackageSpec) -> String {
+        let mut res = p.name.clone();
 
-        if let Some(a) = p.architecture {
+        if let Some(ref a) = p.architecture {
             res.push('.');
             res.push_str(&a);
         }
-        if let Some(v) = p.version {
+        if let Some(ref v) = p.version {
             res.push('=');
             res.push_str(&v);
         }
@@ -67,7 +67,7 @@ impl LinuxPackageManager for ZypperPackageManager {
         res_update.clear_ok()
     }
 
-    fn upgrade(&mut self, packages: Vec<PackageSpec>) -> ResultOutput<()> {
+    fn upgrade(&mut self, packages: &[PackageSpec]) -> ResultOutput<()> {
         let mut c = Command::new("zypper");
         c.arg("--non-interactive").arg("--name").arg("update");
         c.args(packages.into_iter().map(Self::package_spec_as_argument));

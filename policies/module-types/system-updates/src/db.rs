@@ -105,6 +105,18 @@ impl PackageDatabase {
         Ok(())
     }
 
+    pub fn get_status(&self, event_id: &str) -> Result<UpdateStatus, rusqlite::Error> {
+        self.conn.query_row(
+            "select status from update_events where event_id = ?1",
+            [&event_id],
+            |row| {
+                let v: String = row.get(0)?;
+                let p: UpdateStatus = v.parse().unwrap();
+                Ok(p)
+            },
+        )
+    }
+
     /// Schedule an event
     ///
     pub fn schedule_event(
@@ -175,7 +187,11 @@ impl PackageDatabase {
 
     /// Schedule post-event action. Can happen after a reboot in a separate run.
     ///
-    pub fn schedule_post_event(&mut self, event_id: &str) -> Result<bool, rusqlite::Error> {
+    pub fn schedule_post_event(
+        &mut self,
+        event_id: &str,
+        report: &Report,
+    ) -> Result<bool, rusqlite::Error> {
         let tx = self.conn.transaction()?;
 
         let r = tx.query_row(
@@ -190,8 +206,12 @@ impl PackageDatabase {
         };
         if pending_post_actions {
             tx.execute(
-                "update update_events set status = ?1 where event_id = ?2",
-                (UpdateStatus::PendingPostActions.to_string(), &event_id),
+                "update update_events set status = ?1, report = ?2 where event_id = ?3",
+                (
+                    UpdateStatus::PendingPostActions.to_string(),
+                    serde_json::to_string(report).unwrap(),
+                    &event_id,
+                ),
             )?;
         }
 
@@ -226,14 +246,6 @@ impl PackageDatabase {
         Ok(pending_post_actions)
     }
 
-    pub fn store_report(&self, event_id: &str, report: &Report) -> Result<(), rusqlite::Error> {
-        self.conn.execute(
-            "update update_events set report = ?1 where event_id = ?2",
-            (serde_json::to_string(report).unwrap(), &event_id),
-        )?;
-        Ok(())
-    }
-
     /// Assumes the report exists, fails otherwise
     pub fn get_report(&self, event_id: &str) -> Result<Report, rusqlite::Error> {
         self.conn.query_row(
@@ -252,12 +264,14 @@ impl PackageDatabase {
         &self,
         event_id: &str,
         report_datetime: DateTime<Utc>,
+        report: &Report,
     ) -> Result<(), rusqlite::Error> {
         self.conn.execute(
-            "update update_events set status = ?1, report_datetime = ?2 where event_id = ?3",
+            "update update_events set status = ?1, report_datetime = ?2, report = ?3 where event_id = ?4",
             (
                 UpdateStatus::Completed.to_string(),
                 report_datetime.to_rfc3339(),
+                serde_json::to_string(report).unwrap(),
                 &event_id,
             ),
         )?;
@@ -352,7 +366,7 @@ mod tests {
         db.schedule_event(event_id, campaign_name, schedule)
             .unwrap();
         db.start_event(event_id, start).unwrap();
-        db.store_report(event_id, &report).unwrap();
+        db.schedule_post_event(event_id, &report).unwrap();
 
         // Now get the data back and see if it matches
         let got_report = db.get_report(event_id).unwrap();
@@ -362,7 +376,7 @@ mod tests {
         let event = Event {
             id: event_id.to_string(),
             campaign_name: campaign_name.to_string(),
-            status: UpdateStatus::RunningUpdate,
+            status: UpdateStatus::PendingPostActions,
             scheduled_datetime: schedule,
             run_datetime: Some(start),
             report_datetime: None,
@@ -374,7 +388,7 @@ mod tests {
         let ref_event = Event {
             id: event_id.to_string(),
             campaign_name: campaign_name.to_string(),
-            status: UpdateStatus::RunningUpdate,
+            status: UpdateStatus::PendingPostActions,
             scheduled_datetime: schedule,
             run_datetime: Some(start),
             report_datetime: None,

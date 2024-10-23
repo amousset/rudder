@@ -24,13 +24,13 @@ impl YumPackageManager {
         Self { rpm }
     }
 
-    fn package_spec_as_argument(p: PackageSpec) -> String {
-        let mut res = p.name;
-        if let Some(v) = p.version {
+    fn package_spec_as_argument(p: &PackageSpec) -> String {
+        let mut res = p.name.clone();
+        if let Some(ref v) = p.version {
             res.push('-');
             res.push_str(&v);
         }
-        if let Some(a) = p.architecture {
+        if let Some(ref a) = p.architecture {
             res.push('.');
             res.push_str(&a);
         }
@@ -58,11 +58,11 @@ impl LinuxPackageManager for YumPackageManager {
         ResultOutput::command(c).clear_ok()
     }
 
-    fn upgrade(&mut self, packages: Vec<PackageSpec>) -> ResultOutput<()> {
+    fn upgrade(&mut self, packages: &[PackageSpec]) -> ResultOutput<()> {
         let mut c = Command::new("yum");
         c.arg("--assumeyes")
             .arg("update")
-            .args(packages.into_iter().map(Self::package_spec_as_argument));
+            .args(packages.iter().map(Self::package_spec_as_argument));
         ResultOutput::command(c).clear_ok()
     }
 

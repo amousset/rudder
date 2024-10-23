@@ -30,7 +30,7 @@ pub struct PackageList {
 
 /// Details of a package (installed or available) in a package manager context.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct PackageInfo {
+pub struct PackageInfo {
     pub(crate) version: String,
     pub(crate) from: String,
     pub(crate) source: PackageManager,
@@ -222,7 +222,7 @@ pub trait LinuxPackageManager {
     fn security_upgrade(&mut self) -> ResultOutput<()>;
 
     /// Upgrade specific packages
-    fn upgrade(&mut self, packages: Vec<PackageSpec>) -> ResultOutput<()>;
+    fn upgrade(&mut self, packages: &[PackageSpec]) -> ResultOutput<()>;
 
     /// Is a reboot pending?
     fn reboot_pending(&self) -> ResultOutput<bool>;

@@ -103,7 +103,7 @@ impl AptPackageManager {
                         stderr.push(format!("Warning: {}", error.msg));
                     }
                 }
-                Err(anyhow!("Apt error"))
+                Err(anyhow!("APT error"))
             }
         };
         ResultOutput::new_output(r, vec![], stderr)
@@ -275,21 +275,21 @@ impl LinuxPackageManager for AptPackageManager {
         }
     }
 
-    fn upgrade(&mut self, packages: Vec<PackageSpec>) -> ResultOutput<()> {
+    fn upgrade(&mut self, packages: &[PackageSpec]) -> ResultOutput<()> {
         let cache = self.cache();
 
         if let Ok(c) = cache.inner {
             for p in packages {
-                let package_id = if let Some(a) = p.architecture {
+                let package_id = if let Some(ref a) = p.architecture {
                     format!("{}:{}", p.name, a)
                 } else {
-                    p.name
+                    p.name.clone()
                 };
                 // Get package from cache
                 // FIXME: handle absent package
                 let pkg = c.get(&package_id).unwrap();
 
-                if let Some(spec_version) = p.version {
+                if let Some(ref spec_version) = p.version {
                     let candidate = pkg
                         .versions()
                         .find(|v| v.version() == spec_version.as_str());
