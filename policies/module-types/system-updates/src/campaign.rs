@@ -1,29 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2024 Normation SAS
 
-use crate::output::Status;
-use crate::package_manager::PackageManager;
 use crate::{
-    campaign,
     db::PackageDatabase,
     hooks::Hooks,
-    output::{Report, ScheduleReport},
+    output::{Report, ScheduleReport, Status},
     package_manager::{LinuxPackageManager, PackageSpec},
-    scheduler,
     system::System,
-    CampaignType, PackageParameters, RebootType, Schedule, ScheduleParameters,
+    CampaignType, PackageParameters, RebootType, Schedule,
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use rudder_module_type::Outcome;
-use std::fs;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 /// How long to keep events in the database
 pub(crate) const RETENTION_DAYS: u32 = 60;
 
-#[derive(Clone)]
-pub struct SchedulerParameters {
+#[derive(Clone, Debug)]
+pub struct RunnerParameters {
     pub campaign_type: CampaignType,
     pub event_id: String,
     pub campaign_name: String,
@@ -34,7 +29,7 @@ pub struct SchedulerParameters {
     pub schedule_file: Option<PathBuf>,
 }
 
-impl SchedulerParameters {
+impl RunnerParameters {
     pub fn new(
         package_parameters: PackageParameters,
         node_id: String,
@@ -51,14 +46,27 @@ impl SchedulerParameters {
             schedule_file: package_parameters.schedule_file,
         }
     }
+
+    pub fn new_immediate(package_parameters: PackageParameters) -> Self {
+        Self {
+            campaign_type: package_parameters.campaign_type,
+            event_id: package_parameters.event_id,
+            campaign_name: package_parameters.campaign_name,
+            schedule: FullSchedule::Immediate,
+            reboot_type: package_parameters.reboot_type,
+            package_list: package_parameters.package_list,
+            report_file: package_parameters.report_file,
+            schedule_file: package_parameters.schedule_file,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FullScheduleParameters {
-    pub(crate) start: DateTime<Utc>,
-    pub(crate) end: DateTime<Utc>,
-    pub(crate) node_id: String,
-    pub(crate) agent_frequency: Duration,
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+    pub node_id: String,
+    pub agent_frequency: Duration,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,14 +78,12 @@ pub enum FullSchedule {
 impl FullSchedule {
     pub fn new(schedule: &Schedule, node_id: String, agent_frequency: Duration) -> Self {
         match schedule {
-            Schedule::Scheduled(ref s) => {
-                FullSchedule::Scheduled(campaign::FullScheduleParameters {
-                    start: s.start,
-                    end: s.end,
-                    node_id,
-                    agent_frequency,
-                })
-            }
+            Schedule::Scheduled(ref s) => FullSchedule::Scheduled(FullScheduleParameters {
+                start: s.start,
+                end: s.end,
+                node_id,
+                agent_frequency,
+            }),
             Schedule::Immediate => FullSchedule::Immediate,
         }
     }
@@ -87,76 +93,28 @@ impl FullSchedule {
 ///
 /// The returned outcome is not linked to the success of the update, but to the success of the
 /// process. The update itself can fail, but the process can be successful.
-pub fn check_update<T>(
-    parameters: SchedulerParameters,
-    package_manager: &mut Box<dyn LinuxPackageManager>,
+
+pub fn do_schedule(
+    p: &RunnerParameters,
     db: &mut PackageDatabase,
-    system: &T,
-) -> Result<Outcome>
-where
-    T: System,
-{
-    let now = Utc::now();
-    let schedule_datetime = match parameters.schedule {
-        FullSchedule::Immediate => now,
-        FullSchedule::Scheduled(ref s) => {
-            scheduler::splayed_start(s.start, s.end, s.agent_frequency, s.node_id.as_str())?
-        }
-    };
-    let already_scheduled = db.schedule_event(
-        &parameters.event_id,
-        &parameters.campaign_name,
-        schedule_datetime,
-    )?;
-
-    // Update should have started already
-    if now >= schedule_datetime {
-        let should_do_update = db.start_event(&parameters.event_id, now)?;
-
-        if should_do_update {
-            let reboot = do_update(&parameters, db, package_manager, system)?;
-            // Reboot after storing the report
-            if reboot {
-                // Async reboot
-                let result = system.reboot();
-                return match result.inner {
-                    Ok(_) => Ok(Outcome::Success(None)),
-                    Err(e) => bail!("Reboot failed: {:?}", e),
-                };
-            }
-        }
-
-        // Update takes time
-        let should_do_post_update = db.post_event(&parameters.event_id)?;
-        if should_do_post_update {
-            do_post_update(&parameters, db)
-        } else {
-            Ok(Outcome::Success(None))
-        }
-    } else {
-        // Not the time yet, send the schedule if pending.
-        if !already_scheduled {
-            let report = ScheduleReport::new(schedule_datetime);
-            if let Some(ref f) = parameters.schedule_file {
-                // Write the report into the destination tmp file
-                fs::write(f, serde_json::to_string(&report)?.as_bytes())?;
-            }
-            Ok(Outcome::Repaired("Send schedule".to_string()))
-        } else {
-            Ok(Outcome::Success(None))
-        }
+    schedule_datetime: DateTime<Utc>,
+) -> Result<Outcome> {
+    db.schedule_event(&p.event_id, &p.campaign_name, schedule_datetime)?;
+    let report = ScheduleReport::new(schedule_datetime);
+    if let Some(ref f) = p.schedule_file {
+        // Write the report into the destination tmp file
+        fs::write(f, serde_json::to_string(&report)?.as_bytes())?;
     }
+    Ok(Outcome::Repaired("Schedule has been sent".to_string()))
 }
 
-fn do_update<T>(
-    p: &SchedulerParameters,
+pub fn do_update(
+    p: &RunnerParameters,
     db: &mut PackageDatabase,
     package_manager: &mut Box<dyn LinuxPackageManager>,
-    system: &T,
-) -> Result<bool>
-where
-    T: System,
-{
+    system: &Box<dyn System>,
+) -> Result<bool> {
+    db.start_event(&p.event_id, Utc::now())?;
     let (report, reboot) = update(
         package_manager,
         p.reboot_type,
@@ -164,14 +122,12 @@ where
         &p.package_list,
         system,
     )?;
-    let pending_post_action = db.schedule_post_event(&p.event_id, &report)?;
-    if !pending_post_action {
-        bail!("Several agents seem to have run the update at the same time, aborting");
-    }
+    db.schedule_post_event(&p.event_id, &report)?;
     Ok(reboot)
 }
 
-fn do_post_update(p: &SchedulerParameters, db: &mut PackageDatabase) -> Result<Outcome> {
+pub fn do_post_update(p: &RunnerParameters, db: &mut PackageDatabase) -> Result<Outcome> {
+    db.post_event(&p.event_id)?;
     let init_report = db.get_report(&p.event_id)?;
     let report = post_update(init_report)?;
 
@@ -188,7 +144,7 @@ fn do_post_update(p: &SchedulerParameters, db: &mut PackageDatabase) -> Result<O
 }
 
 /// Shortcut method to send an error report directly
-pub fn fail_campaign(reason: &str, report_file: Option<PathBuf>) -> Result<Outcome> {
+pub fn fail_campaign(reason: &str, report_file: Option<&PathBuf>) -> Result<Outcome> {
     let mut report = Report::new();
     report.stderr(reason);
     report.status = Status::Error;
@@ -200,16 +156,13 @@ pub fn fail_campaign(reason: &str, report_file: Option<PathBuf>) -> Result<Outco
 }
 
 /// Actually start the upgrade process immediately
-fn update<T>(
+fn update(
     pm: &mut Box<dyn LinuxPackageManager>,
     reboot_type: RebootType,
     campaign_type: CampaignType,
     packages: &[PackageSpec],
-    system: &T,
-) -> Result<(Report, bool)>
-where
-    T: System,
-{
+    system: &Box<dyn System>,
+) -> Result<(Report, bool)> {
     let mut report = Report::new();
 
     let pre_result = Hooks::PreUpgrade.run();
@@ -307,3 +260,5 @@ fn post_update(mut report: Report) -> Result<Report> {
     report.step(post_result);
     Ok(report)
 }
+
+// FIXME tests for do_* with mock pm

@@ -11,7 +11,7 @@ create table if not exists update_events (
     event_id text not null collate nocase unique,
     -- campaign name
     campaign_name text not null,
-    -- scheduled, running, pending-post-action, completed
+    -- scheduled, running, pending-post-action, running-post-action, completed
     status text not null,
 
     -- timestamps

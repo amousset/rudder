@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: 2024 Normation SAS
 #![allow(unused_imports)]
 
-use crate::campaign::SchedulerParameters;
-use crate::system::{System, Systemd};
 use crate::{
-    campaign::{check_update, FullSchedule},
+    campaign::{FullSchedule, RunnerParameters},
     cli,
     db::{Event, PackageDatabase},
-    package_manager::PackageManager,
+    package_manager::{LinuxPackageManager, PackageManager},
+    runner::Runner,
+    system::{System, Systemd},
     CampaignType, PackageParameters, RebootType, Schedule, SystemUpdateModule, MODULE_DIR,
 };
 use anyhow::{bail, Result};
@@ -119,10 +119,11 @@ impl Cli {
             }
             Some(Command::Run(opts)) => {
                 let state_dir = opts.state_dir.unwrap_or(PathBuf::from(MODULE_DIR));
-                let pm = opts
+                let pm: Box<dyn LinuxPackageManager> = opts
                     .package_manager
-                    .unwrap_or_else(|| PackageManager::detect().unwrap());
-                let package_parameters = SchedulerParameters {
+                    .unwrap_or_else(|| PackageManager::detect().unwrap())
+                    .get()?;
+                let package_parameters = RunnerParameters {
                     campaign_type: if opts.security {
                         CampaignType::SecurityUpdate
                     } else {
@@ -136,8 +137,11 @@ impl Cli {
                     report_file: None,
                     schedule_file: None,
                 };
-                let mut db = PackageDatabase::new(Some(state_dir.as_path()))?;
-                check_update(package_parameters, &mut pm.get()?, &mut db, &Systemd::new())?;
+                let db = PackageDatabase::new(Some(state_dir.as_path()))?;
+                let system: Box<dyn System> = Box::new(Systemd::new());
+                let pid = std::process::id();
+                let mut runner = Runner::new(db, pm, package_parameters, system, pid);
+                runner.run()?;
             }
             Some(Command::Clear(l)) => {
                 let dir = l.state_dir.unwrap_or(PathBuf::from(MODULE_DIR));

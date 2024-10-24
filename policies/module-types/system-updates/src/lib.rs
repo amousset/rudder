@@ -7,17 +7,18 @@ pub mod db;
 mod hooks;
 pub mod output;
 pub mod package_manager;
+mod runner;
 mod scheduler;
 pub mod state;
 pub mod system;
 
-use crate::campaign::{fail_campaign, SchedulerParameters, RETENTION_DAYS};
-use crate::db::PackageDatabase;
-use crate::system::Systemd;
 use crate::{
-    campaign::{check_update, FullSchedule},
+    campaign::{RunnerParameters, RETENTION_DAYS},
     cli::Cli,
+    db::PackageDatabase,
     package_manager::PackageManager,
+    runner::Runner,
+    system::{System, Systemd},
 };
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, Duration, Utc};
@@ -28,8 +29,7 @@ use rudder_module_type::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::str::FromStr;
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, str::FromStr};
 
 const MODULE_NAME: &str = env!("CARGO_PKG_NAME");
 
@@ -149,42 +149,32 @@ impl ModuleType0 for SystemUpdateModule {
         let package_parameters: PackageParameters =
             serde_json::from_value(Value::Object(parameters.data.clone()))
                 .context("Parsing module parameters")?;
-        let mut pm = package_parameters.package_manager.get()?;
-        let report_file = package_parameters.report_file.clone();
-        let r = {
-            let i_am_root = parameters.node_id == "root";
-            if mode == PolicyMode::Audit {
-                Err(anyhow!("{} does not support audit mode", MODULE_NAME))
-            } else if i_am_root && package_parameters.campaign_type != CampaignType::SoftwareUpdate
-            {
-                Err(anyhow!(
-                    "System campaigns are not allowed on the Rudder root server, aborting."
-                ))
-            } else if package_parameters.campaign_type == CampaignType::SoftwareUpdate
-                && package_parameters.package_list.is_empty()
-            {
-                Err(anyhow!(
-                    "Software update without a package list. This is inconsistent, aborting."
-                ))
-            } else {
-                let mut db = PackageDatabase::new(Some(parameters.state_dir.as_path()))?;
-                rudder_debug!("Cleaning events older than {} days", RETENTION_DAYS);
-                db.clean(Duration::days(RETENTION_DAYS as i64))?;
-                let agent_freq = Duration::minutes(parameters.agent_frequency_minutes as i64);
-                let scheduler_parameters = SchedulerParameters::new(
-                    package_parameters,
-                    parameters.node_id.clone(),
-                    agent_freq,
-                );
-                check_update(scheduler_parameters, &mut pm, &mut db, &Systemd::new())
-            }
-        };
+        let pm = package_parameters.package_manager.get()?;
 
-        if let Err(e) = r {
-            // Send the report to server
-            fail_campaign(&format!("{:?}", e), report_file)
+        let i_am_root = parameters.node_id == "root";
+        if mode == PolicyMode::Audit {
+            Err(anyhow!("{} does not support audit mode", MODULE_NAME))
+        } else if i_am_root && package_parameters.campaign_type != CampaignType::SoftwareUpdate {
+            Err(anyhow!(
+                "System campaigns are not allowed on the Rudder root server, aborting."
+            ))
+        } else if package_parameters.campaign_type == CampaignType::SoftwareUpdate
+            && package_parameters.package_list.is_empty()
+        {
+            Err(anyhow!(
+                "Software update without a package list. This is inconsistent, aborting."
+            ))
         } else {
-            r
+            let db = PackageDatabase::new(Some(parameters.state_dir.as_path()))?;
+            rudder_debug!("Cleaning events older than {} days", RETENTION_DAYS);
+            db.clean(Duration::days(RETENTION_DAYS as i64))?;
+            let agent_freq = Duration::minutes(parameters.agent_frequency_minutes as i64);
+            let system: Box<dyn System> = Box::new(Systemd::new());
+            let rp =
+                RunnerParameters::new(package_parameters, parameters.node_id.clone(), agent_freq);
+            let pid = std::process::id();
+            let mut runner = Runner::new(db, pm, rp, system, pid);
+            runner.run()
         }
     }
 }

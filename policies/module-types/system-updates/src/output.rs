@@ -122,7 +122,7 @@ impl Display for Status {
 // Same as the Python implementation in 8.1.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) struct Report {
+pub struct Report {
     pub software_updated: Vec<PackageDiff>,
     pub status: Status,
     pub output: String,

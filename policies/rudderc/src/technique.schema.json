@@ -513,7 +513,6 @@
     },
     "items": {
       "type": "array",
-      "minItems": 1,
       "title": "items",
       "description": "List of block or method calls, can not be empty",
       "markdownDescription": "```Mandatory```\n\nList of block or method calls, can not be empty",

@@ -105,8 +105,47 @@ impl PackageDatabase {
         Ok(())
     }
 
-    pub fn get_status(&self, event_id: &str) -> Result<UpdateStatus, rusqlite::Error> {
-        self.conn.query_row(
+    /// Lock for the current process on a given campaign
+    ///
+    pub fn lock(&mut self, pid: u32, event_id: &str) -> Result<Option<u32>, rusqlite::Error> {
+        let tx = self.conn.transaction()?;
+        let r = tx.query_row(
+            "select pid from update_events where event_id = ?1",
+            [&event_id],
+            |row| {
+                let v: Option<u32> = row.get(0)?;
+                Ok(v)
+            },
+        );
+        let current_pid = match r {
+            Ok(pid) => pid,
+            Err(rusqlite::Error::QueryReturnedNoRows) => None,
+            Err(e) => return Err(e),
+        };
+        if current_pid.is_none() {
+            tx.execute(
+                "update update_events set pid = ?1 where event_id = ?2",
+                (pid, &event_id),
+            )?;
+        }
+        tx.commit()?;
+        Ok(current_pid)
+    }
+
+    /// Unlock for the current process on a given campaign
+    ///
+    pub fn unlock(&mut self, event_id: &str) -> Result<(), rusqlite::Error> {
+        let null: Option<u32> = None;
+        self.conn
+            .execute(
+                "update update_events set pid = ?1 where event_id = ?2",
+                (null, &event_id),
+            )
+            .map(|_| ())
+    }
+
+    pub fn get_status(&self, event_id: &str) -> Result<Option<UpdateStatus>, rusqlite::Error> {
+        let r = self.conn.query_row(
             "select status from update_events where event_id = ?1",
             [&event_id],
             |row| {
@@ -114,7 +153,12 @@ impl PackageDatabase {
                 let p: UpdateStatus = v.parse().unwrap();
                 Ok(p)
             },
-        )
+        );
+        match r {
+            Ok(p) => Ok(Some(p)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     /// Schedule an event
@@ -124,28 +168,11 @@ impl PackageDatabase {
         event_id: &str,
         campaign_name: &str,
         schedule_datetime: DateTime<Utc>,
-    ) -> Result<bool, rusqlite::Error> {
-        let tx = self.conn.transaction()?;
-
-        let r = tx.query_row(
-            "select id from update_events where event_id = ?1",
-            [&event_id],
-            |_| Ok(()),
-        );
-        let already_scheduled = match r {
-            Ok(_) => true,
-            Err(rusqlite::Error::QueryReturnedNoRows) => false,
-            Err(e) => return Err(e),
-        };
-        if !already_scheduled {
-            tx.execute(
+    ) -> Result<(), rusqlite::Error> {
+        self.conn.execute(
                 "insert into update_events (event_id, campaign_name, status, schedule_datetime) values (?1, ?2, ?3, ?4)",
                 (&event_id, &campaign_name, UpdateStatus::ScheduledUpdate.to_string(), schedule_datetime.to_rfc3339()),
-            )?;
-        }
-
-        tx.commit()?;
-        Ok(already_scheduled)
+            ).map(|_| ())
     }
 
     /// Start an event
@@ -157,32 +184,17 @@ impl PackageDatabase {
         &mut self,
         event_id: &str,
         start_datetime: DateTime<Utc>,
-    ) -> Result<bool, rusqlite::Error> {
-        let tx = self.conn.transaction()?;
-
-        let r = tx.query_row(
-            "select id from update_events where event_id = ?1 and status = ?2",
-            (&event_id, UpdateStatus::ScheduledUpdate.to_string()),
-            |_| Ok(()),
-        );
-        let pending_update = match r {
-            Ok(_) => true,
-            Err(rusqlite::Error::QueryReturnedNoRows) => false,
-            Err(e) => return Err(e),
-        };
-        if pending_update {
-            tx.execute(
+    ) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute(
                 "update update_events set status = ?1, run_datetime = ?2 where event_id = ?3",
                 (
                     UpdateStatus::RunningUpdate.to_string(),
                     start_datetime.to_rfc3339(),
                     &event_id,
                 ),
-            )?;
-        }
-
-        tx.commit()?;
-        Ok(pending_update)
+            )
+            .map(|_| ())
     }
 
     /// Schedule post-event action. Can happen after a reboot in a separate run.
@@ -191,59 +203,29 @@ impl PackageDatabase {
         &mut self,
         event_id: &str,
         report: &Report,
-    ) -> Result<bool, rusqlite::Error> {
-        let tx = self.conn.transaction()?;
-
-        let r = tx.query_row(
-            "select event_id from update_events where event_id = ?1 and status = ?2",
-            (&event_id, UpdateStatus::RunningUpdate.to_string()),
-            |_| Ok(()),
-        );
-        let pending_post_actions = match r {
-            Ok(_) => true,
-            Err(rusqlite::Error::QueryReturnedNoRows) => false,
-            Err(e) => return Err(e),
-        };
-        if pending_post_actions {
-            tx.execute(
+    ) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute(
                 "update update_events set status = ?1, report = ?2 where event_id = ?3",
                 (
                     UpdateStatus::PendingPostActions.to_string(),
                     serde_json::to_string(report).unwrap(),
                     &event_id,
                 ),
-            )?;
-        }
-
-        tx.commit()?;
-        Ok(pending_post_actions)
+            )
+            .map(|_| ())
     }
 
     /// Start post-event action. Can happen after a reboot in a separate run.
     ///
     /// The update also acts as the locking mechanism
-    pub fn post_event(&mut self, event_id: &str) -> Result<bool, rusqlite::Error> {
-        let tx = self.conn.transaction()?;
-
-        let r = tx.query_row(
-            "select event_id from update_events where event_id = ?1 and status = ?2",
-            (&event_id, UpdateStatus::PendingPostActions.to_string()),
-            |_| Ok(()),
-        );
-        let pending_post_actions = match r {
-            Ok(_) => true,
-            Err(rusqlite::Error::QueryReturnedNoRows) => false,
-            Err(e) => return Err(e),
-        };
-        if pending_post_actions {
-            tx.execute(
+    pub fn post_event(&mut self, event_id: &str) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute(
                 "update update_events set status = ?1 where event_id = ?2",
                 (UpdateStatus::RunningPostActions.to_string(), &event_id),
-            )?;
-        }
-
-        tx.commit()?;
-        Ok(pending_post_actions)
+            )
+            .map(|_| ())
     }
 
     /// Assumes the report exists, fails otherwise
@@ -345,14 +327,42 @@ mod tests {
     }
 
     #[test]
-    fn start_event_inserts_and_returns_false_for_new_events() {
+    fn locks_locks() {
         let mut db = PackageDatabase::new(None).unwrap();
         let event_id = "TEST";
         let campaign_id = "CAMPAIGN";
         let now = Utc::now();
-        // If the event was not present before, this should be false.
-        assert!(!db.schedule_event(event_id, campaign_id, now).unwrap());
-        assert!(db.schedule_event(event_id, campaign_id, now).unwrap());
+
+        db.schedule_event(event_id, campaign_id, now).unwrap();
+        assert_eq!(db.lock(0, event_id).unwrap(), None);
+        assert_eq!(db.lock(0, event_id).unwrap(), Some(0));
+    }
+
+    #[test]
+    fn unlock_unlocks() {
+        let mut db = PackageDatabase::new(None).unwrap();
+        let event_id = "TEST";
+        let campaign_id = "CAMPAIGN";
+        let now = Utc::now();
+
+        db.schedule_event(event_id, campaign_id, now).unwrap();
+        assert_eq!(db.lock(0, event_id).unwrap(), None);
+        db.unlock(event_id).unwrap();
+        assert_eq!(db.lock(0, event_id).unwrap(), None);
+    }
+
+    #[test]
+    fn start_event_inserts_and_sets_running_update() {
+        let mut db = PackageDatabase::new(None).unwrap();
+        let event_id = "TEST";
+        let campaign_id = "CAMPAIGN";
+        let now = Utc::now();
+        db.schedule_event(event_id, campaign_id, now).unwrap();
+        db.start_event(event_id, now).unwrap();
+        assert_eq!(
+            db.get_status(event_id).unwrap().unwrap(),
+            UpdateStatus::RunningUpdate
+        )
     }
 
     #[test]
