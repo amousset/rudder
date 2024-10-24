@@ -13,6 +13,12 @@ pub trait System {
 /// We have systemd everywhere.
 pub struct Systemd {}
 
+impl Default for Systemd {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Systemd {
     pub fn new() -> Self {
         Self {}

@@ -188,7 +188,7 @@ impl PackageManager {
         let os_release = read_to_string("/etc/os-release")?;
         for l in os_release.lines() {
             if l.starts_with("ID=") {
-                let id = l.split('=').skip(1).next().unwrap();
+                let id = l.split('=').nth(1).unwrap();
                 return Ok(match id {
                     "debian" | "ubuntu" => Self::Apt,
                     "fedora" | "centos" | "rhel" | "rocky" | "ol" | "almalinux" | "amzn" => {

@@ -28,11 +28,11 @@ impl YumPackageManager {
         let mut res = p.name.clone();
         if let Some(ref v) = p.version {
             res.push('-');
-            res.push_str(&v);
+            res.push_str(v);
         }
         if let Some(ref a) = p.architecture {
             res.push('.');
-            res.push_str(&a);
+            res.push_str(a);
         }
         res
     }

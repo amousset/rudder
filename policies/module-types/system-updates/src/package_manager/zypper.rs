@@ -28,11 +28,11 @@ impl ZypperPackageManager {
 
         if let Some(ref a) = p.architecture {
             res.push('.');
-            res.push_str(&a);
+            res.push_str(a);
         }
         if let Some(ref v) = p.version {
             res.push('=');
-            res.push_str(&v);
+            res.push_str(v);
         }
         res
     }
@@ -70,7 +70,7 @@ impl LinuxPackageManager for ZypperPackageManager {
     fn upgrade(&mut self, packages: &[PackageSpec]) -> ResultOutput<()> {
         let mut c = Command::new("zypper");
         c.arg("--non-interactive").arg("--name").arg("update");
-        c.args(packages.into_iter().map(Self::package_spec_as_argument));
+        c.args(packages.iter().map(Self::package_spec_as_argument));
         let res_update = ResultOutput::command(c);
         res_update.clear_ok()
     }

@@ -130,6 +130,12 @@ pub struct Report {
     pub errors: Option<String>,
 }
 
+impl Default for Report {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Report {
     pub fn new() -> Self {
         Self {
