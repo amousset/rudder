@@ -388,4 +388,14 @@ NEEDRESTART-SESS: amousset @ user manager service";
             expected2
         );
     }
+
+    #[test]
+    #[ignore]
+    fn apt_run_update() {
+        let mut apt = AptPackageManager::new().unwrap();
+        let out = apt.update_cache();
+        let r = out.inner;
+        let stdout = out.stdout;
+        let stderr = out.stderr;
+    }
 }
