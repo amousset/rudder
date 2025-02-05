@@ -9,82 +9,96 @@ abstract: Configuration management primitives appear like a solved topic now, an
 
 # Introduction
 
-Since a few years, Rudder has taken an important shift towards security
-posture management. This includes, more specifically, audit features around
-security benchmarks and norms, still based on the configuration
-management core.
+Rudder has the mission : ...
 
-While implementing these features, we reached several limits. The first one is
-related to the audit capabilities. Even if Rudder has officially integrated audit features for almost ten years, it is
-limited by nature, and shows it shortcomings
-in security benchmark audit.
-Additionally, we also lack capabilities for richer reporting to the user
-in these contexts, where the data collected from the policies is not
-a byproduct useful for debugging, but the main output.
+Rudder is, at its core, a configuration management tool. Users model a desired state for their infrastructure, and Rudder applies it at scale.
 
-All this calls for new approaches and features on agent level.
-However, the story for core resource extension in Rudder is not great, especially on Linux.
-We will hence need new extension mechanisms to achieve our goals.
+Since a few years, Rudder has taken an important shift towards security posture management. This includes, more specifically, audit features around
+security benchmarks and norms, still based on our configuration management core.
 
-The capabilities we need are not currently directly available in any existing tool, so we will
-need to develop it ourselves.
-This will also help us improve existing cases, and replace some existing extensions.
+While implementing these features, we reached several limits. The main one is related to the audit capabilities. Even if Rudder has officially integrated audit features for almost ten years, they are very limited by nature, and show their shortcomings in security benchmark audit.
+
+Essentially, a configuration management tool works in one-way, from the modeled desired state to the reality. The interaction with the user is limited to writing the model, as the only question a configuration management tool can answer is "is the desired state applied?". The answer can be no, in which case we basically know nothing, or yes, but without a time perspective, and only an immediate view.
+This is generally enough for automation.
+
+Once we take a step back, we can see this interaction is really poor, and may very well be one of the limitation driving users away from configuration management. Audit use cases show how limited we are. We want to ask more diverse questions, and to get more insightful answers.
+
+It gives you fantastic visibility into your \*intended\* state, but basically zero into reality.
+
+The model is the audit case is also very different. It is usually fuzzy, accepting several possible cases, sometimes an infinity. The difference between "correct" and "incorrect" is also fuzzier. We often need to evaluate risk more than assessing correctness.
+
+We hence need to be able to ask very diverse questions about the actual state of the infrastructure. In order to achieve this, we need to be able to have a model of the actual real state of the infrastructure, in addition to its potential desired state.
+And to populate this model, we need a way to get information from the system. The arrow between the reality and our tool become bidirectionnal.
+
+Our model of the infrastructure becomes layered, with parts of it made of a well defined desired state, and parts made of more or less precise constraints over the state.
+
+The usage experience becomes an alternance of querying, assessment and enforcement, with fine-grained ability to enforce parts of the model based on detailed assessment results.
+
+Technically, we need new things: proper reporting abilities to reports detailed information about the state of the system, where the data collected from the policies is not a byproduct useful for debugging, but the main output.
+
+We need to:
+
+* Query
+* Assess
+* Enforce
+
+The key is to enrich the experience of infrastructure management, and how the tools allows to interact with the production infrastructure
+
+All this calls for new approaches and features on agent level. However, the current story for core resource extension in Rudder is not great, especially on Linux. We will hence also need new extension mechanisms first, to achieve our goals. Aditionnaly, the capabilities we need are not currently directly available in any existing tool, so we will need to develop it ourselves.
 
 To sum things up, we need:
 
-* A new extensibility mechanism for our Linux agent that must also allow
-  Windows support in the future, to make our agent converge more.
+* A new extensibility mechanism for our Linux agent that must also allow Windows support in the future, to make our agent converge more.
 * Extensions to what the agent can do, to support new needs like pure-audit cases in the short term.
-* Extensions in how the agent works, to allow for improved reporting and observability
-  eventually.
+* Extensions in how the agent works, to allow for improved reporting, and observability eventually.
 
-All these aims at making our primitives capable of providing best-in-class security posture
-management features in Rudder, or in other words, taking the _SecOps_ approach
-up to the core resources, and not just as a marketing feature.
+All these aims at making our primitives capable of providing best-in-class security posture management features in Rudder, or in other words, taking the _SecOps_ approach down to the core resources, and not just as a superficial buzzword feature.
 
-We will start by discussing the state of the art, and the choices that need to be made
-when implementing such resources.
-We'll cover mainstream implementations (CFEngine, Puppet, Ansible, etc.), more recent ones
-(DSCv3, mgmt) and other related tools (OpenSCAP, InSpec, etc.).
+We will start by discussing the state of the art, and the choices that need to be made when implementing such resources. We'll cover mainstream implementations (CFEngine, Puppet, Ansible, etc.), more recent ones (DSCv3, mgmt) and other related tools (OpenSCAP, InSpec, etc.).
 
-We'll then cover the design of the **Rudder modules**, and the choices we made for them.
-We'll finish by illustrating it with implementation details of the first two
-module types, namely system-updates and augeas.
+We'll then cover the design of the **Rudder modules**, and the choices we made for them. We'll finish by illustrating it with implementation details of the first two module types, namely system-updates and augeas.
 
 # Problem space
 
 ## Configuration management
 
-The configuration management story starts in the 90s with CFEngine, by Mark Burgess.
+The configuration management story starts in the 90s with CFEngine, by Mark Burgess. The founding principles, first explained as computer immunology @burgessComputerImmunology1998 and then promise theory, are still in use today, and have expanded towards connex domains (like Kubernetes). There was a second wave in the 2000s with the DevOps movement, and the rise of Puppet and Chef, which brought a more developer-oriented approach.
 
-The founding principles, first explained as computer immunology @burgessComputerImmunology1998
-and then promise theory, are still in use today, and have expanded
-towards connex domains (like Kubernetes).
-There was a second wave in the 2000s with the DevOps movement, and the
-rise of Puppet and Chef, which brought a more developer-oriented approach.
+The core operaring of these tools is to define a desired state, either through code or a kind of declarative DSL, and then apply it onto reality. The goal is often automation for scalability and reliabitlity.
+The output of the tools os used mainly for troubleshooting problems.
 
-There are several approaches, from low level automation
-to providing abstraction over complex pieces of software through
-the configuration management language (e.g. the Puppet module for OpenStack).
+There are several approaches, from low level automation to providing abstraction over complex pieces of software through the configuration management language (e.g. the Puppet module for OpenStack).
+
+In Rudder, we tend to consider this level of abstraction is not really worth it
 
 L'idéal de la gestion de conf qui map tout (fichier de conf, etc)
 Réalité : la partie commune est assez fine La partie complexe n'est pas
 généralisable et demande de la connaissance Le problème n'est pas le
 format du fichier de conf.
 
-explique l'échec ? tentative d'abstraction douteuse ?
+letazt attendu ne va pas devenir la realité parce qu'on taope plus fort dessus
 
-global state
+Plus we are missing temporal insight.
 
-## Audit
+
+## Audit & compliance
+
+On veut:
+
+* voir ce qui ne va pas
+* décider de comment le corriger (ou pas)
+
+audit tools which are not glorified dry-run are often derived from test tools (goss, serverspec, etc.)
+
+This is not good enough.
 
 generally made by different teams
 sold to different people
 
+A real important different is that we must take reality into account, and can't just live in the world of the desired state.
+
 BUT secops is a thing now
 linking the two requires deep integration
-
-adam jacob en parle, mais pas dans le contexte secu
 
 la separation a une pertinentce (independance de l'audit), gens different et outils differents
 
@@ -96,14 +110,14 @@ etape d'apres : utiliser ces infos ds la webapp
 
 pas dans le dev?
 
-dr-run is shallow, and audit & enforce policies need to be different except for some specific cases.
+dry-run is shallow, and audit & enforce policies need to be different except for some specific cases.
 
-si est une lens pour le cloud
+An enforce policy in dry-run makes a very poor audit. The policies always need to be different.
+
+But we think making them shared and centralized in the same tool is good, as it opens but seamless integration.
 
 Tools and frameworks for compliance automation such as OpenSCAP, Chef InSpec, and CIS-CAT.
 
-mixing audit and enforce is tricky
-why?
 
 Nobody has _really_ tried to make an audit & enforce tool.
 Msotly for business reasons.
@@ -114,9 +128,6 @@ Separation of duty, different teams
 a certain value to this separation (if something is not crrectly seen in enforce, aidit will miss it!)
 
 the declarative model doesn't give you any real visibility to the \*true\* state of the resource.
-It gives you fantastic visibility into your \*intended\* state, but basically zero into reality.
-
-cfgmgmt is a one way street. le réel ne marche pas comme ça.
 
 And to make it worse, even if it showed you reality, you have no ability to influence the behavior anyway - because
 that's the job of the reconciliation loop! You get what you get, and you don't throw a fit, in space and in time.
@@ -126,12 +137,17 @@ Rather than saying "this is the state this should be in, do whatever you must to
 state things are in. here is what the changes you want to make would produce if you made them", and let you decide to
 execute on that intent.
 
-On veut:
 
-* voir ce qui ne va pas
-* décider de comment le corriger (ou pas)
+
+The definition of the target is fuzzy.
 
 ## Immutable infrastructure
+
+
+is a model but does not replace reality
+
+Does not fix the lack of insight
+infra is still hard to ask question about
 
 Cloud does not mean immutable.
 
@@ -196,9 +212,13 @@ notamment capacités de modélisation. des choses à apprendre.
 
 ## Patch management
 
+Patch management is very different from configuration management, and mostly opposite. It is pure side-effect management, with complex scheduling requirements.
+
+But a configuration tool with improved historization and event management can handle it.
+
 ## Vulnerability management
 
-A complete
+A very different field. We mainly cover it as a way to drive and prioritize patch management, not look for any exhaustivity of the vulnerability tracking.
 
 # Prior art & solution space
 
@@ -210,10 +230,10 @@ The tools we will mention here besides Rudder are:
 - [Chef Automate](https://community.chef.io/): Puppet's competitor, with a more developer-oriented approach.
 - [Chef InSpec](https://community.chef.io/tools/chef-inspec): a compliance tool developed by Chef.
 - [OpenSCAP](https://www.open-scap.org/): a compliance tool developed by Red Hat.
+- [Goss](https://github.com/goss-org/goss): An audit CLI.
 - [Ansible](https://www.redhat.com/en/ansible-collaborative): The current leader in the field, with a simpler approach.
 - [SaltStack](https://www.saltstack.com/): A more event-driven approach.
-- [DSCv3](https://learn.microsoft.com/en-us/powershell/dsc/overview?view=dsc-3.0): The new version of Desired State
-  Configuration in Windows.
+- [DSCv3](https://learn.microsoft.com/en-us/powershell/dsc/overview?view=dsc-3.0): The new version of Desired State Configuration in Windows.
 
     - Multiplatform (Windows, macOS, Linux)
 
@@ -344,6 +364,14 @@ imperative with a central server connecting to the nodes to run the agent (like 
 The centralized kind usually has trouble with scaling, and the autonomous kind
 may make it harder to reason about the system in its entirety.
 
+expected / unexepcted repaired : il n'y a que l'agent qui sache
+
+high s/n
+
+time and real/model build in in the most local state
+then compose
+
+
 ## Types or strings everywhere / Static vs. dynamic
 
 shifting problems left
@@ -353,6 +381,10 @@ possible errors early ("0x755" vs "755" vs decimal "755" vs o755 vs
 "o755")
 
 ## Event-based vs. sequence-based
+
+mgmt est une réponse : mais pas bonne :
+rendre la fleche decrasemen,t plus forte
+letazt attendu ne va pas devenir la realité parce qu'on taope plus fort dessus
 
 Historically, configuration management tools have been sequence-based.
 They run through a list (or a graph) of resources, and apply them
@@ -440,6 +472,8 @@ interleaved with resources
 reactive vs imperative
 
 graph vs sequence
+
+Global graph on not global graph ??
 
 ## Extensibility / Resource API
 
@@ -1036,6 +1070,8 @@ We also considered lmdb.
 Or maybe something Rust-native.
 
 ## Runtime model
+
+Behind behind CFEngine forces us to "think" local and make the module qui autonomous. This is good in terms of promise hteory and general reliability. Avoid massive amount of data.
 
 We don't close the door for event-based approaches.
 
@@ -1756,6 +1792,10 @@ Variables, etc.
 New context.
 
 New syntax ??
+
+### Change control
+
+We can quite easily identify types of changes and non-compliances by adding a state to the modules. They can retain the previously expected state, and detect wether divergence is new or appeared, i.e. difference between intricic and extrinsic changes.
 
 ### Reporting v2
 
