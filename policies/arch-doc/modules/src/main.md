@@ -5,7 +5,7 @@ bibliography:
   - modules.bib
 url: https://github.com/Normation/rudder/tree/master/policies/arch-doc/modules
 abstract: Configuration management primitives appear like a solved topic now, and current major solutions have converged to pretty similar choices 10+ years ago. However, new needs are becoming more prominent, like observability, auditing and self-auditing abilities, in a context of growing attention for security topics. Could we benefit from reconsidering some of these design choices now to better address them? We will navigate through the solution space of configuration management low-level implementations (resource/promise/etc.), and explore what we can modify to provide new promising features. It will also cover implementation and programming language choices, from C to Python, Ruby, and Rust, and how these choices participate in shaping our tools strengths and weaknesses. It will feature some examples from ongoing work in Rudder, as well as other projects (mgmt, Jet, etc.)
-...
+---
 
 # Introduction
 
@@ -38,9 +38,9 @@ Technically, we need new things: proper reporting abilities to reports detailed 
 
 We need to:
 
-* Query
-* Assess
-* Enforce
+- Query
+- Assess
+- Enforce
 
 The key is to enrich the experience of infrastructure management, and how the tools allows to interact with the production infrastructure
 
@@ -48,9 +48,9 @@ All this calls for new approaches and features on agent level. However, the curr
 
 To sum things up, we need:
 
-* A new extensibility mechanism for our Linux agent that must also allow Windows support in the future, to make our agent converge more.
-* Extensions to what the agent can do, to support new needs like pure-audit cases in the short term.
-* Extensions in how the agent works, to allow for improved reporting, and observability eventually.
+- A new extensibility mechanism for our Linux agent that must also allow Windows support in the future, to make our agent converge more.
+- Extensions to what the agent can do, to support new needs like pure-audit cases in the short term.
+- Extensions in how the agent works, to allow for improved reporting, and observability eventually.
 
 All these aims at making our primitives capable of providing best-in-class security posture management features in Rudder, or in other words, taking the _SecOps_ approach down to the core resources, and not just as a superficial buzzword feature.
 
@@ -80,13 +80,12 @@ letazt attendu ne va pas devenir la realité parce qu'on taope plus fort dessus
 
 Plus we are missing temporal insight.
 
-
 ## Audit & compliance
 
 On veut:
 
-* voir ce qui ne va pas
-* décider de comment le corriger (ou pas)
+- voir ce qui ne va pas
+- décider de comment le corriger (ou pas)
 
 audit tools which are not glorified dry-run are often derived from test tools (goss, serverspec, etc.)
 
@@ -118,7 +117,6 @@ But we think making them shared and centralized in the same tool is good, as it 
 
 Tools and frameworks for compliance automation such as OpenSCAP, Chef InSpec, and CIS-CAT.
 
-
 Nobody has _really_ tried to make an audit & enforce tool.
 Msotly for business reasons.
 We are trying to achieve it now.
@@ -137,12 +135,9 @@ Rather than saying "this is the state this should be in, do whatever you must to
 state things are in. here is what the changes you want to make would produce if you made them", and let you decide to
 execute on that intent.
 
-
-
 The definition of the target is fuzzy.
 
 ## Immutable infrastructure
-
 
 is a model but does not replace reality
 
@@ -169,9 +164,9 @@ immutable : doit être audité, la surface d'attaque n'est pas nécéssairement 
 
 - Immutable infrastructure
 
-    - Dockerfiles are shell scripts
+  - Dockerfiles are shell scripts
 
-    - Trading flexibility and power for simplicity
+  - Trading flexibility and power for simplicity
 
 So there was a moment in Chef’s life where - you know, Docker had happened, and Docker was so disruptive to us and to
 everyone in that space… And there was a minute where they were just – you couldn’t have a conversation that wasn’t just
@@ -180,9 +175,9 @@ guys are dead, right?” It was awful.
 
 - The infrastructures are not immutables
 
-    - A way to model changes
+  - A way to model changes
 
-    - Move the mutation to a higher abstraction layer
+  - Move the mutation to a higher abstraction layer
 
 - Mutability is light and fast
 
@@ -190,11 +185,11 @@ guys are dead, right?” It was awful.
 
 - Parallel with programming language?
 
-    - Mutability is a major source of bugs
+  - Mutability is a major source of bugs
 
-    - Immutability is a way to prevent them
+  - Immutability is a way to prevent them
 
-    - Most programs are written with mutability eveywhere
+  - Most programs are written with mutability eveywhere
 
 - E.g. Rust aims at managing mutability better instead of preventing
   it
@@ -235,17 +230,17 @@ The tools we will mention here besides Rudder are:
 - [SaltStack](https://www.saltstack.com/): A more event-driven approach.
 - [DSCv3](https://learn.microsoft.com/en-us/powershell/dsc/overview?view=dsc-3.0): The new version of Desired State Configuration in Windows.
 
-    - Multiplatform (Windows, macOS, Linux)
+  - Multiplatform (Windows, macOS, Linux)
 
-    - Open-source
+  - Open-source
 
-    - No dependency on PowerShell
+  - No dependency on PowerShell
 
-    - Resources can be written in any language
+  - Resources can be written in any language
 
-    - JSON instead of MOF
+  - JSON instead of MOF
 
-    - YAML policies
+  - YAML policies
 
 - [mgmt](https://mgmtconfig.com): A new configuration management tool, event-based.
 - [Jet](https://web.archive.org/web/20240314161735/https://jetporch.org/): A quickly stopped project.
@@ -258,21 +253,21 @@ Two approaches:
 
 - Inventory tools
 
-    - Facter, Ansible facts, etc.
-    - Inventory a la rudder
+  - Facter, Ansible facts, etc.
+  - Inventory a la rudder
 
 ## Agent/Agentless
 
 The most visible difference.
 
-- What is *actually* the difference?
+- What is _actually_ the difference?
 
 - There is always a kind of agent when the software runs
 
-    - It can be copied over SSH and removed afterwards
+  - It can be copied over SSH and removed afterwards
 - At low level, no difference
-    - Mainly the presence of a long running process on the system
-    - Push/pull
+  - Mainly the presence of a long running process on the system
+  - Push/pull
 
 this may be how certain agent-based software implemented agentless...
 but i won't give any names.
@@ -295,27 +290,27 @@ Chef was the first of those, really, that wasn’t just writing scripts, you kno
 
 - Properties given by the tech stack
 
-    - Fast, Portable, Beginner-friendly, etc.
+  - Fast, Portable, Beginner-friendly, etc.
 
 - Values carried with the tech stack
 
-    - Attracts different people
+  - Attracts different people
 
-    - Participates to shape the community
+  - Participates to shape the community
 
 @cantrillPlatformReflectionValues2017
 
 - Write the resources in language used for the policies
 
-    - Better for "dev-oriented" users
+  - Better for "dev-oriented" users
 
-    - Flexibility
+  - Flexibility
 
 - Use data format or a DSL, and a different language for resources
 
-    - Hides the complexity
+  - Hides the complexity
 
-    - Can limit user ability to hack the system
+  - Can limit user ability to hack the system
 
 ### Language in infra software
 
@@ -333,8 +328,8 @@ Compiled languages are now making a comeback:
 
 - C++: Puppet's facter 3, rewritten from Ruby. It ended up being re-re-written in Ruby eventually, as the project of
   porting the agent to C++ was abandoned.
-    - Core in C++ and everything else in Ruby. Bad idea?
-    - We're considering doing the opposite, with Rust for leaves.
+  - Core in C++ and everything else in Ruby. Bad idea?
+  - We're considering doing the opposite, with Rust for leaves.
 - Go: mgmt
 - Rust: DSCv3, Jet
 
@@ -353,7 +348,7 @@ Python is maybe a part of the explanation of the success of Ansible.
 - System administrators are not developers
 - Some languages are oriented towards for software developers
 - Prevents extension by users
-- *Worse is better*?
+- _Worse is better_?
 
 ## Autonomous vs. imperative
 
@@ -370,7 +365,6 @@ high s/n
 
 time and real/model build in in the most local state
 then compose
-
 
 ## Types or strings everywhere / Static vs. dynamic
 
@@ -401,12 +395,12 @@ exposed through a dedicated functional programming language.
 This approach has several advantages:
 
 - It allows for a more fine-grained evaluation of the configuration
-    - Once running, `mgmt` will only re-evaluate the parts of the graph that are impacted by the event,
-      contrary to sequence-based tools that will re-evaluate everything.
+  - Once running, `mgmt` will only re-evaluate the parts of the graph that are impacted by the event,
+    contrary to sequence-based tools that will re-evaluate everything.
 - It allows for a more reactive approach to configuration management
-    - In case of configuration drift (i.e., when a change happens on the system), the agent will react to it
-      immediately, instead of waiting for the next run (which can be minutes or hours later).
-    - If the change breaks a system, it will be fixed immediately, allowing for better availability.
+  - In case of configuration drift (i.e., when a change happens on the system), the agent will react to it
+    immediately, instead of waiting for the next run (which can be minutes or hours later).
+  - If the change breaks a system, it will be fixed immediately, allowing for better availability.
 - A faster convergence. In other tools the full provisioning cycle can span accros several runs.
 - A by-product is that the graph is always up to date, and can be queried at any time to get the current state of the
   system.
@@ -425,22 +419,21 @@ approach at a larger scale.
 
 - Config Mgmgt = an engine passing parameters to resources providers
 
-
 - Handles data management
 
-    - Load properties
+  - Load properties
 
-    - String substitution
+  - String substitution
 
-    - Out of scope here
+  - Out of scope here
 
 - Calls the resources
 
 - Usually a big `checkApply`
 
-    - A stack structure usually
+  - A stack structure usually
 
-    - A graph sometimes?
+  - A graph sometimes?
 
 idenpotency
 
@@ -448,7 +441,7 @@ idenpotency
 - State is a global variable
 - This is what infra automation is all about
 
-``` python
+```python
 def checkApply():
     if is_ok(state):
         do_nothing()
@@ -456,16 +449,16 @@ def checkApply():
         fix(state)
 ```
 
-  ``` python
-  def checkApply(audit):
-       if is_ok(state):
-         do_nothing()
+```python
+def checkApply(audit):
+     if is_ok(state):
+       do_nothing()
+     else:
+       if audit:
+         error()
        else:
-         if audit:
-           error()
-         else:
-           fix(state)
-  ```
+         fix(state)
+```
 
 interleaved with resources
 
@@ -495,13 +488,13 @@ resource implementation we rely on:
 
 - CFEngine implementations in methods
 
-    - pass hell
+  - pass hell
 
-    - not thought for this (i.e. bundles retain data)
+  - not thought for this (i.e. bundles retain data)
 
 - External scripts
 
-    - Python for jinja2 with a CFEgine wrapper
+  - Python for jinja2 with a CFEgine wrapper
 
 These are far from ideal.
 
@@ -534,12 +527,11 @@ types. A promise is made of:
 Promises are then grouped in bundles, which can also call other bundles.
 The logic for conditional evaluation is based on classes.
 
-CFEngine 3.17 introduced the concept of [custom promise
-type](https://docs.cfengine.com/docs/3.19/reference-promise-types-custom.html),
+CFEngine 3.17 introduced the concept of [custom promise type](https://docs.cfengine.com/docs/3.19/reference-promise-types-custom.html),
 allowing to implement new resource types with a standard interface, and
 use it like a native one on the policies.
 
-``` cfengine
+```cfengine
 promise agent custom
 {
   path => "/usr/local/bin/custom_implementation";
@@ -555,12 +547,14 @@ bundle agent main {
 The protocol is JSON-based, and uses stdin/stdout to communicate with
 the process implementing the promise type.
 
-``` json
-{ "operation": "evaluate_promise",
+```json
+{
+  "operation": "evaluate_promise",
   "log_level": "info",
   "promise_type": "git",
   "promiser": "/opt/cfengine/masterfiles",
-  "attributes": {"repo": "https://github.com/cfengine/masterfiles"} }
+  "attributes": { "repo": "https://github.com/cfengine/masterfiles" }
+}
 ```
 
 The performance of these extended resources should be close to native as
@@ -573,7 +567,7 @@ sequential and no pipelining is possible.
 mgmt is the newest configuration management agent implementation and is
 the only event-based configuration management agent.
 
-``` mgmt
+```mgmt
 import "datetime"
 $is_friday = datetime.weekday(datetime.now()) == "friday"
 
@@ -683,8 +677,7 @@ This is based on a JSON protocol, with several options:
 
 - Passing a JSON file as module parameter
 
-    - an example of a [go
-      module](https://github.com/ansible/ansible/blob/devel/test/integration/targets/binary_modules/library/helloworld.go)
+  - an example of a [go module](https://github.com/ansible/ansible/blob/devel/test/integration/targets/binary_modules/library/helloworld.go)
 
 - Modifying the module content to replace
   `<<INCLUDE_ANSIBLE_MODULE_JSON_ARGS>>` by the JSON input
@@ -763,7 +756,7 @@ amount of emergent possible behavior for auditing and more.
 Each module referred in a task statement can respond to a dispatch
 request, which is a request to validate, query, create, modify, or
 delete the resource. Except the module itself does not get to decide
-what it is doing, as that logic is *outside* the module. The
+what it is doing, as that logic is _outside_ the module. The
 request/response paradigm is a bit like a webserver with different HTTP
 methods, but it's not really a webserver.
 
@@ -782,11 +775,11 @@ especially for files.
 
 - Are resources connected?
 
-    - If so, how?
+  - If so, how?
 
 - Can resource instances be grouped?
 
-    - Install several packages at once automatically
+  - Install several packages at once automatically
 
 - Can a resource trigger something?
 
@@ -825,13 +818,13 @@ Or is it juste enough data to allow the server to make sense out of what the age
 
 - Describe state and changes in a structured way
 
-    - Text-based in not enough
+  - Text-based in not enough
 
 - The hardest part in implementation
 
-    - Extract information
+  - Extract information
 
-    - Comprehensive error handling
+  - Comprehensive error handling
 
 - Supply-chain security
 
@@ -845,7 +838,7 @@ Below is an example of what is done by InSpec, a compliance tool
 developed as an RSpec/ServerSpec wrapper, to add context to controlled
 items.
 
-``` ruby
+```ruby
 control 'sshd-8' do
   impact 0.6
   title 'Server: Configure the service port'
@@ -864,11 +857,11 @@ end
 
 - To what extent to we generalize?
 
-    - Should resources be multi-platform?
+  - Should resources be multi-platform?
 
 - Should we cover all options?
 
-    - Or a subset and provides convenient escape hatches?
+  - Or a subset and provides convenient escape hatches?
 - A "package" resource or `dnf`, `apt`, etc.
 
 - A "container" resource or "docker"
@@ -908,9 +901,9 @@ situation is complex:
 
 - We need to allow completely separated states
 
-*PoC of a resource interface*
+_PoC of a resource interface_
 
-``` rust
+```rust
 struct Action;
 
 struct ServiceParameters {
@@ -927,7 +920,7 @@ struct FileParameters {
 }
 ```
 
-``` rust
+```rust
 // TODO: there are lenses!
 // which gives
 service("crond").started(true)
@@ -986,25 +979,25 @@ This lead to the choice of Rust for the resources. It matches most of our
 needs, and we also enjoy using it in other parts of Rudder.
 The usage of Rust in Rudder until now was limited to the server:
 
-* `relayd` (since 2019, Rudder 6.0): A network service to relay messages between the server and the agents.
-* `rudderc` (since 2023, Rudder 8.0): A transpiler for transforming the Rudder policy language to the agent language.
-* `rudder-package` (since 2024, Rudder 8.1): The package manager for Rudder plugins.
+- `relayd` (since 2019, Rudder 6.0): A network service to relay messages between the server and the agents.
+- `rudderc` (since 2023, Rudder 8.0): A transpiler for transforming the Rudder policy language to the agent language.
+- `rudder-package` (since 2024, Rudder 8.1): The package manager for Rudder plugins.
 
 The possible drawbacks are:
 
 - The learning curve for developers
-    - In particular, it makes external contributions harder (and given the profile of our users, mostly impossible)
+  - In particular, it makes external contributions harder (and given the profile of our users, mostly impossible)
 - The [limited portability](https://doc.rust-lang.org/nightly/rustc/platform-support.html)
-    - No support for AIX, Solaris, etc.
-    - No support for [older versions](https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements.html)
-      of operating systems we sometimes need to support. It basically follows the maintenance policy of the enterprise
-      distributions.
+  - No support for AIX, Solaris, etc.
+  - No support for [older versions](https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements.html)
+    of operating systems we sometimes need to support. It basically follows the maintenance policy of the enterprise
+    distributions.
 
 Rust is already used for successful infrastructure software:
 
-* AWS relies heavily on it (Firecracker, etc.)
-* Azure is using it for some of its services
-* etc.
+- AWS relies heavily on it (Firecracker, etc.)
+- Azure is using it for some of its services
+- etc.
 
 ## Policies & user interface
 
@@ -1114,7 +1107,7 @@ cf. burgess
 
 - Could we take a form of inspiration from this?
 
-    - But different incentives and economy
+  - But different incentives and economy
 
 some insight about the way we see it
 
@@ -1140,24 +1133,24 @@ faire de l'autdit de système
 
 le rêve de cf-monitord ??
 
-* température
-* User/Group
-* CPU
-* Processes (kill)
-* Memory
-* network
-* disks
-* Packages
+- température
+- User/Group
+- CPU
+- Processes (kill)
+- Memory
+- network
+- disks
+- Packages
 
 TODO : possibilité pour chaque module de
 
-* retourner des trucs pour l'inventaire ?
-* retourner des facts pour le contexte d'évaluation ?
+- retourner des trucs pour l'inventaire ?
+- retourner des facts pour le contexte d'évaluation ?
 
-- On veut pouvoir faire des expressions booléennes à partir de queries
+* On veut pouvoir faire des expressions booléennes à partir de queries
   sure ces data
 
-``` bash
+```bash
 (state == "installed") && (version >= 4.3.0)
 ```
 
@@ -1253,7 +1246,7 @@ api d'inventaire intégrée pour prober des trucs par défaut.
 
 structured output
 
-``` rust
+```rust
 pub trait ModuleType {
   fn metadata(&self) -> ModuleTypeMetadata;
   fn init(&mut self) -> ProtocolResult;
@@ -1274,12 +1267,12 @@ pub enum Outcome {
 
 As we use Rust we get access to:
 
-* Native Rust libraries
-    * For example [`sysinfo`](https://crates.io/crates/sysinfo) for multi-platform system information.
-    * The [`windows`](https://crates.io/crates/windows) crate, maintained by Microsoft, giving native access to Windows
-      APIs
-* C libraries (FFI)
-    * On Linux, they cover most of the system interface
+- Native Rust libraries
+  - For example [`sysinfo`](https://crates.io/crates/sysinfo) for multi-platform system information.
+  - The [`windows`](https://crates.io/crates/windows) crate, maintained by Microsoft, giving native access to Windows
+    APIs
+- C libraries (FFI)
+  - On Linux, they cover most of the system interface
 
 Which guarantees a good performance and a good integration with the rest of the system.
 
@@ -1456,8 +1449,7 @@ body location first_line
 }
 ```
 
-We provide a built-in technique (the dreaded [
-`checkGenericFileContent`](https://github.com/Normation/rudder-techniques/blob/c44f6ebedf760da17b2be0c26470f9fd7e6a5f7b/techniques/fileDistribution/checkGenericFileContent/8.0/checkGenericFileContent.st)),
+We provide a built-in technique (the dreaded [`checkGenericFileContent`](https://github.com/Normation/rudder-techniques/blob/c44f6ebedf760da17b2be0c26470f9fd7e6a5f7b/techniques/fileDistribution/checkGenericFileContent/8.0/checkGenericFileContent.st)),
 and various methods
 to perform file editions.
 
@@ -1519,9 +1511,9 @@ tout est du TEXTE.
 
 Our file management story would, eventually, be re-built on:
 
-* An Augeas module for file editions
-* A templating module for whole file content management, supporting Mustache, MiniJinja and Jinja2.
-* An `rsync` based solution for file copies
+- An Augeas module for file editions
+- A templating module for whole file content management, supporting Mustache, MiniJinja and Jinja2.
+- An `rsync` based solution for file copies
 
 ### How Augeas works
 
@@ -1575,11 +1567,11 @@ Below are some metrics for the different ways to run Augeas, based on `augtool` 
 the simple task of getting the Augeas version. They show the cost of loading
 the tree and lenses.
 
-* `-L`, `--noload` is for skipping loading the tree.
-* `-A`, `--noautoload` is for skipping autoloading lenses (and hence the tree).
+- `-L`, `--noload` is for skipping loading the tree.
+- `-A`, `--noautoload` is for skipping autoloading lenses (and hence the tree).
 
 | Command       |  Mean \[ms\] | Min \[ms\] | Max \[ms\] |       Relative |
-|:--------------|-------------:|-----------:|-----------:|---------------:|
+| :------------ | -----------: | ---------: | ---------: | -------------: |
 | `augtool -LA` |    2.6 ± 0.5 |        1.6 |        4.6 |           1.00 |
 | `augtool -L`  |  209.5 ± 5.2 |      200.2 |      221.5 |  80.72 ± 15.16 |
 | `augtool`     | 663.0 ± 37.2 |      632.0 |      755.7 | 255.46 ± 49.69 |
@@ -1644,8 +1636,8 @@ TODO fuzzing
 
 Auditer avec des templates ça ne marche pas.
 
-* configurer mon postfix
-* auditer ma conf ssh
+- configurer mon postfix
+- auditer ma conf ssh
 
 augeas vs jinja
 
@@ -1690,10 +1682,10 @@ and to provide dedicated features.
 
 There are three main ways to check for a passwords strength:
 
-* Require minimal number of characters, total and in different classes (lowercase, uppercase, digits, special
+- Require minimal number of characters, total and in different classes (lowercase, uppercase, digits, special
   characters)
-* Use a dictionary of known weak passwords
-* Estimate the password strength by estimating its entropy level
+- Use a dictionary of known weak passwords
+- Estimate the password strength by estimating its entropy level
 
 We chose to expose the first way through a dedicated interface, especially as a
 lot of regulatory guidelines still rely on it.
@@ -1852,10 +1844,10 @@ would probably:
   information needed for local debug, and continue to use a report id
   to match the source policy.
 
-    - In this case we would like a more precise flow of events, but
-      provided by the server (with contextualized reporting and
-      advanced filtering). (we should also investigate what is done by
-      similar tool in depths)
+  - In this case we would like a more precise flow of events, but
+    provided by the server (with contextualized reporting and
+    advanced filtering). (we should also investigate what is done by
+    similar tool in depths)
 
 - Regarding expected reports, we probably want to lossen a bit the
   requirements, and add the ability to insert arbitrary reports
@@ -1868,21 +1860,21 @@ different reporting formats in the same version.
 
 - NixOS/NixOps, Guix
 
-    - Controlled mutability
+  - Controlled mutability
 
 - Microkernel
 
-    - Separate admin plane @buerConfigurationConfigurationManagement2019
+  - Separate admin plane @buerConfigurationConfigurationManagement2019
 
 - Specialized systems
 
-    - e.g.: Talos Linux
+  - e.g.: Talos Linux
 
-        - No SSH
+    - No SSH
 
-        - Only an HTTP API
+    - Only an HTTP API
 
-        - Specialized use case
+    - Specialized use case
 
 # Conclusion
 
