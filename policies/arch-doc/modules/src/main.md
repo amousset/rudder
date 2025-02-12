@@ -44,7 +44,7 @@ We need to:
 
 The key is to enrich the experience of infrastructure management, and how the tools allows to interact with the production infrastructure
 
-All this calls for new approaches and features on agent level. However, the current story for core resource extension in Rudder is not great, especially on Linux. We will hence also need new extension mechanisms first, to achieve our goals. Aditionnaly, the capabilities we need are not currently directly available in any existing tool, so we will need to develop it ourselves.
+All this calls for new appraches and features on agent level. However, the current story for core resource extension in Rudder is not great, especially on Linux. We will hence also need new extension mechanisms first, to achieve our goals. Additionnaly, the capabilities we need are not currently directly available in any existing tool, so we will need to develop it ourselves.
 
 To sum things up, we need:
 
@@ -174,23 +174,14 @@ Docker, Docker, Docker, Docker, Docker, Docker, Docker. And with our own investo
 guys are dead, right?” It was awful.
 
 - The infrastructures are not immutables
-
   - A way to model changes
-
   - Move the mutation to a higher abstraction layer
-
 - Mutability is light and fast
-
 - Immutable means frozen, not understood and observable
-
 - Parallel with programming language?
-
   - Mutability is a major source of bugs
-
   - Immutability is a way to prevent them
-
   - Most programs are written with mutability eveywhere
-
 - E.g. Rust aims at managing mutability better instead of preventing
   it
 
@@ -198,9 +189,8 @@ guys are dead, right?” It was awful.
 
 Cloud
 
-audit d'api http : un domaine à part
-(pulumi, terraform).
-maintenance d'état over HTTP
+audit d'api http : un domaine à part (pulumi, terraform).
+maintenance d'état over HTTP.
 
 => pas notre domaine, sisteminitiative très intéressant sur ces sujets.
 notamment capacités de modélisation. des choses à apprendre.
@@ -418,21 +408,13 @@ approach at a larger scale.
 ## Engine
 
 - Config Mgmgt = an engine passing parameters to resources providers
-
 - Handles data management
-
   - Load properties
-
   - String substitution
-
   - Out of scope here
-
 - Calls the resources
-
 - Usually a big `checkApply`
-
   - A stack structure usually
-
   - A graph sometimes?
 
 idenpotency
@@ -461,11 +443,8 @@ def checkApply(audit):
 ```
 
 interleaved with resources
-
 reactive vs imperative
-
 graph vs sequence
-
 Global graph on not global graph ??
 
 ## Extensibility / Resource API
@@ -473,9 +452,7 @@ Global graph on not global graph ??
 Puppet has resource type vs. provider.
 
 - Hardcoded resources may be hard to add
-
 - Extension APIs
-
 - Sometimes a "language" version (library) and a "data" version (YAML,
   etc.)
 
@@ -892,7 +869,6 @@ and tests.
 
 Warning: we need to able to extend an existing resource, for example to
 add a state,
-
 without recompiling everything, and even locally on a node. So the
 situation is complex:
 
@@ -1098,15 +1074,10 @@ cf. burgess
 ### The Language Server Protocol example
 
 - A standard for implementing IDE features for a language
-
 - From VS Code
-
 - JSON communication with a binary
-
 - Allows plugging to alot of editors with a single implementation
-
 - Could we take a form of inspiration from this?
-
   - But different incentives and economy
 
 some insight about the way we see it
@@ -1209,7 +1180,7 @@ significantly improve the performance of the agent.
 des state machines autant que possible
 pour gérer les états complexes.
 
-lans : le checkApply travaille sur la structure "lensée" au lieu du système.
+lens : le checkApply travaille sur la structure "lensée" au lieu du système.
 
 un modèle qui permet de faire ches choses strcuturées !!
 et pas juste du check apply sauvage
@@ -1878,7 +1849,7 @@ different reporting formats in the same version.
 
 # Conclusion
 
-We are late to the party, but we are trying to do it rightn, and the world is changing.
+We are late to the party, but we are trying to do it right, and the world is changing.
 
 We want to lay the foundation for the next 10 years of Rudder.
 
