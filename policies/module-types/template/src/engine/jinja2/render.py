@@ -74,7 +74,7 @@ def render(args):
     env.undefined = StrictUndefined
 
     # Register custom filters
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "extensions"))
+    sys.path.append(os.path.join(os.path.dirname(__file__), "../../../..", "extensions"))
     # importlib was introduced in 3.4 and pkgutil deprecated in 3.12 in favor of it
     try:
         import importlib.util
