@@ -128,7 +128,6 @@ object RudderPasswordEncoder {
 
   private val secureRandom = new SecureRandom()
 
-  // Proper password hash functions
   class bcryptEncoder(cost: Int)                          extends PasswordEncoder {
     override def encode(rawPassword: CharSequence):                           String  = {
       val salt: Array[Byte] = new Array(16)
@@ -157,10 +156,10 @@ object RudderPasswordEncoder {
         encoderParams,
         salt = Chunk.fromArray(salt)
       )
-      Argon2Hash.generate(hashParams, rawPassword.toString.getBytes)
+      Argon2Hash.generate(hashParams, rawPassword)
     }
     override def matches(rawPassword: CharSequence, encodedPassword: String): Boolean = {
-      Argon2Hash.checkPassword(rawPassword.toString.getBytes, encodedPassword) match {
+      Argon2Hash.checkPassword(rawPassword, encodedPassword) match {
         case Left(e)                  =>
           ApplicationLoggerPure.Auth.logEffect.warn(s"Error while checking Argon2 hash: $e")
           false
